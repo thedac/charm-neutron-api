@@ -1,0 +1,19 @@
+name: neutron-api
+maintainer: Liam Young <liam@canonical.com>
+summary: "Openstack neutron api service."
+description: |
+  Openstack neutron api service.
+categories:
+  - openstack
+provides:
+  neutron-api:
+    interface: neutron-api
+requires:
+  shared-db:
+    interface: mysql-shared
+  pgsql-neutron-db:
+    interface: pgsql
+  amqp:
+    interface: rabbitmq
+  identity-service:
+    interface: keystone

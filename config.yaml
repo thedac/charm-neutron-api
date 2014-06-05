@@ -1,0 +1,62 @@
+options:
+  openstack-origin:
+    default: distro
+    type: string
+    description: |
+      Repository from which to install.  May be one of the following:
+      distro (default), ppa:somecustom/ppa, a deb url sources entry,
+      or a supported Cloud Archive release pocket.
+
+      Supported Cloud Archive sources include: cloud:precise-folsom,
+      cloud:precise-folsom/updates, cloud:precise-folsom/staging,
+      cloud:precise-folsom/proposed.
+
+      Note that updating this setting to a source that is known to
+      provide a later version of OpenStack will trigger a software
+      upgrade.
+  rabbit-user:
+    default: nova
+    type: string
+    description: Username used to access rabbitmq queue
+  rabbit-vhost:
+    default: openstack
+    type: string
+    description: Rabbitmq vhost
+  neutron-database-user:
+    default: neutron
+    type: string
+    description: Username for Neutron database access (if enabled)
+  neutron-database:
+    default: neutron
+    type: string
+    description: Database name for Neutron (if enabled)
+  use-syslog:
+    type: boolean
+    default: False
+    description: |
+      If set to True, supporting services will log to syslog.
+  region:
+    default: RegionOne
+    type: string
+    description: OpenStack Region
+  neutron-security-groups:
+    type: string
+    default: "no"
+    description: |
+      Use quantum for security group management.
+      .
+      Only supported for >= grizzly.
+  neutron-external-network:
+    type: string
+    default: ext_net
+    description: Name of the external network for floating IP addresses provided by Neutron.
+  neutron-plugin:
+    default: ovs
+    type: string
+    description: |
+      Neutron plugin to use for network management; supports
+      .
+        ovs - OpenvSwitch Plugin
+        nvp - Nicira Network Virtualization Platform
+      .
+
