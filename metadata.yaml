@@ -17,3 +17,6 @@ requires:
     interface: rabbitmq
   identity-service:
     interface: keystone
+  neutron-plugin:
+    interface: neutron-plugin
+    scope: container
