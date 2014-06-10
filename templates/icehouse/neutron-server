@@ -5,7 +5,7 @@
 ###############################################################################
 {% if sections and 'DEFAULT' in sections -%}
 {% for key, value in sections['DEFAULT'] -%}
-{{ key }} = "{{ value }}"
+{{ key }}="{{ value }}"
 {% endfor -%}
 {% else -%}
 NEUTRON_PLUGIN_CONFIG=""
