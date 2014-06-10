@@ -242,8 +242,8 @@ def neutron_plugin_relation_joined(rid=None, remote_restart=False):
         rel_settings['restart_trigger'] = str(uuid.uuid4())
     relation_set(relation_id=rid, **rel_settings)
 
-@restart_on_change(restart_map())
 @hooks.hook('neutron-plugin-relation-changed')
+@restart_on_change(restart_map())
 def neutron_plugin_relation_changed():
     CONFIGS.write_all()
 

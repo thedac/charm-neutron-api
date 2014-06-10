@@ -2,6 +2,11 @@
 ###############################################################################
 # [ WARNING ]
 # Configuration file maintained by Juju. Local changes may be overwritten.
+{% if sections and 'COMMENT' in sections -%}
+{% for key, value in sections['COMMENT'] -%}
+# {{ value }}
+{% endfor -%}
+{% endif -%}
 ###############################################################################
 {% if sections and 'DEFAULT' in sections -%}
 {% for key, value in sections['DEFAULT'] -%}
