@@ -232,7 +232,7 @@ def neutron_api_relation_joined(rid=None):
 @hooks.hook('neutron-api-relation-changed')
 @restart_on_change(restart_map())
 def neutron_api_relation_changed():
-    CONFIGS.write(NEUTRON_CONF)
+    CONFIGS.write_all()
 
 @hooks.hook('neutron-plugin-relation-joined')
 def neutron_plugin_relation_joined(rid=None, remote_restart=False):
@@ -245,7 +245,7 @@ def neutron_plugin_relation_joined(rid=None, remote_restart=False):
 @restart_on_change(restart_map())
 @hooks.hook('neutron-plugin-relation-changed')
 def neutron_plugin_relation_changed():
-    CONFIGS.write(NEUTRON_CONF)
+    CONFIGS.write_all()
 
 def main():
     try:

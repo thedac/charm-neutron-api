@@ -68,7 +68,7 @@ BASE_RESOURCE_MAP = OrderedDict([
         'contexts': [context.SubordinateConfigContext(
                          interface='neutron-plugin',
                          service='neutron',
-                         config_file=NEUTRON_CONF)],
+                         config_file=NEUTRON_DEFAULT)],
     }),
 ])
 def api_port(service):
