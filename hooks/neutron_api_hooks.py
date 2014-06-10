@@ -69,6 +69,7 @@ def install():
 @hooks.hook('config-changed')
 @restart_on_change(restart_map(), stopstart=True)
 def config_changed():
+    # XXX Changing rabbit-user leaves password broken
     global CONFIGS
     CONFIGS.write_all()
 
