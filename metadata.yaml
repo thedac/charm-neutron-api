@@ -8,6 +8,10 @@ categories:
 provides:
   neutron-api:
     interface: neutron-api
+  # neutron-plugin-api unused at present but will be used for passing config
+  # to neutron plugin subordinates like GRE, VXLAN and VLAN ranges
+  neutron-plugin-api:
+    interface: neutron-plugin-api
 requires:
   shared-db:
     interface: mysql-shared
