@@ -1,7 +1,6 @@
 #!/usr/bin/python
 
 import sys
-import uuid
 
 from charmhelpers.core.hookenv import (
     Hooks,
@@ -69,7 +68,6 @@ def install():
 @hooks.hook('config-changed')
 @restart_on_change(restart_map(), stopstart=True)
 def config_changed():
-    # XXX Changing rabbit-user leaves password broken
     global CONFIGS
     CONFIGS.write_all()
 
@@ -233,20 +231,7 @@ def neutron_api_relation_joined(rid=None):
 @hooks.hook('neutron-api-relation-changed')
 @restart_on_change(restart_map())
 def neutron_api_relation_changed():
-    CONFIGS.write_all()
-
-@hooks.hook('neutron-plugin-relation-joined')
-def neutron_plugin_relation_joined(rid=None, remote_restart=False):
-    rel_settings = {}
-    rel_settings['neutron_security_groups'] = config('neutron-security-groups')
-    if remote_restart:
-        rel_settings['restart_trigger'] = str(uuid.uuid4())
-    relation_set(relation_id=rid, **rel_settings)
-
-@hooks.hook('neutron-plugin-relation-changed')
-@restart_on_change(restart_map())
-def neutron_plugin_relation_changed():
-    CONFIGS.write_all()
+    CONFIGS.write(NEUTRON_CONF)
 
 def main():
     try:

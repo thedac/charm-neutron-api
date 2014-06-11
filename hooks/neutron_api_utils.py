@@ -57,18 +57,11 @@ BASE_RESOURCE_MAP = OrderedDict([
                      neutron_api_context.NeutronPostgresqlDBContext(),
                      neutron_api_context.IdentityServiceContext(),
                      neutron_api_context.NeutronCCContext(),
-                     context.SyslogContext(),
-                     context.SubordinateConfigContext(
-                         interface='neutron-plugin',
-                         service='neutron',
-                         config_file=NEUTRON_CONF)],
+                     context.SyslogContext()],
     }),
     (NEUTRON_DEFAULT, {
         'services': ['neutron-server'],
-        'contexts': [context.SubordinateConfigContext(
-                         interface='neutron-plugin',
-                         service='neutron',
-                         config_file=NEUTRON_DEFAULT)],
+        'contexts': [neutron_api_context.NeutronCCContext()],
     }),
 ])
 def api_port(service):
@@ -122,11 +115,31 @@ def resource_map():
     '''
     resource_map = deepcopy(BASE_RESOURCE_MAP)
 
+    net_manager = network_manager()
+
+    # add neutron plugin requirements. nova-c-c only needs the neutron-server
+    # associated with configs, not the plugin agent.
+    plugin = config('neutron-plugin')
+    conf = neutron_plugin_attribute(plugin, 'config', net_manager)
+    ctxts = (neutron_plugin_attribute(plugin, 'contexts', net_manager)
+             or [])
+    services = neutron_plugin_attribute(plugin, 'server_services',
+                                        net_manager)
+    resource_map[conf] = {}
+    resource_map[conf]['services'] = services
+    resource_map[conf]['contexts'] = ctxts
+    resource_map[conf]['contexts'].append(
+        neutron_api_context.NeutronCCContext())
+
+    # update for postgres
+    resource_map[conf]['contexts'].append(
+        neutron_api_context.NeutronPostgresqlDBContext())
+
     return resource_map
 
 
 def register_configs(release=None):
-    release = release or os_release('neutron-common')
+    release = release or os_release('nova-common')
     configs = templating.OSConfigRenderer(templates_dir=TEMPLATES,
                                           openstack_release=release)
     for cfg, rscs in resource_map().iteritems():
