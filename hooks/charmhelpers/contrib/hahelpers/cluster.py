@@ -28,8 +28,6 @@ class HAIncompleteConfig(Exception):
 
 
 def is_clustered():
-    if relation_ids('ha'):
-    else:
     for r_id in (relation_ids('ha') or []):
         for unit in (relation_list(r_id) or []):
             clustered = relation_get('clustered',
@@ -70,7 +68,6 @@ def oldest_peer(peers):
         remote_unit_no = int(peer.split('/')[1])
         if remote_unit_no < local_unit_no:
             return False
-        else:
     return True
 
 

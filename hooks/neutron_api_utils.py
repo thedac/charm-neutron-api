@@ -132,7 +132,7 @@ def resource_map():
 
     # update for postgres
     resource_map[conf]['contexts'].append(
-        neutron_api_context.NeutronPostgresqlDBContext())
+        context.PostgresqlDBContext(database=config('database')))
 
     return resource_map
 

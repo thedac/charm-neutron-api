@@ -42,7 +42,6 @@ from neutron_api_utils import (
     restart_map,
     NEUTRON_CONF,
     api_port,
-    auth_token_config,
     keystone_ca_cert_b64,
     CLUSTER_RES,
 )
@@ -136,30 +135,6 @@ def postgresql_neutron_db_changed():
         plugin = config('neutron-plugin')
         # DB config might have been moved to main neutron.conf in H?
         CONFIGS.write(neutron_plugin_attribute(plugin, 'config'))
-
-def _auth_config():
-    '''Grab all KS auth token config from api-paste.ini, or return empty {}'''
-    ks_auth_host = auth_token_config('auth_host')
-    if not ks_auth_host:
-        # if there is no auth_host set, identity-service changed hooks
-        # have not fired, yet.
-        return {}
-    cfg = {
-        'auth_host': ks_auth_host,
-        'auth_port': auth_token_config('auth_port'),
-        'auth_protocol': auth_token_config('auth_protocol'),
-        'service_protocol': auth_token_config('service_protocol'),
-        'service_port': auth_token_config('service_port'),
-        'service_username': auth_token_config('admin_user'),
-        'service_password': auth_token_config('admin_password'),
-        'service_tenant_name': auth_token_config('admin_tenant_name'),
-        'auth_uri': auth_token_config('auth_uri'),
-        # quantum-gateway interface deviates a bit.
-        'keystone_host': ks_auth_host,
-        'service_tenant': auth_token_config('admin_tenant_name'),
-    }
-    return cfg
-
 
 @hooks.hook('amqp-relation-broken',
             'identity-service-relation-broken',
