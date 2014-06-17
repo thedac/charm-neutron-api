@@ -81,3 +81,16 @@ options:
     description: |
        Default multicast port number that will be used to communicate between
        HA Cluster nodes.
+  use-syslog:
+    type: boolean
+    default: False
+    description: |
+      If set to True, supporting services will log to syslog.
+  debug:
+    default: False
+    type: boolean
+    description: Enable debug logging
+  verbose:
+    default: False
+    type: boolean
+    description: Enable verbose logging
