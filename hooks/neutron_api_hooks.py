@@ -97,7 +97,7 @@ def amqp_changed():
 @hooks.hook('shared-db-relation-joined')
 def db_joined():
     if is_relation_made('pgsql-nova-db') or \
-            is_relation_made('pgsql-neutron-db'):
+            is_relation_made('pgsql-db'):
         # error, postgresql is used
         e = ('Attempting to associate a mysql database when there is already '
              'associated a postgresql one')
@@ -109,7 +109,7 @@ def db_joined():
                  neutron_hostname=unit_get('private-address'))
 
 
-@hooks.hook('pgsql-neutron-db-relation-joined')
+@hooks.hook('pgsql-db-relation-joined')
 def pgsql_neutron_db_joined():
     if is_relation_made('shared-db'):
         # raise error
@@ -129,7 +129,7 @@ def db_changed():
         return
     CONFIGS.write_all()
 
-@hooks.hook('pgsql-neutron-db-relation-changed')
+@hooks.hook('pgsql-db-relation-changed')
 @restart_on_change(restart_map())
 def postgresql_neutron_db_changed():
     if network_manager() in ['neutron', 'quantum']:
@@ -164,7 +164,7 @@ def _auth_config():
 @hooks.hook('amqp-relation-broken',
             'identity-service-relation-broken',
             'shared-db-relation-broken',
-            'pgsql-neutron-db-relation-broken')
+            'pgsql-db-relation-broken')
 def relation_broken():
     CONFIGS.write_all()
 
