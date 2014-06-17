@@ -45,8 +45,7 @@ class NeutronCCContext(context.NeutronContext):
 
     @property
     def neutron_security_groups(self):
-        sec_groups = config('neutron-security-groups')
-        return sec_groups.lower() == 'yes'
+        return config('neutron-security-groups')
 
 
     def __call__(self):

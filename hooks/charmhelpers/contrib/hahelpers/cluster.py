@@ -28,19 +28,13 @@ class HAIncompleteConfig(Exception):
 
 
 def is_clustered():
-    log('** LY ** In is_clustered')
     if relation_ids('ha'):
-        log('** LY ** In is_clustered len(relation_ids(ha)):' + str(len(relation_ids('ha'))))
     else:
-        log('** LY ** relation_ids(ha) is false')
     for r_id in (relation_ids('ha') or []):
-        log('** LY ** r_id: ' + str(r_id))
         for unit in (relation_list(r_id) or []):
-            log('** LY ** unit: ' + str(unit))
             clustered = relation_get('clustered',
                                      rid=r_id,
                                      unit=unit)
-            log('** LY ** clustered: ' + str(clustered))
             if clustered:
                 return True
     return False
@@ -64,27 +58,19 @@ def is_leader(resource):
 
 def peer_units():
     peers = []
-    log('** LY ** In peer_units')
     for r_id in (relation_ids('cluster') or []):
-        log('** LY **     In peer_units r_id:' + str(r_id))
         for unit in (relation_list(r_id) or []):
-            log('** LY **         In peer_units unit:' + str(unit))
             peers.append(unit)
     return peers
 
 
 def oldest_peer(peers):
-    log('** LY ** In oldest_peer')
     local_unit_no = int(os.getenv('JUJU_UNIT_NAME').split('/')[1])
-    log('** LY ** In oldest_peer local_unit_no:' + str(local_unit_no))
     for peer in peers:
         remote_unit_no = int(peer.split('/')[1])
-        log('** LY ** In oldest_peer remote_unit_no:' + str(remote_unit_no))
         if remote_unit_no < local_unit_no:
-            log('** LY ** In oldest_peer %s < %s:'  % (str(remote_unit_no), str(local_unit_no)))
             return False
         else:
-            log('** LY ** In oldest_peer %s >= %s:'  % (str(remote_unit_no), str(local_unit_no)))
     return True
 
 
@@ -190,14 +176,11 @@ def canonical_url(configs, vip_setting='vip'):
     :vip_setting:                str: Setting in charm config that specifies
                                       VIP address.
     '''
-    log('** LY ** In canonical_url')
     scheme = 'http'
     if 'https' in configs.complete_contexts():
         scheme = 'https'
     if is_clustered():
-        log('** LY ** is_clustered is true, returning vip')
         addr = config_get(vip_setting)
     else:
-        log('** LY ** is_clustered is false, returning private-address')
         addr = unit_get('private-address')
     return '%s://%s' % (scheme, addr)

@@ -208,21 +208,20 @@ def _get_keystone_info():
 
 @hooks.hook('neutron-api-relation-joined')
 def neutron_api_relation_joined(rid=None):
-    log('** LY ** neutron_api_relation_joined')
     manager = network_manager()
     base_url = canonical_url(CONFIGS)
-    log('** LY ** neutron_api_relation_joined base_url:' + base_url)
     neutron_url = '%s:%s' % (base_url, api_port('neutron-server'))
-    log('** LY ** neutron_api_relation_joined neutron_url:' + neutron_url)
     relation_data = {
         'network_manager': manager,
         'default_floating_pool': config('neutron-external-network'),
         'external_network': config('neutron-external-network'),
         manager + '_plugin': config('neutron-plugin'),
         manager + '_url': neutron_url,
-        manager + '_security_groups': config('neutron-security-groups')
     }
-    log('** LY ** neutron_api_relation_joined neutron_url (from relation_data):' + relation_data['neutron_url'])
+    if config('neutron-security-groups'):
+        relation_data[manager + '_security_groups'] = "yes"
+    else:
+        relation_data[manager + '_security_groups'] = "no"
     keystone_info = _get_keystone_info()
     if is_relation_made('identity-service') and keystone_info:
         relation_data.update({
@@ -251,7 +250,6 @@ def cluster_changed():
 
 @hooks.hook('ha-relation-joined')
 def ha_joined():
-    log('** LY ** IN HA JOINED')
     config = get_hacluster_config()
     resources = {
         'res_neutron_vip': 'ocf:heartbeat:IPaddr2',
@@ -269,8 +267,6 @@ def ha_joined():
     clones = {
         'cl_nova_haproxy': 'res_neutron_haproxy'
     }
-    log('** LY ** HA JOINED ha-bindiface: '+ str(config['ha-bindiface']))
-    log('** LY ** HA JOINED ha-mcastport: '+ str(config['ha-mcastport']))
     relation_set(init_services=init_services,
                  corosync_bindiface=config['ha-bindiface'],
                  corosync_mcastport=config['ha-mcastport'],
