@@ -75,6 +75,8 @@ def config_changed():
     CONFIGS.write_all()
     for r_id in relation_ids('neutron-api'):
         neutron_api_relation_joined(rid=r_id)
+    for r_id in relation_ids('neutron-plugin-api'):
+        neutron_plugin_api_relation_joined(rid=r_id)
 
 
 @hooks.hook('amqp-relation-joined')
