@@ -151,21 +151,6 @@ def restart_map():
                         for cfg, v in resource_map().iteritems()
                         if v['services']])
 
-def auth_token_config(setting):                                                                                                                                                                               
-    """
-    Returns currently configured value for setting in api-paste.ini's
-    authtoken section, or None.
-    """
-    config = ConfigParser.RawConfigParser()
-    config.read('/etc/neutron/api-paste.ini')
-    try:
-        value = config.get('filter:authtoken', setting)
-    except:
-        return None
-    if value.startswith('%'):
-        return None
-    return value
-
 def keystone_ca_cert_b64():                                                                                                                                                                                   
     '''Returns the local Keystone-provided CA cert if it exists, or None.'''
     if not os.path.isfile(CA_CERT_PATH):
