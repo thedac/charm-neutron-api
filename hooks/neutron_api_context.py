@@ -31,6 +31,9 @@ class NeutronCCContext(context.NeutronContext):
     def neutron_security_groups(self):
         return config('neutron-security-groups')
 
+    # Do not need the plugin agent installed on the api server
+    def _ensure_packages(self):
+        pass
 
     def __call__(self):
         ctxt = super(NeutronCCContext, self).__call__()
