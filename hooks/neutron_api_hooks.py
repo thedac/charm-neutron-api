@@ -98,9 +98,8 @@ def db_joined():
         log(e, level=ERROR)
         raise Exception(e)
 
-    # XXX: Renaming relations from quantum_* to neutron_* here.
-    relation_set(neutron_database=config('neutron-database'),
-                 neutron_username=config('neutron-database-user'),
+    relation_set(neutron_database=config('database'),
+                 neutron_username=config('database-user'),
                  neutron_hostname=unit_get('private-address'))
 
 
@@ -113,7 +112,7 @@ def pgsql_neutron_db_joined():
         log(e, level=ERROR)
         raise Exception(e)
 
-    relation_set(database=config('neutron-database'))
+    relation_set(database=config('database'))
 
 
 @hooks.hook('shared-db-relation-changed')

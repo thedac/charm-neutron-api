@@ -11,7 +11,7 @@ class NeutronPostgresqlDBContext(context.PostgresqlDBContext):
 
     def __init__(self):
         super(NeutronPostgresqlDBContext,
-              self).__init__(config('neutron-database'))
+              self).__init__(config('database'))
 
 class IdentityServiceContext(context.IdentityServiceContext):
 
