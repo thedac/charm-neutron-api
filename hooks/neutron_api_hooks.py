@@ -103,9 +103,9 @@ def db_joined():
         log(e, level=ERROR)
         raise Exception(e)
 
-    relation_set(neutron_database=config('database'),
-                 neutron_username=config('database-user'),
-                 neutron_hostname=unit_get('private-address'))
+    relation_set(database=config('database'),
+                 username=config('database-user'),
+                 hostname=unit_get('private-address'))
 
 
 @hooks.hook('pgsql-db-relation-joined')
