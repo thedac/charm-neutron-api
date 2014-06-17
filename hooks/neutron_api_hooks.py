@@ -216,6 +216,13 @@ def neutron_api_relation_joined(rid=None):
 def neutron_api_relation_changed():
     CONFIGS.write(NEUTRON_CONF)
 
+@hooks.hook('neutron-plugin-api-relation-joined')
+def neutron_plugin_api_relation_joined(rid=None):
+    relation_data = {
+        'neutron_security_groups': config('neutron-security-groups')
+    }
+    relation_set(relation_id=rid, **relation_data)
+
 @hooks.hook('cluster-relation-changed',
             'cluster-relation-departed')
 @restart_on_change(restart_map(), stopstart=True)
