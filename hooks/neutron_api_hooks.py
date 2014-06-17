@@ -44,10 +44,14 @@ from neutron_api_utils import (
     api_port,
     auth_token_config,
     keystone_ca_cert_b64,
+    CLUSTER_RES,
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
     canonical_url,
+    eligible_leader,
+    get_hacluster_config,
+    is_leader,
 )
 
 from charmhelpers.payload.execd import execd_preinstall
@@ -70,6 +74,8 @@ def install():
 def config_changed():
     global CONFIGS
     CONFIGS.write_all()
+    for r_id in relation_ids('neutron-api'):
+        neutron_api_relation_joined(rid=r_id)
 
 
 @hooks.hook('amqp-relation-joined')
@@ -203,9 +209,12 @@ def _get_keystone_info():
 
 @hooks.hook('neutron-api-relation-joined')
 def neutron_api_relation_joined(rid=None):
+    log('** LY ** neutron_api_relation_joined')
     manager = network_manager()
     base_url = canonical_url(CONFIGS)
+    log('** LY ** neutron_api_relation_joined base_url:' + base_url)
     neutron_url = '%s:%s' % (base_url, api_port('neutron-server'))
+    log('** LY ** neutron_api_relation_joined neutron_url:' + neutron_url)
     relation_data = {
         'network_manager': manager,
         'default_floating_pool': config('neutron-external-network'),
@@ -214,6 +223,7 @@ def neutron_api_relation_joined(rid=None):
         manager + '_url': neutron_url,
         manager + '_security_groups': config('neutron-security-groups')
     }
+    log('** LY ** neutron_api_relation_joined neutron_url (from relation_data):' + relation_data['neutron_url'])
     keystone_info = _get_keystone_info()
     if is_relation_made('identity-service') and keystone_info:
         relation_data.update({
@@ -232,6 +242,59 @@ def neutron_api_relation_joined(rid=None):
 @restart_on_change(restart_map())
 def neutron_api_relation_changed():
     CONFIGS.write(NEUTRON_CONF)
+
+@hooks.hook('cluster-relation-changed',
+            'cluster-relation-departed')
+@restart_on_change(restart_map(), stopstart=True)
+def cluster_changed():
+    CONFIGS.write_all()
+
+
+@hooks.hook('ha-relation-joined')
+def ha_joined():
+    log('** LY ** IN HA JOINED')
+    config = get_hacluster_config()
+    resources = {
+        'res_neutron_vip': 'ocf:heartbeat:IPaddr2',
+        'res_neutron_haproxy': 'lsb:haproxy',
+    }
+    vip_params = 'params ip="%s" cidr_netmask="%s" nic="%s"' % \
+                 (config['vip'], config['vip_cidr'], config['vip_iface'])
+    resource_params = {
+        'res_neutron_vip': vip_params,
+        'res_neutron_haproxy': 'op monitor interval="5s"'
+    }
+    init_services = {
+        'res_neutron_haproxy': 'haproxy'
+    }
+    clones = {
+        'cl_nova_haproxy': 'res_neutron_haproxy'
+    }
+    log('** LY ** HA JOINED ha-bindiface: '+ str(config['ha-bindiface']))
+    log('** LY ** HA JOINED ha-mcastport: '+ str(config['ha-mcastport']))
+    relation_set(init_services=init_services,
+                 corosync_bindiface=config['ha-bindiface'],
+                 corosync_mcastport=config['ha-mcastport'],
+                 resources=resources,
+                 resource_params=resource_params,
+                 clones=clones)
+
+
+@hooks.hook('ha-relation-changed')
+def ha_changed():
+    clustered = relation_get('clustered')
+    if not clustered or clustered in [None, 'None', '']:
+        log('ha_changed: hacluster subordinate not fully clustered.')
+        return
+    if not is_leader(CLUSTER_RES):
+        log('ha_changed: hacluster complete but we are not leader.')
+        return
+    log('Cluster configured, notifying other services and updating '
+        'keystone endpoint configuration')
+    for rid in relation_ids('identity-service'):
+        identity_joined(rid=rid)
+    for rid in relation_ids('neutron-api'):
+        neutron_api_relation_joined(rid=rid)
 
 def main():
     try:
