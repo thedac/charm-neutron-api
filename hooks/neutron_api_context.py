@@ -35,6 +35,8 @@ class NeutronCCContext(context.NeutronContext):
     def __call__(self):
         ctxt = super(NeutronCCContext, self).__call__()
         ctxt['external_network'] = config('neutron-external-network')
+        ctxt['verbose'] = config('verbose')
+        ctxt['debug'] = config('debug')
         for rid in relation_ids('neutron-api'):
             for unit in related_units(rid):
                 ctxt['nova_url'] = relation_get(attribute='nova_url', rid=rid, unit=unit)
