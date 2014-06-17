@@ -22,11 +22,11 @@ options:
     default: openstack
     type: string
     description: Rabbitmq vhost
-  neutron-database-user:
+  database-user:
     default: neutron
     type: string
     description: Username for Neutron database access (if enabled)
-  neutron-database:
+  database:
     default: neutron
     type: string
     description: Database name for Neutron (if enabled)

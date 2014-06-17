@@ -50,9 +50,8 @@ BASE_RESOURCE_MAP = OrderedDict([
         'services': ['neutron-server'],
         'contexts': [context.AMQPContext(ssl_dir=NEUTRON_CONF_DIR),
                      context.SharedDBContext(
-                         user=config('neutron-database-user'),
-                         database=config('neutron-database'),
-                         relation_prefix='neutron',
+                         user=config('database-user'),
+                         database=config('database'),
                          ssl_dir=NEUTRON_CONF_DIR),
                      neutron_api_context.NeutronPostgresqlDBContext(),
                      neutron_api_context.IdentityServiceContext(),
