@@ -6,6 +6,7 @@ from charmhelpers.core.hookenv import (
 )
 from charmhelpers.contrib.openstack import context
 
+
 class IdentityServiceContext(context.IdentityServiceContext):
 
     def __call__(self):
@@ -15,17 +16,17 @@ class IdentityServiceContext(context.IdentityServiceContext):
         ctxt['region'] = config('region')
         return ctxt
 
+
 class NeutronCCContext(context.NeutronContext):
     interfaces = []
 
     @property
     def network_manager(self):
-        return 'neutron'   
+        return 'neutron'
 
     @property
     def plugin(self):
         return config('neutron-plugin')
-
 
     @property
     def neutron_security_groups(self):
@@ -42,9 +43,9 @@ class NeutronCCContext(context.NeutronContext):
         ctxt['debug'] = config('debug')
         for rid in relation_ids('neutron-api'):
             for unit in related_units(rid):
-                ctxt['nova_url'] = relation_get(attribute='nova_url', rid=rid, unit=unit)
+                ctxt['nova_url'] = relation_get(attribute='nova_url',
+                                                rid=rid,
+                                                unit=unit)
                 if ctxt['nova_url']:
                     return ctxt
         return ctxt
-
-

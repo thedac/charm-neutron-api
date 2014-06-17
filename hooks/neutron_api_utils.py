@@ -1,6 +1,5 @@
 from collections import OrderedDict
 from copy import deepcopy
-import ConfigParser
 import os
 from base64 import b64encode
 from charmhelpers.contrib.openstack import context, templating
@@ -63,8 +62,11 @@ BASE_RESOURCE_MAP = OrderedDict([
         'contexts': [neutron_api_context.NeutronCCContext()],
     }),
 ])
+
+
 def api_port(service):
     return API_PORTS[service]
+
 
 def determine_endpoints(url):
     '''Generates a dictionary containing all relevant endpoints to be
@@ -80,8 +82,6 @@ def determine_endpoints(url):
         'quantum_admin_url': neutron_url,
         'quantum_internal_url': neutron_url,
     })
-
-
     return endpoints
 
 
@@ -90,10 +90,12 @@ def determine_packages():
     packages = [] + BASE_PACKAGES
     for v in resource_map().values():
         packages.extend(v['services'])
-        pkgs = neutron_plugin_attribute(config('neutron-plugin'), 'server_packages',
+        pkgs = neutron_plugin_attribute(config('neutron-plugin'),
+                                        'server_packages',
                                         network_manager())
         packages.extend(pkgs)
     return list(set(packages))
+
 
 def determine_ports():
     '''Assemble a list of API ports for services we are managing'''
@@ -151,7 +153,8 @@ def restart_map():
                         for cfg, v in resource_map().iteritems()
                         if v['services']])
 
-def keystone_ca_cert_b64():                                                                                                                                                                                   
+
+def keystone_ca_cert_b64():
     '''Returns the local Keystone-provided CA cert if it exists, or None.'''
     if not os.path.isfile(CA_CERT_PATH):
         return None
