@@ -66,6 +66,7 @@ def install():
     [open_port(port) for port in determine_ports()]
 
 
+@hooks.hook('upgrade-charm')
 @hooks.hook('config-changed')
 @restart_on_change(restart_map(), stopstart=True)
 def config_changed():
@@ -75,6 +76,10 @@ def config_changed():
         neutron_api_relation_joined(rid=r_id)
     for r_id in relation_ids('neutron-plugin-api'):
         neutron_plugin_api_relation_joined(rid=r_id)
+    for r_id in relation_ids('amqp'):
+        amqp_joined(relation_id=r_id)
+    for r_id in relation_ids('identity-service'):
+        identity_joined(rid=r_id)
 
 
 @hooks.hook('amqp-relation-joined')
@@ -95,8 +100,7 @@ def amqp_changed():
 
 @hooks.hook('shared-db-relation-joined')
 def db_joined():
-    if is_relation_made('pgsql-nova-db') or \
-            is_relation_made('pgsql-db'):
+    if is_relation_made('pgsql-db'):
         # error, postgresql is used
         e = ('Attempting to associate a mysql database when there is already '
              'associated a postgresql one')
@@ -144,14 +148,6 @@ def postgresql_neutron_db_changed():
             'pgsql-db-relation-broken')
 def relation_broken():
     CONFIGS.write_all()
-
-
-@hooks.hook('upgrade-charm')
-def upgrade_charm():
-    for r_id in relation_ids('amqp'):
-        amqp_joined(relation_id=r_id)
-    for r_id in relation_ids('identity-service'):
-        identity_joined(rid=r_id)
 
 
 @hooks.hook('identity-service-relation-joined')
@@ -272,7 +268,7 @@ def ha_joined():
 def ha_changed():
     clustered = relation_get('clustered')
     if not clustered or clustered in [None, 'None', '']:
-        log('ha_changed: hacluster subordinate not fully clustered.')
+        log('ha_changed: hacluster subordinate not fully clustered.:' + str(clustered))
         return
     if not is_leader(CLUSTER_RES):
         log('ha_changed: hacluster complete but we are not leader.')
