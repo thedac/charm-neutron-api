@@ -34,6 +34,7 @@ TO_PATCH = [
     'is_relation_made',
     'log',
     'network_manager',
+    'neutron_plugin_attribute',
     'open_port',
     'relation_get',
     'relation_ids',

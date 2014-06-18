@@ -18,16 +18,32 @@ import charmhelpers.core.hookenv as hookenv
 TO_PATCH = [
     'b64encode',
     'config',
-#    'neutron_plugin_attribute',
+    'neutron_plugin_attribute',
 ]
 
+def _mock_npa(plugin, attr, net_manager=None):
+    plugins = {
+        'ovs': {
+            'config': '/etc/neutron/plugins/ml2/ml2_conf.ini',
+            'driver': 'neutron.plugins.ml2.plugin.Ml2Plugin',
+            'contexts': [],
+            'services': ['neutron-plugin-openvswitch-agent'],
+            'packages': [['neutron-plugin-openvswitch-agent']],
+            'server_packages': ['neutron-server',
+                                'neutron-plugin-ml2'],
+            'server_services': ['neutron-server']
+        },
+    }
+    return plugins[plugin][attr]
 
 class TestNeutronAPIUtils(CharmTestCase):
+
 
     def setUp(self):
         super(TestNeutronAPIUtils, self).setUp(nutils, TO_PATCH)
         self.config.side_effect = self.test_config.get
         self.test_config.set('region', 'region101')
+        self.neutron_plugin_attribute.side_effect = _mock_npa
 
     def tearDown(self):
         # Reset cached cache
