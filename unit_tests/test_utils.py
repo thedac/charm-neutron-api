@@ -95,11 +95,11 @@ class TestRelation(object):
     def set(self, relation_data):
         self.relation_data = relation_data
 
-    def get(self, attr=None, unit=None, rid=None):
-        if attr is None:
+    def get(self, attribute=None, unit=None, rid=None):
+        if attribute is None:
             return self.relation_data
-        elif attr in self.relation_data:
-            return self.relation_data[attr]
+        elif attribute in self.relation_data:
+            return self.relation_data[attribute]
         return None
 
 

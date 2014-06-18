@@ -42,10 +42,14 @@ class NeutronCCContext(context.NeutronContext):
         ctxt['verbose'] = config('verbose')
         ctxt['debug'] = config('debug')
         for rid in relation_ids('neutron-api'):
+            print "rid"
             for unit in related_units(rid):
+                print "unit"
                 ctxt['nova_url'] = relation_get(attribute='nova_url',
                                                 rid=rid,
                                                 unit=unit)
                 if ctxt['nova_url']:
+                    print "Ive set nova_url"
                     return ctxt
+        print "Ive not set nova_url"
         return ctxt
