@@ -8,12 +8,15 @@ from charmhelpers.contrib.openstack.neutron import (
 
 from charmhelpers.contrib.openstack.utils import (
     os_release,
+    get_os_codename_install_source,
+    configure_installation_source,
 )
 
 from charmhelpers.core.hookenv import (
     config,
+    log,
 )
-
+from charmhelpers.fetch import apt_update, apt_install, apt_upgrade
 import neutron_api_context
 
 TEMPLATES = 'templates/'
@@ -160,3 +163,34 @@ def keystone_ca_cert_b64():
         return None
     with open(CA_CERT_PATH) as _in:
         return b64encode(_in.read())
+
+
+def do_openstack_upgrade(configs):
+    """
+    Perform an upgrade.  Takes care of upgrading packages, rewriting
+    configs, database migrations and potentially any other post-upgrade
+    actions.
+
+    :param configs: The charms main OSConfigRenderer object.
+    """
+    new_src = config('openstack-origin')
+    new_os_rel = get_os_codename_install_source(new_src)
+
+    log('Performing OpenStack upgrade to %s.' % (new_os_rel))
+
+    configure_installation_source(new_src)
+    dpkg_opts = [
+        '--option', 'Dpkg::Options::=--force-confnew',
+        '--option', 'Dpkg::Options::=--force-confdef',
+    ]
+    apt_update(fatal=True)
+    apt_upgrade(options=dpkg_opts, fatal=True, dist=True)
+    pkgs = determine_packages()
+    # Sort packages just to make unit tests easier
+    pkgs.sort()
+    apt_install(packages=pkgs,
+                options=dpkg_opts,
+                fatal=True)
+
+    # set CONFIGS to load templates from new release
+    configs.set_release(openstack_release=new_os_rel)

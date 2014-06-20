@@ -46,6 +46,7 @@ class IdentityServiceContext(CharmTestCase):
         ids_ctxt = context.IdentityServiceContext()
         self.assertEquals(ids_ctxt(), None)
 
+
 class NeutronAPIContextsTest(CharmTestCase):
 
     def setUp(self):

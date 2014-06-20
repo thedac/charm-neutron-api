@@ -21,7 +21,6 @@ TO_PATCH = [
     'api_port',
     'apt_update',
     'apt_install',
-#    'charm_dir',
     'canonical_url',
     'config',
     'CONFIGS',
@@ -29,6 +28,7 @@ TO_PATCH = [
     'determine_endpoints',
     'determine_packages',
     'determine_ports',
+    'do_openstack_upgrade',
     'execd_preinstall',
     'is_leader',
     'is_relation_made',
@@ -36,6 +36,7 @@ TO_PATCH = [
     'network_manager',
     'neutron_plugin_attribute',
     'open_port',
+    'openstack_upgrade_available',
     'relation_get',
     'relation_ids',
     'relation_set',
@@ -48,6 +49,7 @@ NEUTRON_CONF = '%s/neutron.conf' % NEUTRON_CONF_DIR
 
 from random import randrange
 
+
 class NeutronAPIHooksTests(CharmTestCase):
 
     def setUp(self):
@@ -57,12 +59,9 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.relation_get.side_effect = self.test_relation.get
         self.test_config.set('openstack-origin', 'distro')
         self.test_config.set('neutron-plugin', 'ovs')
-#        self.test_config.set('neutron-external-network', 'ext_net')
-#        self.lsb_release.return_value = {'DISTRIB_CODENAME': 'trusty'}
-#        self.charm_dir.return_value = '/var/lib/juju/charms/neutron/charm'
 
     def _fake_relids(self, rel_name):
-        return [ randrange(100) for _count in range(2) ]
+        return [randrange(100) for _count in range(2)]
 
     def _call_hook(self, hookname):
         hooks.hooks.execute([
@@ -71,7 +70,7 @@ class NeutronAPIHooksTests(CharmTestCase):
     def test_install_hook(self):
         _pkgs = ['foo', 'bar']
         _ports = [80, 81, 82]
-        _port_calls = [ call(port) for port in _ports ]
+        _port_calls = [call(port) for port in _ports]
         self.determine_packages.return_value = _pkgs
         self.determine_ports.return_value = _ports
         self._call_hook('install')
@@ -86,9 +85,11 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.assertTrue(self.execd_preinstall.called)
 
     def test_config_changed(self):
+        self.openstack_upgrade_available.return_value = True
         self.relation_ids.side_effect = self._fake_relids
         _n_api_rel_joined = self.patch('neutron_api_relation_joined')
-        _n_plugin_api_rel_joined = self.patch('neutron_plugin_api_relation_joined')
+        _n_plugin_api_rel_joined =\
+            self.patch('neutron_plugin_api_relation_joined')
         _amqp_rel_joined = self.patch('amqp_joined')
         _id_rel_joined = self.patch('identity_joined')
         self._call_hook('config-changed')
@@ -97,6 +98,7 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.assertTrue(_amqp_rel_joined.called)
         self.assertTrue(_id_rel_joined.called)
         self.assertTrue(self.CONFIGS.write_all.called)
+        self.assertTrue(self.do_openstack_upgrade.called)
 
     def test_amqp_joined(self):
         self._call_hook('amqp-relation-joined')
@@ -200,7 +202,7 @@ class NeutronAPIHooksTests(CharmTestCase):
         self._call_hook('identity-service-relation-changed')
         self.assertTrue(self.CONFIGS.write.called_with(NEUTRON_CONF))
         self.assertTrue(_api_rel_joined.called)
-          
+
     @patch.object(hooks, '_get_keystone_info')
     def test_neutron_api_relation_no_id_joined(self, _get_ks_info):
         _get_ks_info.return_value = None
@@ -239,11 +241,11 @@ class NeutronAPIHooksTests(CharmTestCase):
     @patch.object(hooks, '_get_keystone_info')
     def test_neutron_api_relation_joined(self, _get_ks_info):
         _ks_info = {
-             'service_tenant': 'bob',
-             'service_username': 'bob',
-             'service_password': 'bob',
-             'auth_url': 'http://127.0.0.2',
-        } 
+            'service_tenant': 'bob',
+            'service_username': 'bob',
+            'service_password': 'bob',
+            'auth_url': 'http://127.0.0.2',
+        }
         _get_ks_info.return_value = _ks_info
         manager = 'neutron'
         host = 'http://127.0.0.1'
@@ -292,25 +294,29 @@ class NeutronAPIHooksTests(CharmTestCase):
     @patch.object(hooks, 'get_hacluster_config')
     def test_ha_joined(self, _get_ha_config):
         _ha_config = {
-             'vip': '10.0.0.1',
-             'vip_cidr': '24',
-             'vip_iface': 'eth0',
-             'ha-bindiface': 'eth1',
-             'ha-mcastport': '5405',
-        } 
+            'vip': '10.0.0.1',
+            'vip_cidr': '24',
+            'vip_iface': 'eth0',
+            'ha-bindiface': 'eth1',
+            'ha-mcastport': '5405',
+        }
         vip_params = 'params ip="%s" cidr_netmask="%s" nic="%s"' % \
-                     (_ha_config['vip'], _ha_config['vip_cidr'], _ha_config['vip_iface'])
-        
+                     (_ha_config['vip'], _ha_config['vip_cidr'],
+                      _ha_config['vip_iface'])
         _get_ha_config.return_value = _ha_config
         _relation_data = {
             'init_services': {'res_neutron_haproxy': 'haproxy'},
             'corosync_bindiface': _ha_config['ha-bindiface'],
             'corosync_mcastport': _ha_config['ha-mcastport'],
-            'resources': {'res_neutron_vip': 'ocf:heartbeat:IPaddr2',
-                          'res_neutron_haproxy': 'lsb:haproxy'},
-            'resource_params': { 'res_neutron_vip': vip_params,
-                                 'res_neutron_haproxy': 'op monitor interval="5s"'},
-            'clones': { 'cl_nova_haproxy': 'res_neutron_haproxy' }
+            'resources': {
+                'res_neutron_vip': 'ocf:heartbeat:IPaddr2',
+                'res_neutron_haproxy': 'lsb:haproxy'
+            },
+            'resource_params': {
+                'res_neutron_vip': vip_params,
+                'res_neutron_haproxy': 'op monitor interval="5s"'
+            },
+            'clones': {'cl_nova_haproxy': 'res_neutron_haproxy'}
         }
         self._call_hook('ha-relation-joined')
         self.relation_set.assert_called_with(

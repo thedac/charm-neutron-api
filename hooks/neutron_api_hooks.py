@@ -43,6 +43,7 @@ from neutron_api_utils import (
     NEUTRON_CONF,
     api_port,
     CLUSTER_RES,
+    do_openstack_upgrade,
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
@@ -71,6 +72,8 @@ def install():
 @restart_on_change(restart_map(), stopstart=True)
 def config_changed():
     global CONFIGS
+    if openstack_upgrade_available('neutron-server'):
+                    do_openstack_upgrade(CONFIGS)
     CONFIGS.write_all()
     for r_id in relation_ids('neutron-api'):
         neutron_api_relation_joined(rid=r_id)

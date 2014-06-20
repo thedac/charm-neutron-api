@@ -1,5 +1,5 @@
 
-from mock import MagicMock, call, patch
+from mock import MagicMock, patch
 from collections import OrderedDict
 import charmhelpers.contrib.openstack.templating as templating
 
@@ -16,10 +16,17 @@ import charmhelpers.core.hookenv as hookenv
 
 
 TO_PATCH = [
+    'apt_install',
+    'apt_update',
+    'apt_upgrade',
     'b64encode',
     'config',
+    'configure_installation_source',
+    'get_os_codename_install_source',
+    'log',
     'neutron_plugin_attribute',
 ]
+
 
 def _mock_npa(plugin, attr, net_manager=None):
     plugins = {
@@ -36,9 +43,8 @@ def _mock_npa(plugin, attr, net_manager=None):
     }
     return plugins[plugin][attr]
 
+
 class TestNeutronAPIUtils(CharmTestCase):
-
-
     def setUp(self):
         super(TestNeutronAPIUtils, self).setUp(nutils, TO_PATCH)
         self.config.side_effect = self.test_config.get
@@ -57,7 +63,7 @@ class TestNeutronAPIUtils(CharmTestCase):
         test_url = 'http://127.0.0.1'
         endpoints = nutils.determine_endpoints(test_url)
         neutron_url = '%s:%s' % (test_url,
-                                 nutils.api_port('neutron-server')) 
+                                 nutils.api_port('neutron-server'))
         expect = {
             'quantum_service': 'quantum',
             'quantum_region': 'region101',
@@ -125,5 +131,29 @@ class TestNeutronAPIUtils(CharmTestCase):
     def test_keystone_ca_cert_b64(self, _isfile):
         _isfile.return_value = True
         with patch_open() as (_open, _file):
-            cert = nutils.keystone_ca_cert_b64()
+            nutils.keystone_ca_cert_b64()
             self.assertTrue(self.b64encode.called)
+
+    def test_do_openstack_upgrade(self):
+        self.config.side_effect = self.test_config.get
+        self.test_config.set('openstack-origin', 'cloud:precise-havana')
+        self.get_os_codename_install_source.return_value = 'havana'
+        configs = MagicMock()
+        nutils.do_openstack_upgrade(configs)
+        configs.set_release.assert_called_with(openstack_release='havana')
+        self.log.assert_called()
+        self.apt_update.assert_called_with(fatal=True)
+        dpkg_opts = [
+            '--option', 'Dpkg::Options::=--force-confnew',
+            '--option', 'Dpkg::Options::=--force-confdef',
+        ]
+        pkgs = nutils.BASE_PACKAGES
+        pkgs.sort()
+        self.apt_install.assert_called_with(
+            options=dpkg_opts,
+            packages=pkgs,
+            fatal=True
+        )
+        self.configure_installation_source.assert_called_with(
+            'cloud:precise-havana'
+        )
