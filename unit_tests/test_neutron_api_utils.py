@@ -25,6 +25,7 @@ TO_PATCH = [
     'get_os_codename_install_source',
     'log',
     'neutron_plugin_attribute',
+    'os_release',
 ]
 
 
@@ -50,6 +51,7 @@ class TestNeutronAPIUtils(CharmTestCase):
         self.config.side_effect = self.test_config.get
         self.test_config.set('region', 'region101')
         self.neutron_plugin_attribute.side_effect = _mock_npa
+        self.os_release.side_effect = 'trusty'
 
     def tearDown(self):
         # Reset cached cache

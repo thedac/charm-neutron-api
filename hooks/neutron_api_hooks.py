@@ -12,7 +12,6 @@ from charmhelpers.core.hookenv import (
     relation_get,
     relation_ids,
     relation_set,
-    related_units,
     open_port,
     unit_get,
 )
@@ -30,7 +29,6 @@ from charmhelpers.contrib.openstack.utils import (
     openstack_upgrade_available,
 )
 from charmhelpers.contrib.openstack.neutron import (
-    network_manager,
     neutron_plugin_attribute,
 )
 
@@ -73,7 +71,7 @@ def install():
 def config_changed():
     global CONFIGS
     if openstack_upgrade_available('neutron-server'):
-                    do_openstack_upgrade(CONFIGS)
+        do_openstack_upgrade(CONFIGS)
     CONFIGS.write_all()
     for r_id in relation_ids('neutron-api'):
         neutron_api_relation_joined(rid=r_id)
@@ -139,10 +137,9 @@ def db_changed():
 @hooks.hook('pgsql-db-relation-changed')
 @restart_on_change(restart_map())
 def postgresql_neutron_db_changed():
-    if network_manager() in ['neutron', 'quantum']:
-        plugin = config('neutron-plugin')
-        # DB config might have been moved to main neutron.conf in H?
-        CONFIGS.write(neutron_plugin_attribute(plugin, 'config'))
+    plugin = config('neutron-plugin')
+    # DB config might have been moved to main neutron.conf in H?
+    CONFIGS.write(neutron_plugin_attribute(plugin, 'config'))
 
 
 @hooks.hook('amqp-relation-broken',
@@ -170,51 +167,21 @@ def identity_changed():
         neutron_api_relation_joined(rid=r_id)
 
 
-def _get_keystone_info():
-    keystone_info = {}
-    for lrid in relation_ids('identity-service'):
-        for unit in related_units(lrid):
-            rdata = relation_get(rid=lrid, unit=unit)
-            keystone_info['service_protocol'] = rdata.get('service_protocol')
-            keystone_info['service_host'] = rdata.get('service_host')
-            keystone_info['service_port'] = rdata.get('service_port')
-            keystone_info['service_tenant'] = rdata.get('service_tenant')
-            keystone_info['service_username'] = rdata.get('service_username')
-            keystone_info['service_password'] = rdata.get('service_password')
-            auth_url = "%s://%s:%s/v2.0" % (keystone_info['service_protocol'],
-                                            keystone_info['service_host'],
-                                            keystone_info['service_port'])
-            keystone_info['auth_url'] = auth_url
-    return keystone_info
-
-
 @hooks.hook('neutron-api-relation-joined')
 def neutron_api_relation_joined(rid=None):
-    manager = network_manager()
     base_url = canonical_url(CONFIGS)
     neutron_url = '%s:%s' % (base_url, api_port('neutron-server'))
     relation_data = {
-        'network_manager': manager,
-        'default_floating_pool': config('neutron-external-network'),
-        'external_network': config('neutron-external-network'),
-        manager + '_plugin': config('neutron-plugin'),
-        manager + '_url': neutron_url,
+        'neutron-url': neutron_url,
+        'neutron-plugin': config('neutron-plugin'),
     }
     if config('neutron-security-groups'):
-        relation_data[manager + '_security_groups'] = "yes"
+        relation_data['neutron-security-groups'] = "yes"
     else:
-        relation_data[manager + '_security_groups'] = "no"
-    keystone_info = _get_keystone_info()
-    if is_relation_made('identity-service') and keystone_info:
-        relation_data.update({
-            manager + '_admin_tenant_name': keystone_info['service_tenant'],
-            manager + '_admin_username': keystone_info['service_username'],
-            manager + '_admin_password': keystone_info['service_password'],
-            manager + '_admin_auth_url': keystone_info['auth_url'],
-        })
+        relation_data['neutron-security-groups'] = "no"
     relation_set(relation_id=rid, **relation_data)
     # Nova-cc may have grabbed the quantum endpoint so kick identity-service
-    #relation to register that its here
+    # relation to register that its here
     for r_id in relation_ids('identity-service'):
         identity_joined(rid=r_id)
 
@@ -228,7 +195,7 @@ def neutron_api_relation_changed():
 @hooks.hook('neutron-plugin-api-relation-joined')
 def neutron_plugin_api_relation_joined(rid=None):
     relation_data = {
-        'neutron_security_groups': config('neutron-security-groups')
+        'neutron-security-groups': config('neutron-security-groups')
     }
     relation_set(relation_id=rid, **relation_data)
 

@@ -33,14 +33,12 @@ TO_PATCH = [
     'is_leader',
     'is_relation_made',
     'log',
-    'network_manager',
     'neutron_plugin_attribute',
     'open_port',
     'openstack_upgrade_available',
     'relation_get',
     'relation_ids',
     'relation_set',
-    'related_units',
     'unit_get',
 ]
 NEUTRON_CONF_DIR = "/etc/neutron"
@@ -164,7 +162,6 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.assertFalse(self.CONFIGS.write_all.called)
 
     def test_pgsql_db_changed(self):
-        self.network_manager.return_value = 'neutron'
         self._call_hook('pgsql-db-relation-changed')
         self.assertTrue(self.CONFIGS.write.called)
 
@@ -203,26 +200,19 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.assertTrue(self.CONFIGS.write.called_with(NEUTRON_CONF))
         self.assertTrue(_api_rel_joined.called)
 
-    @patch.object(hooks, '_get_keystone_info')
-    def test_neutron_api_relation_no_id_joined(self, _get_ks_info):
-        _get_ks_info.return_value = None
-        manager = 'neutron'
+    def test_neutron_api_relation_no_id_joined(self):
         host = 'http://127.0.0.1'
         port = 1234
         _id_rel_joined = self.patch('identity_joined')
         self.relation_ids.side_effect = self._fake_relids
-        self.network_manager.return_value = manager
         self.canonical_url.return_value = host
         self.api_port.return_value = port
         self.is_relation_made = False
         neutron_url = '%s:%s' % (host, port)
         _relation_data = {
-            'network_manager': manager,
-            'default_floating_pool': 'ext_net',
-            'external_network': 'ext_net',
-            manager + '_plugin': 'ovs',
-            manager + '_url': neutron_url,
-            'neutron_security_groups': 'no',
+            'neutron-plugin': 'ovs',
+            'neutron-url': neutron_url,
+            'neutron-security-groups': 'no',
         }
         self._call_hook('neutron-api-relation-joined')
         self.relation_set.assert_called_with(
@@ -232,40 +222,23 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.assertTrue(_id_rel_joined.called)
         self.test_config.set('neutron-security-groups', True)
         self._call_hook('neutron-api-relation-joined')
-        _relation_data['neutron_security_groups'] = 'yes'
+        _relation_data['neutron-security-groups'] = 'yes'
         self.relation_set.assert_called_with(
             relation_id=None,
             **_relation_data
         )
 
-    @patch.object(hooks, '_get_keystone_info')
-    def test_neutron_api_relation_joined(self, _get_ks_info):
-        _ks_info = {
-            'service_tenant': 'bob',
-            'service_username': 'bob',
-            'service_password': 'bob',
-            'auth_url': 'http://127.0.0.2',
-        }
-        _get_ks_info.return_value = _ks_info
-        manager = 'neutron'
+    def test_neutron_api_relation_joined(self):
         host = 'http://127.0.0.1'
         port = 1234
-        self.network_manager.return_value = manager
         self.canonical_url.return_value = host
         self.api_port.return_value = port
         self.is_relation_made = True
         neutron_url = '%s:%s' % (host, port)
         _relation_data = {
-            'network_manager': manager,
-            'default_floating_pool': 'ext_net',
-            'external_network': 'ext_net',
-            manager + '_plugin': 'ovs',
-            manager + '_url': neutron_url,
-            'neutron_security_groups': 'no',
-            manager + '_admin_tenant_name': _ks_info['service_tenant'],
-            manager + '_admin_username': _ks_info['service_username'],
-            manager + '_admin_password': _ks_info['service_password'],
-            manager + '_admin_auth_url': _ks_info['auth_url'],
+            'neutron-plugin': 'ovs',
+            'neutron-url': neutron_url,
+            'neutron-security-groups': 'no',
         }
         self._call_hook('neutron-api-relation-joined')
         self.relation_set.assert_called_with(
@@ -279,7 +252,7 @@ class NeutronAPIHooksTests(CharmTestCase):
 
     def test_neutron_plugin_api_relation_joined(self):
         _relation_data = {
-            'neutron_security_groups': False,
+            'neutron-security-groups': False,
         }
         self._call_hook('neutron-plugin-api-relation-joined')
         self.relation_set.assert_called_with(
@@ -358,29 +331,3 @@ class NeutronAPIHooksTests(CharmTestCase):
         self._call_hook('ha-relation-changed')
         self.assertFalse(_n_api_rel_joined.called)
         self.assertFalse(_id_rel_joined.called)
-
-    def test_get_keystone_info(self):
-        self.relation_ids.return_value = 'relid1'
-        self.related_units.return_value = 'unit1'
-        _ks_info = {
-            'service_protocol': 'https',
-            'service_host': '127.0.0.3',
-            'service_port': '4567',
-            'service_tenant': 'region12',
-            'service_username': 'bob',
-            'service_password': 'pass',
-        }
-        self.test_relation.set(_ks_info)
-        auth_url = "%s://%s:%s/v2.0" % (_ks_info['service_protocol'],
-                                        _ks_info['service_host'],
-                                        _ks_info['service_port'])
-        expect_ks_info = {
-            'service_protocol': _ks_info['service_protocol'],
-            'service_host': _ks_info['service_host'],
-            'service_port': _ks_info['service_port'],
-            'service_tenant': _ks_info['service_tenant'],
-            'service_username': _ks_info['service_username'],
-            'service_password': _ks_info['service_password'],
-            'auth_url': auth_url,
-        }
-        self.assertEqual(hooks._get_keystone_info(), expect_ks_info)

@@ -4,7 +4,8 @@ import os
 from base64 import b64encode
 from charmhelpers.contrib.openstack import context, templating
 from charmhelpers.contrib.openstack.neutron import (
-    network_manager, neutron_plugin_attribute)
+    neutron_plugin_attribute,
+)
 
 from charmhelpers.contrib.openstack.utils import (
     os_release,
@@ -95,7 +96,7 @@ def determine_packages():
         packages.extend(v['services'])
         pkgs = neutron_plugin_attribute(config('neutron-plugin'),
                                         'server_packages',
-                                        network_manager())
+                                        'neutron')
         packages.extend(pkgs)
     return list(set(packages))
 
@@ -119,16 +120,14 @@ def resource_map():
     '''
     resource_map = deepcopy(BASE_RESOURCE_MAP)
 
-    net_manager = network_manager()
-
     # add neutron plugin requirements. nova-c-c only needs the neutron-server
     # associated with configs, not the plugin agent.
     plugin = config('neutron-plugin')
-    conf = neutron_plugin_attribute(plugin, 'config', net_manager)
-    ctxts = (neutron_plugin_attribute(plugin, 'contexts', net_manager)
+    conf = neutron_plugin_attribute(plugin, 'config', 'neutron')
+    ctxts = (neutron_plugin_attribute(plugin, 'contexts', 'neutron')
              or [])
     services = neutron_plugin_attribute(plugin, 'server_services',
-                                        net_manager)
+                                        'neutron')
     resource_map[conf] = {}
     resource_map[conf]['services'] = services
     resource_map[conf]['contexts'] = ctxts
