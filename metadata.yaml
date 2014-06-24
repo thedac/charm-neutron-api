@@ -1,8 +1,17 @@
 name: neutron-api
 maintainer: Liam Young <liam@canonical.com>
-summary: "Openstack neutron api service."
+summary: "OpenStack Neutron API service"
 description: |
-  Openstack neutron api service.
+  Neutron is a virtual network service for OpenStack, and a part of
+  Netstack. Just like OpenStack Nova provides an API to dynamically
+  request and configure virtual servers, Neutron provides an API to
+  dynamically request and configure virtual networks. These networks
+  connect "interfaces" from other OpenStack services (e.g., virtual NICs
+  from Nova VMs). The Neutron API supports extensions to provide
+  advanced network capabilities (e.g., QoS, ACLs, network monitoring,
+  etc.)
+  .
+  This charm provides the OpenStack Neutron API service.
 categories:
   - openstack
 provides:
