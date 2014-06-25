@@ -36,6 +36,10 @@ class NeutronCCContext(context.NeutronContext):
     def _ensure_packages(self):
         pass
 
+    # Do not need the flag on the api server
+    def _save_flag_file(self):
+        pass
+
     def __call__(self):
         ctxt = super(NeutronCCContext, self).__call__()
         ctxt['external_network'] = config('neutron-external-network')
