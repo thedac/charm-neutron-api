@@ -26,6 +26,8 @@ CLUSTER_RES = 'res_neutron_vip'
 
 # removed from original: charm-helper-sh
 BASE_PACKAGES = [
+    'apache2',
+    'haproxy',
     'python-keystoneclient',
     'python-mysqldb',
     'python-psycopg2',
@@ -43,7 +45,6 @@ NEUTRON_CONF_DIR = "/etc/neutron"
 
 NEUTRON_CONF = '%s/neutron.conf' % NEUTRON_CONF_DIR
 HAPROXY_CONF = '/etc/haproxy/haproxy.cfg'
-APACHE_CONF = '/etc/apache2/sites-available/openstack_https_frontend'
 APACHE_24_CONF = '/etc/apache2/sites-available/openstack_https_frontend.conf'
 NEUTRON_DEFAULT = '/etc/default/neutron-server'
 CA_CERT_PATH = '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt'
@@ -64,6 +65,10 @@ BASE_RESOURCE_MAP = OrderedDict([
     (NEUTRON_DEFAULT, {
         'services': ['neutron-server'],
         'contexts': [neutron_api_context.NeutronCCContext()],
+    }),
+    (APACHE_24_CONF, {
+        'contexts': [neutron_api_context.ApacheSSLContext()],
+        'services': ['apache2'],
     }),
 ])
 

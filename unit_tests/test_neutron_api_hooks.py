@@ -24,6 +24,7 @@ TO_PATCH = [
     'canonical_url',
     'config',
     'CONFIGS',
+    'check_call',
     'configure_installation_source',
     'determine_endpoints',
     'determine_packages',
@@ -82,7 +83,8 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.open_port.assert_has_calls(_port_calls)
         self.assertTrue(self.execd_preinstall.called)
 
-    def test_config_changed(self):
+    @patch.object(hooks, 'configure_https')
+    def test_config_changed(self, conf_https):
         self.openstack_upgrade_available.return_value = True
         self.relation_ids.side_effect = self._fake_relids
         _n_api_rel_joined = self.patch('neutron_api_relation_joined')
@@ -192,7 +194,8 @@ class NeutronAPIHooksTests(CharmTestCase):
         self._call_hook('identity-service-relation-changed')
         self.assertFalse(_api_rel_joined.called)
 
-    def test_identity_changed(self):
+    @patch.object(hooks, 'configure_https')
+    def test_identity_changed(self, conf_https):
         self.CONFIGS.complete_contexts.return_value = ['identity-service']
         _api_rel_joined = self.patch('neutron_api_relation_joined')
         self.relation_ids.side_effect = self._fake_relids
@@ -331,3 +334,19 @@ class NeutronAPIHooksTests(CharmTestCase):
         self._call_hook('ha-relation-changed')
         self.assertFalse(_n_api_rel_joined.called)
         self.assertFalse(_id_rel_joined.called)
+
+    def test_configure_https(self):
+        self.CONFIGS.complete_contexts.return_value = ['https']
+        self.relation_ids.side_effect = self._fake_relids
+        _id_rel_joined = self.patch('identity_joined')
+        hooks.configure_https()
+        self.check_call.assert_called_with(['a2ensite', 'openstack_https_frontend'])
+        self.assertTrue(_id_rel_joined.called)
+
+    def test_configure_https_nohttps(self):
+        self.CONFIGS.complete_contexts.return_value = []
+        self.relation_ids.side_effect = self._fake_relids
+        _id_rel_joined = self.patch('identity_joined')
+        hooks.configure_https()
+        self.check_call.assert_called_with(['a2dissite', 'openstack_https_frontend'])
+        self.assertTrue(_id_rel_joined.called)
