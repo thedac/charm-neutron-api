@@ -5,6 +5,9 @@ from charmhelpers.core.hookenv import (
     relation_get,
 )
 from charmhelpers.contrib.openstack import context
+from charmhelpers.contrib.hahelpers.cluster import (
+    determine_api_port,
+)
 
 
 class ApacheSSLContext(context.ApacheSSLContext):
@@ -54,10 +57,13 @@ class NeutronCCContext(context.NeutronContext):
         pass
 
     def __call__(self):
+        from neutron_api_utils import api_port
         ctxt = super(NeutronCCContext, self).__call__()
         ctxt['external_network'] = config('neutron-external-network')
         ctxt['verbose'] = config('verbose')
         ctxt['debug'] = config('debug')
+        ctxt['neutron_bind_port'] = \
+            determine_api_port(api_port('neutron-server'))
         for rid in relation_ids('neutron-api'):
             for unit in related_units(rid):
                 ctxt['nova_url'] = relation_get(attribute='nova_url',

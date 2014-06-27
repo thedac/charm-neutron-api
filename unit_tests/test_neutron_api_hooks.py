@@ -340,7 +340,8 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.relation_ids.side_effect = self._fake_relids
         _id_rel_joined = self.patch('identity_joined')
         hooks.configure_https()
-        self.check_call.assert_called_with(['a2ensite', 'openstack_https_frontend'])
+        self.check_call.assert_called_with(['a2ensite',
+                                           'openstack_https_frontend'])
         self.assertTrue(_id_rel_joined.called)
 
     def test_configure_https_nohttps(self):
@@ -348,5 +349,6 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.relation_ids.side_effect = self._fake_relids
         _id_rel_joined = self.patch('identity_joined')
         hooks.configure_https()
-        self.check_call.assert_called_with(['a2dissite', 'openstack_https_frontend'])
+        self.check_call.assert_called_with(['a2dissite',
+                                           'openstack_https_frontend'])
         self.assertTrue(_id_rel_joined.called)
