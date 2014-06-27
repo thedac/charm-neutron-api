@@ -33,7 +33,6 @@ from charmhelpers.contrib.openstack.neutron import (
 )
 
 from neutron_api_utils import (
-    determine_endpoints,
     determine_packages,
     determine_ports,
     register_configs,
@@ -51,6 +50,7 @@ from charmhelpers.contrib.hahelpers.cluster import (
 )
 
 from charmhelpers.payload.execd import execd_preinstall
+from charmhelpers.contrib.network.ip import get_address_in_network
 
 hooks = Hooks()
 CONFIGS = register_configs()
@@ -152,8 +152,35 @@ def relation_broken():
 
 @hooks.hook('identity-service-relation-joined')
 def identity_joined(rid=None):
-    base_url = canonical_url(CONFIGS)
-    relation_set(relation_id=rid, **determine_endpoints(base_url))
+    public_url = '{}:{}'.format(canonical_url(CONFIGS,
+                                              address=get_address_in_network(
+                                                  config('os-public-network'),
+                                                  unit_get('public-address')
+                                                  )),
+                                api_port('neutron-server'))
+                                                        
+    admin_url = '{}:{}'.format(canonical_url(CONFIGS,
+                                             address=get_address_in_network(
+                                                  config('os-admin-network'),
+                                                  unit_get('private-address')
+                                                  )),
+                               api_port('neutron-server'))
+
+    internal_url = '{}:{}'.format(canonical_url(CONFIGS,
+                                                address=get_address_in_network(
+                                                  config('os-internal-network'),
+                                                  unit_get('private-address')
+                                                  )),
+                               api_port('neutron-server'))
+    
+    endpoints = {
+        'quantum_service': 'quantum',
+        'quantum_region': config('region'),
+        'quantum_public_url': public_url,
+        'quantum_admin_url': admin_url,
+        'quantum_internal_url': internal_url,
+    }
+    relation_set(relation_id=rid, relation_settings=endpoints)
 
 
 @hooks.hook('identity-service-relation-changed')
