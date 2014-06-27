@@ -25,7 +25,6 @@ TO_PATCH = [
     'config',
     'CONFIGS',
     'configure_installation_source',
-    'determine_endpoints',
     'determine_packages',
     'determine_ports',
     'do_openstack_upgrade',
@@ -170,7 +169,10 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.assertTrue(self.CONFIGS.write_all.called)
 
     def test_identity_joined(self):
-        _neutron_url = 'http://127.0.0.1:1234'
+        self.canonical_url.return_value = 'http://127.0.0.1'
+        self.api_port.return_value = '9696'
+        self.test_config.set('region','region1')
+        _neutron_url = 'http://127.0.0.1:9696'
         _endpoints = {
             'quantum_service': 'quantum',
             'quantum_region': 'region1',
@@ -178,11 +180,10 @@ class NeutronAPIHooksTests(CharmTestCase):
             'quantum_admin_url': _neutron_url,
             'quantum_internal_url': _neutron_url,
         }
-        self.determine_endpoints.return_value = _endpoints
         self._call_hook('identity-service-relation-joined')
         self.relation_set.assert_called_with(
             relation_id=None,
-            **_endpoints
+            relation_settings=_endpoints
         )
 
     def test_identity_changed_partial_ctxt(self):
