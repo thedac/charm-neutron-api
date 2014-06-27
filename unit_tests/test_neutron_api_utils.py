@@ -103,6 +103,9 @@ class TestNeutronAPIUtils(CharmTestCase):
             (ML2CONF, {
                 'services': ['neutron-server'],
             }),
+            (nutils.APACHE_24_CONF, {
+                'services': ['apache2'],
+            }),
         ])
         self.assertItemsEqual(_restart_map, expect)
 
@@ -120,7 +123,8 @@ class TestNeutronAPIUtils(CharmTestCase):
         _regconfs = nutils.register_configs()
         confs = ['/etc/neutron/neutron.conf',
                  '/etc/default/neutron-server',
-                 '/etc/neutron/plugins/ml2/ml2_conf.ini']
+                 '/etc/neutron/plugins/ml2/ml2_conf.ini',
+                 '/etc/apache2/sites-available/openstack_https_frontend.conf']
         self.assertItemsEqual(_regconfs.configs, confs)
 
     @patch('os.path.isfile')
