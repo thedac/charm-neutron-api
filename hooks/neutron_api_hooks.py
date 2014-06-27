@@ -195,7 +195,11 @@ def identity_changed():
 
 @hooks.hook('neutron-api-relation-joined')
 def neutron_api_relation_joined(rid=None):
-    base_url = canonical_url(CONFIGS)
+    base_url = canonical_url(
+        CONFIGS,
+        address=get_address_in_network(config('os-internal-network'),
+                                       unit_get('private-address'))
+    )
     neutron_url = '%s:%s' % (base_url, api_port('neutron-server'))
     relation_data = {
         'neutron-url': neutron_url,
