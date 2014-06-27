@@ -171,7 +171,7 @@ class NeutronAPIHooksTests(CharmTestCase):
     def test_identity_joined(self):
         self.canonical_url.return_value = 'http://127.0.0.1'
         self.api_port.return_value = '9696'
-        self.test_config.set('region','region1')
+        self.test_config.set('region', 'region1')
         _neutron_url = 'http://127.0.0.1:9696'
         _endpoints = {
             'quantum_service': 'quantum',

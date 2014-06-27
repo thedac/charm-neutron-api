@@ -158,21 +158,20 @@ def identity_joined(rid=None):
                                                   unit_get('public-address')
                                                   )),
                                 api_port('neutron-server'))
-                                                        
     admin_url = '{}:{}'.format(canonical_url(CONFIGS,
                                              address=get_address_in_network(
-                                                  config('os-admin-network'),
-                                                  unit_get('private-address')
-                                                  )),
+                                                 config('os-admin-network'),
+                                                 unit_get('private-address')
+                                                 )),
                                api_port('neutron-server'))
-
-    internal_url = '{}:{}'.format(canonical_url(CONFIGS,
-                                                address=get_address_in_network(
-                                                  config('os-internal-network'),
-                                                  unit_get('private-address')
-                                                  )),
-                               api_port('neutron-server'))
-    
+    internal_url = '{}:{}'.format(
+        canonical_url(CONFIGS,
+                      address=get_address_in_network(
+                          config('os-internal-network'),
+                          unit_get('private-address')
+                          )),
+        api_port('neutron-server')
+    )
     endpoints = {
         'quantum_service': 'quantum',
         'quantum_region': config('region'),
