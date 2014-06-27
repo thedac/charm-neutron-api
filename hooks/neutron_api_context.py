@@ -15,7 +15,7 @@ class ApacheSSLContext(context.ApacheSSLContext):
 
     def __call__(self):
         # late import to work around circular dependency
-        from nova_cc_utils import determine_ports
+        from neutron_api_utils import determine_ports
         self.external_ports = determine_ports()
         return super(ApacheSSLContext, self).__call__()
 
