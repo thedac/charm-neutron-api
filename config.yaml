@@ -93,7 +93,7 @@ options:
     type: string
     description: |
       SSL certificate to install and use for API ports.  Setting this value
-      and ssl_key will enable reverse proxying, point Nova's entry in the
+      and ssl_key will enable reverse proxying, point Neutron's entry in the
       Keystone catalog to use https, and override any certficiate and key
       issued by Keystone (if it is configured to do so).
   ssl_key:

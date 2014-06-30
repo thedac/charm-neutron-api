@@ -79,7 +79,6 @@ class NeutronAPIContextsTest(CharmTestCase):
         with patch.object(napi_ctxt, '_ensure_packages'):
             self.assertEquals(ctxt_data, napi_ctxt())
 
-    #@patch.object(charmhelpers.contrib.hahelpers.cluster, 'determine_api_port')
     @patch.object(context.NeutronCCContext, 'network_manager')
     @patch.object(context.NeutronCCContext, 'plugin')
     def test_neutroncc_context_api_rel(self, plugin, nm):
