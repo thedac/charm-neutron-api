@@ -26,6 +26,8 @@ CLUSTER_RES = 'res_neutron_vip'
 
 # removed from original: charm-helper-sh
 BASE_PACKAGES = [
+    'apache2',
+    'haproxy',
     'python-keystoneclient',
     'python-mysqldb',
     'python-psycopg2',
@@ -64,6 +66,14 @@ BASE_RESOURCE_MAP = OrderedDict([
     (NEUTRON_DEFAULT, {
         'services': ['neutron-server'],
         'contexts': [neutron_api_context.NeutronCCContext()],
+    }),
+    (APACHE_CONF, {
+        'contexts': [neutron_api_context.ApacheSSLContext()],
+        'services': ['apache2'],
+    }),
+    (APACHE_24_CONF, {
+        'contexts': [neutron_api_context.ApacheSSLContext()],
+        'services': ['apache2'],
     }),
 ])
 
@@ -119,6 +129,11 @@ def resource_map():
     hook execution.
     '''
     resource_map = deepcopy(BASE_RESOURCE_MAP)
+
+    if os.path.exists('/etc/apache2/conf-available'):
+        resource_map.pop(APACHE_CONF)
+    else:
+        resource_map.pop(APACHE_24_CONF)
 
     # add neutron plugin requirements. nova-c-c only needs the neutron-server
     # associated with configs, not the plugin agent.
