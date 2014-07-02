@@ -7,6 +7,7 @@ TO_PATCH = [
     'relation_ids',
     'related_units',
     'config',
+    'determine_api_port',
 ]
 
 
@@ -53,6 +54,8 @@ class NeutronAPIContextsTest(CharmTestCase):
         super(NeutronAPIContextsTest, self).setUp(context, TO_PATCH)
         self.relation_get.side_effect = self.test_relation.get
         self.config.side_effect = self.test_config.get
+        self.api_port = 9696
+        self.determine_api_port.return_value = self.api_port
         self.test_config.set('neutron-plugin', 'ovs')
         self.test_config.set('neutron-security-groups', True)
         self.test_config.set('debug', True)
@@ -70,7 +73,8 @@ class NeutronAPIContextsTest(CharmTestCase):
         ctxt_data = {
             'debug': True,
             'external_network': 'bob',
-            'verbose': True
+            'neutron_bind_port': self.api_port,
+            'verbose': True,
         }
         with patch.object(napi_ctxt, '_ensure_packages'):
             self.assertEquals(ctxt_data, napi_ctxt())
@@ -85,6 +89,7 @@ class NeutronAPIContextsTest(CharmTestCase):
         self.test_relation.set({'nova_url': nova_url})
         napi_ctxt = context.NeutronCCContext()
         self.assertEquals(nova_url, napi_ctxt()['nova_url'])
+        self.assertEquals(self.api_port, napi_ctxt()['neutron_bind_port'])
 
     def test_neutroncc_context_manager(self):
         napi_ctxt = context.NeutronCCContext()

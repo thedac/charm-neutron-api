@@ -2,6 +2,7 @@
 
 import sys
 
+from subprocess import check_call
 from charmhelpers.core.hookenv import (
     Hooks,
     UnregisteredHookError,
@@ -56,6 +57,25 @@ hooks = Hooks()
 CONFIGS = register_configs()
 
 
+def configure_https():
+    '''
+    Enables SSL API Apache config if appropriate and kicks identity-service
+    with any required api updates.
+    '''
+    # need to write all to ensure changes to the entire request pipeline
+    # propagate (c-api, haprxy, apache)
+    CONFIGS.write_all()
+    if 'https' in CONFIGS.complete_contexts():
+        cmd = ['a2ensite', 'openstack_https_frontend']
+        check_call(cmd)
+    else:
+        cmd = ['a2dissite', 'openstack_https_frontend']
+        check_call(cmd)
+
+    for rid in relation_ids('identity-service'):
+        identity_joined(rid=rid)
+
+
 @hooks.hook()
 def install():
     execd_preinstall()
@@ -72,6 +92,7 @@ def config_changed():
     global CONFIGS
     if openstack_upgrade_available('neutron-server'):
         do_openstack_upgrade(CONFIGS)
+    configure_https()
     CONFIGS.write_all()
     for r_id in relation_ids('neutron-api'):
         neutron_api_relation_joined(rid=r_id)
@@ -191,6 +212,7 @@ def identity_changed():
     CONFIGS.write(NEUTRON_CONF)
     for r_id in relation_ids('neutron-api'):
         neutron_api_relation_joined(rid=r_id)
+    configure_https()
 
 
 @hooks.hook('neutron-api-relation-joined')
