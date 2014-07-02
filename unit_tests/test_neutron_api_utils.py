@@ -71,10 +71,23 @@ class TestNeutronAPIUtils(CharmTestCase):
         port_list = nutils.determine_ports()
         self.assertItemsEqual(port_list, [9696])
 
-    def test_resource_map(self):
+    @patch('os.path.exists')
+    def test_resource_map(self, _path_exists):
+        _path_exists.return_value = False
         _map = nutils.resource_map()
-        confs = [nutils.NEUTRON_CONF, nutils.NEUTRON_DEFAULT]
+        confs = [nutils.NEUTRON_CONF, nutils.NEUTRON_DEFAULT,
+                 nutils.APACHE_CONF]
         [self.assertIn(q_conf, _map.keys()) for q_conf in confs]
+        self.assertTrue(nutils.APACHE_24_CONF not in _map.keys())
+
+    @patch('os.path.exists')
+    def test_resource_map_apache24(self, _path_exists):
+        _path_exists.return_value = True
+        _map = nutils.resource_map()
+        confs = [nutils.NEUTRON_CONF, nutils.NEUTRON_DEFAULT,
+                 nutils.APACHE_24_CONF]
+        [self.assertIn(q_conf, _map.keys()) for q_conf in confs]
+        self.assertTrue(nutils.APACHE_CONF not in _map.keys())
 
     def test_restart_map(self):
         _restart_map = nutils.restart_map()
@@ -88,6 +101,9 @@ class TestNeutronAPIUtils(CharmTestCase):
             }),
             (ML2CONF, {
                 'services': ['neutron-server'],
+            }),
+            (nutils.APACHE_24_CONF, {
+                'services': ['apache2'],
             }),
         ])
         self.assertItemsEqual(_restart_map, expect)
@@ -106,7 +122,8 @@ class TestNeutronAPIUtils(CharmTestCase):
         _regconfs = nutils.register_configs()
         confs = ['/etc/neutron/neutron.conf',
                  '/etc/default/neutron-server',
-                 '/etc/neutron/plugins/ml2/ml2_conf.ini']
+                 '/etc/neutron/plugins/ml2/ml2_conf.ini',
+                 '/etc/apache2/sites-available/openstack_https_frontend.conf']
         self.assertItemsEqual(_regconfs.configs, confs)
 
     @patch('os.path.isfile')
