@@ -45,13 +45,16 @@ from neutron_api_utils import (
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
-    canonical_url,
     get_hacluster_config,
     is_leader,
 )
 
 from charmhelpers.payload.execd import execd_preinstall
-from charmhelpers.contrib.network.ip import get_address_in_network
+
+from charmhelpers.contrib.openstack.ip import (
+    canonical_url,
+    PUBLIC, INTERNAL, ADMIN
+)
 
 hooks = Hooks()
 CONFIGS = register_configs()
@@ -173,25 +176,12 @@ def relation_broken():
 
 @hooks.hook('identity-service-relation-joined')
 def identity_joined(rid=None):
-    public_url = '{}:{}'.format(canonical_url(CONFIGS,
-                                              address=get_address_in_network(
-                                                  config('os-public-network'),
-                                                  unit_get('public-address')
-                                                  )),
+    public_url = '{}:{}'.format(canonical_url(CONFIGS, PUBLIC),
                                 api_port('neutron-server'))
-    admin_url = '{}:{}'.format(canonical_url(CONFIGS,
-                                             address=get_address_in_network(
-                                                 config('os-admin-network'),
-                                                 unit_get('private-address')
-                                                 )),
+    admin_url = '{}:{}'.format(canonical_url(CONFIGS, ADMIN),
                                api_port('neutron-server'))
-    internal_url = '{}:{}'.format(
-        canonical_url(CONFIGS,
-                      address=get_address_in_network(
-                          config('os-internal-network'),
-                          unit_get('private-address')
-                          )),
-        api_port('neutron-server')
+    internal_url = '{}:{}'.format(canonical_url(CONFIGS, INTERNAL),
+                                  api_port('neutron-server')
     )
     endpoints = {
         'quantum_service': 'quantum',
@@ -217,11 +207,7 @@ def identity_changed():
 
 @hooks.hook('neutron-api-relation-joined')
 def neutron_api_relation_joined(rid=None):
-    base_url = canonical_url(
-        CONFIGS,
-        address=get_address_in_network(config('os-internal-network'),
-                                       unit_get('private-address'))
-    )
+    base_url = canonical_url(CONFIGS, INTERNAL)
     neutron_url = '%s:%s' % (base_url, api_port('neutron-server'))
     relation_data = {
         'neutron-url': neutron_url,
