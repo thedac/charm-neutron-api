@@ -75,6 +75,11 @@ BASE_RESOURCE_MAP = OrderedDict([
         'contexts': [neutron_api_context.ApacheSSLContext()],
         'services': ['apache2'],
     }),
+    (HAPROXY_CONF, {
+        'contexts': [context.HAProxyContext(),
+                     neutron_api_context.HAProxyContext()],
+        'services': ['haproxy'],
+    }),
 ])
 
 
