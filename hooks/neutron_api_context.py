@@ -74,6 +74,7 @@ class NeutronCCContext(context.NeutronContext):
                     return ctxt
         return ctxt
 
+
 class HAProxyContext(context.HAProxyContext):
     interfaces = ['ceph']
 
@@ -95,7 +96,7 @@ class HAProxyContext(context.HAProxyContext):
         }
 
         ctxt['neutron_bind_port'] = determine_api_port(
-			                api_port('neutron-server'))
+            api_port('neutron-server'))
 
         # for haproxy.conf
         ctxt['service_ports'] = port_mapping
