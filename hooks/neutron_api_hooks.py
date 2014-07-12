@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import sys
+import uuid
 
 from subprocess import check_call
 from charmhelpers.core.hookenv import (
@@ -172,9 +173,13 @@ def relation_broken():
 
 
 @hooks.hook('identity-service-relation-joined')
-def identity_joined(rid=None):
+def identity_joined(rid=None, relation_trigger=False):
+    # Use relation trigger to reassert endpoints with identity server
     base_url = canonical_url(CONFIGS)
-    relation_set(relation_id=rid, **determine_endpoints(base_url))
+    rel_settings = determine_endpoints(base_url)
+    if relation_trigger:
+        rel_settings['relation_trigger'] = str(uuid.uuid4())
+    relation_set(relation_id=rid, **rel_settings)
 
 
 @hooks.hook('identity-service-relation-changed')
@@ -205,7 +210,7 @@ def neutron_api_relation_joined(rid=None):
     # Nova-cc may have grabbed the quantum endpoint so kick identity-service
     # relation to register that its here
     for r_id in relation_ids('identity-service'):
-        identity_joined(rid=r_id)
+        identity_joined(rid=r_id, relation_trigger=True)
 
 
 @hooks.hook('neutron-api-relation-changed')
