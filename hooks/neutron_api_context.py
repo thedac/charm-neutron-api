@@ -73,7 +73,7 @@ class NeutronCCContext(context.NeutronContext):
                                                 rid=rid,
                                                 unit=unit)
                 if cell_type and not cell_type == "api":
-                    pass
+                    continue
                 if ctxt['nova_url']:
                     return ctxt
         return ctxt
