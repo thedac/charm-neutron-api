@@ -22,7 +22,7 @@ import neutron_api_context
 
 TEMPLATES = 'templates/'
 
-CLUSTER_RES = 'res_neutron_vip'
+CLUSTER_RES = 'grp_neutron_vips'
 
 # removed from original: charm-helper-sh
 BASE_PACKAGES = [

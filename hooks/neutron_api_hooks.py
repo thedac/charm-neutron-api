@@ -56,6 +56,11 @@ from charmhelpers.contrib.openstack.ip import (
     PUBLIC, INTERNAL, ADMIN
 )
 
+from charmhelpers.contrib.network.ip import (
+    get_iface_for_address,
+    get_netmask_for_address
+)
+
 hooks = Hooks()
 CONFIGS = register_configs()
 
@@ -249,15 +254,28 @@ def cluster_changed():
 def ha_joined():
     config = get_hacluster_config()
     resources = {
-        'res_neutron_vip': 'ocf:heartbeat:IPaddr2',
         'res_neutron_haproxy': 'lsb:haproxy',
     }
-    vip_params = 'params ip="%s" cidr_netmask="%s" nic="%s"' % \
-                 (config['vip'], config['vip_cidr'], config['vip_iface'])
     resource_params = {
-        'res_neutron_vip': vip_params,
         'res_neutron_haproxy': 'op monitor interval="5s"'
-    }
+    }    
+    vip_group = []
+    for vip in config['vip'].split():
+        iface = get_iface_for_address(vip)
+        if iface is not None:
+            vip_key = 'res_neutron_{}_vip'.format(iface)
+            resources[vip_key] = 'ocf:heartbeat:IPaddr2'
+            resource_params[vip_key] = (
+                'params ip="{vip}" cidr_netmask="{netmask}"'
+                ' nic="{iface}"'.format(vip=vip,
+                                        iface=iface,
+                                        netmask=get_netmask_for_address(vip))
+            )
+            vip_group.append(vip_key)
+
+    if len(vip_group) > 1:
+        relation_set(groups={'grp_neutron_vips': ' '.join(vip_group)})
+
     init_services = {
         'res_neutron_haproxy': 'haproxy'
     }

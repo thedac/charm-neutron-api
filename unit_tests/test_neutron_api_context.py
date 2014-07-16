@@ -9,7 +9,7 @@ TO_PATCH = [
     'related_units',
     'config',
     'determine_api_port',
-    'determine_apache_port',
+    'determine_apache_port'
 ]
 
 
@@ -67,13 +67,15 @@ class HAProxyContextTest(CharmTestCase):
         hap_ctxt = context.HAProxyContext()
         self.assertTrue('units' not in hap_ctxt())
 
+    @patch.object(charmhelpers.contrib.openstack.context, 'config')
     @patch.object(charmhelpers.contrib.openstack.context, 'local_unit')
     @patch.object(charmhelpers.contrib.openstack.context, 'unit_get')
     @patch.object(charmhelpers.contrib.openstack.context, 'relation_get')
     @patch.object(charmhelpers.contrib.openstack.context, 'related_units')
     @patch.object(charmhelpers.contrib.openstack.context, 'relation_ids')
     @patch.object(charmhelpers.contrib.openstack.context, 'log')
-    def test_context_peers(self, _log, _rids, _runits, _rget, _uget, _lunit):
+    def test_context_peers(self, _log, _rids, _runits, _rget, _uget,
+                           _lunit, _config):
         unit_addresses = {
             'neutron-api-0': '10.10.10.10',
             'neutron-api-1': '10.10.10.11',
@@ -83,6 +85,7 @@ class HAProxyContextTest(CharmTestCase):
         _rget.return_value = unit_addresses['neutron-api-0']
         _lunit.return_value = "neutron-api/1"
         _uget.return_value = unit_addresses['neutron-api-1']
+        _config.return_value = None
         service_ports = {'neutron-server': [9696, 9686]}
 
         ctxt_data = {
