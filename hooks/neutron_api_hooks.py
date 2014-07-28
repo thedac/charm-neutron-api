@@ -187,7 +187,7 @@ def identity_joined(rid=None):
                                api_port('neutron-server'))
     internal_url = '{}:{}'.format(canonical_url(CONFIGS, INTERNAL),
                                   api_port('neutron-server')
-    )
+                                  )
     endpoints = {
         'quantum_service': 'quantum',
         'quantum_region': config('region'),
@@ -258,7 +258,7 @@ def ha_joined():
     }
     resource_params = {
         'res_neutron_haproxy': 'op monitor interval="5s"'
-    }    
+    }
     vip_group = []
     for vip in config['vip'].split():
         iface = get_iface_for_address(vip)
