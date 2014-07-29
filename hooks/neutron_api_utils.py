@@ -22,7 +22,7 @@ import neutron_api_context
 
 TEMPLATES = 'templates/'
 
-CLUSTER_RES = 'res_neutron_vip'
+CLUSTER_RES = 'grp_neutron_vips'
 
 # removed from original: charm-helper-sh
 BASE_PACKAGES = [
@@ -85,23 +85,6 @@ BASE_RESOURCE_MAP = OrderedDict([
 
 def api_port(service):
     return API_PORTS[service]
-
-
-def determine_endpoints(url):
-    '''Generates a dictionary containing all relevant endpoints to be
-    passed to keystone as relation settings.'''
-    region = config('region')
-
-    neutron_url = '%s:%s' % (url, api_port('neutron-server'))
-
-    endpoints = ({
-        'quantum_service': 'quantum',
-        'quantum_region': region,
-        'quantum_public_url': neutron_url,
-        'quantum_admin_url': neutron_url,
-        'quantum_internal_url': neutron_url,
-    })
-    return endpoints
 
 
 def determine_packages():

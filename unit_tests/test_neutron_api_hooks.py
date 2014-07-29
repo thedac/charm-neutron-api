@@ -26,7 +26,6 @@ TO_PATCH = [
     'CONFIGS',
     'check_call',
     'configure_installation_source',
-    'determine_endpoints',
     'determine_packages',
     'determine_ports',
     'do_openstack_upgrade',
@@ -41,6 +40,8 @@ TO_PATCH = [
     'relation_ids',
     'relation_set',
     'unit_get',
+    'get_iface_for_address',
+    'get_netmask_for_address',
 ]
 NEUTRON_CONF_DIR = "/etc/neutron"
 
@@ -172,7 +173,10 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.assertTrue(self.CONFIGS.write_all.called)
 
     def test_identity_joined(self):
-        _neutron_url = 'http://127.0.0.1:1234'
+        self.canonical_url.return_value = 'http://127.0.0.1'
+        self.api_port.return_value = '9696'
+        self.test_config.set('region', 'region1')
+        _neutron_url = 'http://127.0.0.1:9696'
         _endpoints = {
             'quantum_service': 'quantum',
             'quantum_region': 'region1',
@@ -180,11 +184,10 @@ class NeutronAPIHooksTests(CharmTestCase):
             'quantum_admin_url': _neutron_url,
             'quantum_internal_url': _neutron_url,
         }
-        self.determine_endpoints.return_value = _endpoints
         self._call_hook('identity-service-relation-joined')
         self.relation_set.assert_called_with(
             relation_id=None,
-            **_endpoints
+            relation_settings=_endpoints
         )
 
     def test_identity_changed_partial_ctxt(self):
@@ -276,20 +279,21 @@ class NeutronAPIHooksTests(CharmTestCase):
             'ha-bindiface': 'eth1',
             'ha-mcastport': '5405',
         }
-        vip_params = 'params ip="%s" cidr_netmask="%s" nic="%s"' % \
-                     (_ha_config['vip'], _ha_config['vip_cidr'],
-                      _ha_config['vip_iface'])
+        vip_params = 'params ip="%s" cidr_netmask="255.255.255.0" nic="%s"' % \
+                     (_ha_config['vip'], _ha_config['vip_iface'])
         _get_ha_config.return_value = _ha_config
+        self.get_iface_for_address.return_value = 'eth0'
+        self.get_netmask_for_address.return_value = '255.255.255.0'
         _relation_data = {
             'init_services': {'res_neutron_haproxy': 'haproxy'},
             'corosync_bindiface': _ha_config['ha-bindiface'],
             'corosync_mcastport': _ha_config['ha-mcastport'],
             'resources': {
-                'res_neutron_vip': 'ocf:heartbeat:IPaddr2',
+                'res_neutron_eth0_vip': 'ocf:heartbeat:IPaddr2',
                 'res_neutron_haproxy': 'lsb:haproxy'
             },
             'resource_params': {
-                'res_neutron_vip': vip_params,
+                'res_neutron_eth0_vip': vip_params,
                 'res_neutron_haproxy': 'op monitor interval="5s"'
             },
             'clones': {'cl_nova_haproxy': 'res_neutron_haproxy'}
