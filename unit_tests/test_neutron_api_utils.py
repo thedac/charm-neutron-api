@@ -61,20 +61,6 @@ class TestNeutronAPIUtils(CharmTestCase):
         port = nutils.api_port('neutron-server')
         self.assertEqual(port, nutils.API_PORTS['neutron-server'])
 
-    def test_determine_endpoints(self):
-        test_url = 'http://127.0.0.1'
-        endpoints = nutils.determine_endpoints(test_url)
-        neutron_url = '%s:%s' % (test_url,
-                                 nutils.api_port('neutron-server'))
-        expect = {
-            'quantum_service': 'quantum',
-            'quantum_region': 'region101',
-            'quantum_public_url': neutron_url,
-            'quantum_admin_url': neutron_url,
-            'quantum_internal_url': neutron_url,
-        }
-        self.assertEqual(endpoints, expect)
-
     def test_determine_packages(self):
         pkg_list = nutils.determine_packages()
         expect = nutils.BASE_PACKAGES
@@ -119,6 +105,9 @@ class TestNeutronAPIUtils(CharmTestCase):
             (nutils.APACHE_24_CONF, {
                 'services': ['apache2'],
             }),
+            (nutils.HAPROXY_CONF, {
+                'services': ['haproxy'],
+            }),
         ])
         self.assertItemsEqual(_restart_map, expect)
 
@@ -137,7 +126,8 @@ class TestNeutronAPIUtils(CharmTestCase):
         confs = ['/etc/neutron/neutron.conf',
                  '/etc/default/neutron-server',
                  '/etc/neutron/plugins/ml2/ml2_conf.ini',
-                 '/etc/apache2/sites-available/openstack_https_frontend.conf']
+                 '/etc/apache2/sites-available/openstack_https_frontend.conf',
+                 '/etc/haproxy/haproxy.cfg']
         self.assertItemsEqual(_regconfs.configs, confs)
 
     @patch('os.path.isfile')

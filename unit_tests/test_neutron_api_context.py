@@ -1,5 +1,6 @@
 from test_utils import CharmTestCase
-from mock import patch
+from test_utils import patch_open
+from mock import patch, MagicMock
 import neutron_api_context as context
 import charmhelpers
 TO_PATCH = [
@@ -8,6 +9,7 @@ TO_PATCH = [
     'related_units',
     'config',
     'determine_api_port',
+    'determine_apache_port'
 ]
 
 
@@ -46,6 +48,56 @@ class IdentityServiceContext(CharmTestCase):
         _rids.return_value = []
         ids_ctxt = context.IdentityServiceContext()
         self.assertEquals(ids_ctxt(), None)
+
+
+class HAProxyContextTest(CharmTestCase):
+
+    def setUp(self):
+        super(HAProxyContextTest, self).setUp(context, TO_PATCH)
+        self.determine_api_port.return_value = 9686
+        self.determine_apache_port.return_value = 9686
+
+    def tearDown(self):
+        super(HAProxyContextTest, self).tearDown()
+
+    @patch.object(charmhelpers.contrib.openstack.context, 'relation_ids')
+    @patch.object(charmhelpers.contrib.openstack.context, 'log')
+    def test_context_No_peers(self, _log, _rids):
+        _rids.return_value = []
+        hap_ctxt = context.HAProxyContext()
+        self.assertTrue('units' not in hap_ctxt())
+
+    @patch.object(charmhelpers.contrib.openstack.context, 'config')
+    @patch.object(charmhelpers.contrib.openstack.context, 'local_unit')
+    @patch.object(charmhelpers.contrib.openstack.context, 'unit_get')
+    @patch.object(charmhelpers.contrib.openstack.context, 'relation_get')
+    @patch.object(charmhelpers.contrib.openstack.context, 'related_units')
+    @patch.object(charmhelpers.contrib.openstack.context, 'relation_ids')
+    @patch.object(charmhelpers.contrib.openstack.context, 'log')
+    def test_context_peers(self, _log, _rids, _runits, _rget, _uget,
+                           _lunit, _config):
+        unit_addresses = {
+            'neutron-api-0': '10.10.10.10',
+            'neutron-api-1': '10.10.10.11',
+        }
+        _rids.return_value = ['rid1']
+        _runits.return_value = ['neutron-api/0']
+        _rget.return_value = unit_addresses['neutron-api-0']
+        _lunit.return_value = "neutron-api/1"
+        _uget.return_value = unit_addresses['neutron-api-1']
+        _config.return_value = None
+        service_ports = {'neutron-server': [9696, 9686]}
+
+        ctxt_data = {
+            'units': unit_addresses,
+            'service_ports': service_ports,
+            'neutron_bind_port': 9686,
+        }
+        with patch_open() as (_open, _file):
+            _file.write = MagicMock()
+            hap_ctxt = context.HAProxyContext()
+            self.assertEquals(hap_ctxt(), ctxt_data)
+            _file.write.assert_called_with('ENABLED=1\n')
 
 
 class NeutronAPIContextsTest(CharmTestCase):
