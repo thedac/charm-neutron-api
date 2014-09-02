@@ -35,7 +35,6 @@ from charmhelpers.contrib.openstack.neutron import (
 )
 
 from neutron_api_utils import (
-    determine_endpoints,
     determine_packages,
     determine_ports,
     register_configs,
@@ -47,12 +46,21 @@ from neutron_api_utils import (
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
-    canonical_url,
     get_hacluster_config,
     is_leader,
 )
 
 from charmhelpers.payload.execd import execd_preinstall
+
+from charmhelpers.contrib.openstack.ip import (
+    canonical_url,
+    PUBLIC, INTERNAL, ADMIN
+)
+
+from charmhelpers.contrib.network.ip import (
+    get_iface_for_address,
+    get_netmask_for_address
+)
 
 hooks = Hooks()
 CONFIGS = register_configs()
@@ -174,12 +182,23 @@ def relation_broken():
 
 @hooks.hook('identity-service-relation-joined')
 def identity_joined(rid=None, relation_trigger=False):
-    # Use relation trigger to reassert endpoints with identity server
-    base_url = canonical_url(CONFIGS)
-    rel_settings = determine_endpoints(base_url)
+    public_url = '{}:{}'.format(canonical_url(CONFIGS, PUBLIC),
+                                api_port('neutron-server'))
+    admin_url = '{}:{}'.format(canonical_url(CONFIGS, ADMIN),
+                               api_port('neutron-server'))
+    internal_url = '{}:{}'.format(canonical_url(CONFIGS, INTERNAL),
+                                  api_port('neutron-server')
+                                  )
+    rel_settings = {
+        'quantum_service': 'quantum',
+        'quantum_region': config('region'),
+        'quantum_public_url': public_url,
+        'quantum_admin_url': admin_url,
+        'quantum_internal_url': internal_url,
+    }
     if relation_trigger:
         rel_settings['relation_trigger'] = str(uuid.uuid4())
-    relation_set(relation_id=rid, **rel_settings)
+    relation_set(relation_id=rid, relation_settings=rel_settings)
 
 
 @hooks.hook('identity-service-relation-changed')
@@ -196,7 +215,7 @@ def identity_changed():
 
 @hooks.hook('neutron-api-relation-joined')
 def neutron_api_relation_joined(rid=None):
-    base_url = canonical_url(CONFIGS)
+    base_url = canonical_url(CONFIGS, INTERNAL)
     neutron_url = '%s:%s' % (base_url, api_port('neutron-server'))
     relation_data = {
         'neutron-url': neutron_url,
@@ -238,15 +257,28 @@ def cluster_changed():
 def ha_joined():
     config = get_hacluster_config()
     resources = {
-        'res_neutron_vip': 'ocf:heartbeat:IPaddr2',
         'res_neutron_haproxy': 'lsb:haproxy',
     }
-    vip_params = 'params ip="%s" cidr_netmask="%s" nic="%s"' % \
-                 (config['vip'], config['vip_cidr'], config['vip_iface'])
     resource_params = {
-        'res_neutron_vip': vip_params,
         'res_neutron_haproxy': 'op monitor interval="5s"'
     }
+    vip_group = []
+    for vip in config['vip'].split():
+        iface = get_iface_for_address(vip)
+        if iface is not None:
+            vip_key = 'res_neutron_{}_vip'.format(iface)
+            resources[vip_key] = 'ocf:heartbeat:IPaddr2'
+            resource_params[vip_key] = (
+                'params ip="{vip}" cidr_netmask="{netmask}"'
+                ' nic="{iface}"'.format(vip=vip,
+                                        iface=iface,
+                                        netmask=get_netmask_for_address(vip))
+            )
+            vip_group.append(vip_key)
+
+    if len(vip_group) > 1:
+        relation_set(groups={'grp_neutron_vips': ' '.join(vip_group)})
+
     init_services = {
         'res_neutron_haproxy': 'haproxy'
     }

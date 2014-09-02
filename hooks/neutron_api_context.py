@@ -7,6 +7,7 @@ from charmhelpers.core.hookenv import (
 from charmhelpers.contrib.openstack import context
 from charmhelpers.contrib.hahelpers.cluster import (
     determine_api_port,
+    determine_apache_port,
 )
 
 
@@ -76,4 +77,32 @@ class NeutronCCContext(context.NeutronContext):
                     continue
                 if ctxt['nova_url']:
                     return ctxt
+        return ctxt
+
+
+class HAProxyContext(context.HAProxyContext):
+    interfaces = ['ceph']
+
+    def __call__(self):
+        '''
+        Extends the main charmhelpers HAProxyContext with a port mapping
+        specific to this charm.
+        Also used to extend nova.conf context with correct api_listening_ports
+        '''
+        from neutron_api_utils import api_port
+        ctxt = super(HAProxyContext, self).__call__()
+
+        # Apache ports
+        a_neutron_api = determine_apache_port(api_port('neutron-server'))
+
+        port_mapping = {
+            'neutron-server': [
+                api_port('neutron-server'), a_neutron_api]
+        }
+
+        ctxt['neutron_bind_port'] = determine_api_port(
+            api_port('neutron-server'))
+
+        # for haproxy.conf
+        ctxt['service_ports'] = port_mapping
         return ctxt
