@@ -217,6 +217,7 @@ def neutron_api_relation_joined(rid=None):
     relation_data = {
         'neutron-url': neutron_url,
         'neutron-plugin': config('neutron-plugin'),
+        'l2-population': config('l2_population'),
     }
     if config('neutron-security-groups'):
         relation_data['neutron-security-groups'] = "yes"
@@ -238,7 +239,8 @@ def neutron_api_relation_changed():
 @hooks.hook('neutron-plugin-api-relation-joined')
 def neutron_plugin_api_relation_joined(rid=None):
     relation_data = {
-        'neutron-security-groups': config('neutron-security-groups')
+        'neutron-security-groups': config('neutron-security-groups'),
+        'l2-population': config('l2_population'),
     }
     relation_set(relation_id=rid, **relation_data)
 
