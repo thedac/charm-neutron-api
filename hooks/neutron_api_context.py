@@ -10,9 +10,11 @@ from charmhelpers.contrib.hahelpers.cluster import (
     determine_apache_port,
 )
 
+
 def get_l2population():
     plugin = config('neutron-plugin')
     return config('l2-population') if plugin == "ovs" else False
+
 
 class ApacheSSLContext(context.ApacheSSLContext):
 
