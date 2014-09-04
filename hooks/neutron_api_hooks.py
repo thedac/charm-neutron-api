@@ -218,7 +218,6 @@ def neutron_api_relation_joined(rid=None):
     relation_data = {
         'neutron-url': neutron_url,
         'neutron-plugin': config('neutron-plugin'),
-        'l2-population': get_l2population(),
     }
     if config('neutron-security-groups'):
         relation_data['neutron-security-groups'] = "yes"
