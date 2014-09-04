@@ -43,6 +43,7 @@ from neutron_api_utils import (
     CLUSTER_RES,
     do_openstack_upgrade,
 )
+from neutron_api_context import get_l2population
 
 from charmhelpers.contrib.hahelpers.cluster import (
     get_hacluster_config,
@@ -238,7 +239,8 @@ def neutron_api_relation_changed():
 @hooks.hook('neutron-plugin-api-relation-joined')
 def neutron_plugin_api_relation_joined(rid=None):
     relation_data = {
-        'neutron-security-groups': config('neutron-security-groups')
+        'neutron-security-groups': config('neutron-security-groups'),
+        'l2-population': get_l2population(),
     }
     relation_set(relation_id=rid, **relation_data)
 
