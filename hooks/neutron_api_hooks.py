@@ -210,6 +210,11 @@ def identity_changed():
     configure_https()
 
 
+def get_l2population():
+    plugin = config('neutron-plugin')
+    return config('l2-population') if plugin == "ovs" else False
+
+
 @hooks.hook('neutron-api-relation-joined')
 def neutron_api_relation_joined(rid=None):
     base_url = canonical_url(CONFIGS, INTERNAL)
@@ -217,7 +222,7 @@ def neutron_api_relation_joined(rid=None):
     relation_data = {
         'neutron-url': neutron_url,
         'neutron-plugin': config('neutron-plugin'),
-        'l2-population': config('l2_population'),
+        'l2-population': get_l2population(),
     }
     if config('neutron-security-groups'):
         relation_data['neutron-security-groups'] = "yes"
@@ -240,7 +245,7 @@ def neutron_api_relation_changed():
 def neutron_plugin_api_relation_joined(rid=None):
     relation_data = {
         'neutron-security-groups': config('neutron-security-groups'),
-        'l2-population': config('l2_population'),
+        'l2-population': get_l2population(),
     }
     relation_set(relation_id=rid, **relation_data)
 
