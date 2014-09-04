@@ -30,6 +30,9 @@ TO_PATCH = [
     'determine_ports',
     'do_openstack_upgrade',
     'execd_preinstall',
+    'get_iface_for_address',
+    'get_l2population',
+    'get_netmask_for_address',
     'is_leader',
     'is_relation_made',
     'log',
@@ -40,8 +43,6 @@ TO_PATCH = [
     'relation_ids',
     'relation_set',
     'unit_get',
-    'get_iface_for_address',
-    'get_netmask_for_address',
 ]
 NEUTRON_CONF_DIR = "/etc/neutron"
 
@@ -256,10 +257,12 @@ class NeutronAPIHooksTests(CharmTestCase):
         self._call_hook('neutron-api-relation-changed')
         self.assertTrue(self.CONFIGS.write.called_with(NEUTRON_CONF))
 
-    def test_neutron_plugin_api_relation_joined(self):
+    def test_neutron_plugin_api_relation_joined_nol2(self):
         _relation_data = {
             'neutron-security-groups': False,
+            'l2-population': False,
         }
+        self.get_l2population.return_value = False
         self._call_hook('neutron-plugin-api-relation-joined')
         self.relation_set.assert_called_with(
             relation_id=None,
