@@ -273,7 +273,7 @@ def ha_joined():
             )
             vip_group.append(vip_key)
 
-    if len(vip_group) > 1:
+    if len(vip_group) >= 1:
         relation_set(groups={'grp_neutron_vips': ' '.join(vip_group)})
 
     init_services = {
