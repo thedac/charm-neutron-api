@@ -43,6 +43,7 @@ from neutron_api_utils import (
     CLUSTER_RES,
     do_openstack_upgrade,
 )
+from neutron_api_context import get_l2population
 
 from charmhelpers.contrib.hahelpers.cluster import (
     get_hacluster_config,
@@ -208,11 +209,6 @@ def identity_changed():
     for r_id in relation_ids('neutron-api'):
         neutron_api_relation_joined(rid=r_id)
     configure_https()
-
-
-def get_l2population():
-    plugin = config('neutron-plugin')
-    return config('l2-population') if plugin == "ovs" else False
 
 
 @hooks.hook('neutron-api-relation-joined')
