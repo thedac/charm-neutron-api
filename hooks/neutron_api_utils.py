@@ -199,4 +199,10 @@ def do_openstack_upgrade(configs):
     configs.set_release(openstack_release=new_os_rel)
 
 def get_topics():
-    return ['neutron']
+    return ['q-l3-plugin',
+            'q-firewall-plugin',
+            'n-lbaas-plugin',
+            'ipsec_driver',
+            'q-metering-plugin',
+            'q-plugin',
+            'neutron']
