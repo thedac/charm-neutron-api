@@ -199,4 +199,4 @@ def do_openstack_upgrade(configs):
     configs.set_release(openstack_release=new_os_rel)
 
 def get_topics():
-    return []
+    return ['neutron']
