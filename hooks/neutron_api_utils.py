@@ -61,7 +61,8 @@ BASE_RESOURCE_MAP = OrderedDict([
                      context.PostgresqlDBContext(database=config('database')),
                      neutron_api_context.IdentityServiceContext(),
                      neutron_api_context.NeutronCCContext(),
-                     context.SyslogContext()],
+                     context.SyslogContext(),
+                     context.ZeroMQContext(),],
     }),
     (NEUTRON_DEFAULT, {
         'services': ['neutron-server'],
@@ -196,3 +197,6 @@ def do_openstack_upgrade(configs):
 
     # set CONFIGS to load templates from new release
     configs.set_release(openstack_release=new_os_rel)
+
+def get_topics():
+    return []

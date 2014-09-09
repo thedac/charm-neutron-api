@@ -42,6 +42,7 @@ from neutron_api_utils import (
     api_port,
     CLUSTER_RES,
     do_openstack_upgrade,
+    get_topics,
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
@@ -110,6 +111,8 @@ def config_changed():
         amqp_joined(relation_id=r_id)
     for r_id in relation_ids('identity-service'):
         identity_joined(rid=r_id)
+    for rid in relation_ids('zeromq-configuration'):
+        zeromq_configuration_relation_joined(rid)
 
 
 @hooks.hook('amqp-relation-joined')
@@ -306,6 +309,19 @@ def ha_changed():
         identity_joined(rid=rid)
     for rid in relation_ids('neutron-api'):
         neutron_api_relation_joined(rid=rid)
+
+
+@hooks.hook('zeromq-configuration-relation-joined')
+def zeromq_configuration_relation_joined(relid=None):
+    relation_set(relation_id=relid,
+                 topics=" ".join(get_topics()),
+                 users="nova")
+
+
+@hooks.hook('zeromq-configuration-relation-changed')
+@restart_on_change(restart_map(), stopstart=True)
+def zeromq_configuration_relation_changed():
+    CONFIGS.write_all()
 
 
 def main():
