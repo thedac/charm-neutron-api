@@ -10,6 +10,10 @@ from charmhelpers.contrib.hahelpers.cluster import (
     determine_apache_port,
 )
 
+from charmhelpers.contrib.network.ip import(
+    format_ipv6_addr,
+)
+
 
 class ApacheSSLContext(context.ApacheSSLContext):
 
@@ -100,4 +104,19 @@ class HAProxyContext(context.HAProxyContext):
 
         # for haproxy.conf
         ctxt['service_ports'] = port_mapping
+        return ctxt
+
+
+class NeutronCCIPv6Context(context.SharedDBContext):
+    def __call__(self):
+        ctxt = super(NeutronCCIPv6Context, self).__call__()
+        print "ctxt:%s" % ctxt
+        if config('prefer-ipv6'):
+            ctxt['bind_host'] = '::'
+        else:
+            ctxt['bind_host'] = '0.0.0.0'
+
+        if ctxt.get('database_host'):
+            db_host = ctxt['database_host']
+            ctxt['database_host'] = format_ipv6_addr(db_host) or db_host
         return ctxt

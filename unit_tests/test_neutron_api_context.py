@@ -19,6 +19,7 @@ class IdentityServiceContext(CharmTestCase):
         self.relation_get.side_effect = self.test_relation.get
         self.config.side_effect = self.test_config.get
         self.test_config.set('region', 'region457')
+        self.test_config.set('prefer-ipv6', False)
 
     @patch.object(charmhelpers.contrib.openstack.context, 'context_complete')
     @patch.object(charmhelpers.contrib.openstack.context, 'relation_get')
@@ -89,6 +90,9 @@ class HAProxyContextTest(CharmTestCase):
         service_ports = {'neutron-server': [9696, 9686]}
 
         ctxt_data = {
+            'local_host': '127.0.0.1',
+            'haproxy_host': '0.0.0.0',
+            'stat_port': ':8888',
             'units': unit_addresses,
             'service_ports': service_ports,
             'neutron_bind_port': 9686,
