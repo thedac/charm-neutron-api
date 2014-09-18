@@ -262,6 +262,12 @@ def neutron_plugin_api_relation_joined(rid=None):
             'cluster-relation-departed')
 @restart_on_change(restart_map(), stopstart=True)
 def cluster_changed():
+    if config('prefer-ipv6'):
+        for rid in relation_ids('cluster'):
+            relation_set(relation_id=rid,
+                         relation_settings={'private-address':
+                                            get_ipv6_addr()})
+
     CONFIGS.write_all()
 
 
@@ -290,9 +296,9 @@ def ha_joined():
             resource_params[vip_key] = (
                 'params {ip}="{vip}" cidr_netmask="{netmask}" '
                 'nic="{iface}"'.format(ip=vip_params,
-                                        vip=vip,
-                                        iface=iface,
-                                        netmask=get_netmask_for_address(vip))
+                                       vip=vip,
+                                       iface=iface,
+                                       netmask=get_netmask_for_address(vip))
             )
             vip_group.append(vip_key)
 
