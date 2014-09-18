@@ -22,12 +22,15 @@ from charmhelpers.core.host import (
 )
 
 from charmhelpers.fetch import (
-    apt_install, apt_update
+    apt_install,
+    apt_update,
+    add_source
 )
 
 from charmhelpers.contrib.openstack.utils import (
     configure_installation_source,
     openstack_upgrade_available,
+    lsb_release,
 )
 from charmhelpers.contrib.openstack.neutron import (
     neutron_plugin_attribute,
@@ -89,8 +92,14 @@ def configure_https():
 def install():
     execd_preinstall()
     configure_installation_source(config('openstack-origin'))
+    trusty = lsb_release()['DISTRIB_CODENAME'] == 'trusty'
+    if config('prefer-ipv6') and trusty:
+        add_source('deb http://archive.ubuntu.com/ubuntu trusty-backports'
+                   ' main')
     apt_update()
     apt_install(determine_packages(), fatal=True)
+    if config('prefer-ipv6') and trusty:
+        apt_install('haproxy/trusty-backports', fatal=True)
     [open_port(port) for port in determine_ports()]
 
 
@@ -279,8 +288,8 @@ def ha_joined():
             vip_key = 'res_neutron_{}_vip'.format(iface)
             resources[vip_key] = res_neutron_vip
             resource_params[vip_key] = (
-                'params {ip}="{vip}" cidr_netmask="{netmask}"'
-                ' nic="{iface}"'.format(ip=vip_params,
+                'params {ip}="{vip}" cidr_netmask="{netmask}" '
+                'nic="{iface}"'.format(ip=vip_params,
                                         vip=vip,
                                         iface=iface,
                                         netmask=get_netmask_for_address(vip))
