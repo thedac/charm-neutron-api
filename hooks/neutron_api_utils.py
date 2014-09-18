@@ -17,7 +17,18 @@ from charmhelpers.core.hookenv import (
     config,
     log,
 )
-from charmhelpers.fetch import apt_update, apt_install, apt_upgrade
+
+from charmhelpers.fetch import (
+    apt_update,
+    apt_install,
+    apt_upgrade,
+    add_source
+)
+
+from charmhelpers.core.host import (
+    lsb_release
+)
+
 import neutron_api_context
 
 TEMPLATES = 'templates/'
@@ -197,3 +208,19 @@ def do_openstack_upgrade(configs):
 
     # set CONFIGS to load templates from new release
     configs.set_release(openstack_release=new_os_rel)
+
+
+def setup_ipv6():
+    ubuntu_rel = float(lsb_release()['DISTRIB_RELEASE'])
+    if ubuntu_rel < 14.04:
+        raise Exception("IPv6 is not supported for Ubuntu "
+                        "versions less than Trusty 14.04")
+
+    # NOTE(xianghui): Need to install haproxy(1.5.3) from trusty-backports
+    # to support ipv6 address, so check is required to make sure not
+    # breaking other versions, IPv6 only support for >= Trusty
+    if ubuntu_rel == 14.04:
+        add_source('deb http://archive.ubuntu.com/ubuntu trusty-backports'
+                   ' main')
+        apt_update()
+        apt_install('haproxy/trusty-backports', fatal=True)
