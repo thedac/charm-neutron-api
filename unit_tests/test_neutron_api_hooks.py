@@ -303,6 +303,42 @@ class NeutronAPIHooksTests(CharmTestCase):
             **_relation_data
         )
 
+    @patch.object(hooks, 'get_hacluster_config')
+    def test_ha_joined_with_ipv6(self, _get_ha_config):
+        self.test_config.set('prefer-ipv6', 'True')
+        _ha_config = {
+            'vip': '2001:db8:1::1',
+            'vip_cidr': '64',
+            'vip_iface': 'eth0',
+            'ha-bindiface': 'eth1',
+            'ha-mcastport': '5405',
+        }
+        vip_params = 'params ipv6addr="%s" ' \
+                     'cidr_netmask="ffff.ffff.ffff.ffff" ' \
+                     'nic="%s"' % \
+                     (_ha_config['vip'], _ha_config['vip_iface'])
+        _get_ha_config.return_value = _ha_config
+        self.get_iface_for_address.return_value = 'eth0'
+        self.get_netmask_for_address.return_value = 'ffff.ffff.ffff.ffff'
+        _relation_data = {
+            'init_services': {'res_neutron_haproxy': 'haproxy'},
+            'corosync_bindiface': _ha_config['ha-bindiface'],
+            'corosync_mcastport': _ha_config['ha-mcastport'],
+            'resources': {
+                'res_neutron_eth0_vip': 'ocf:heartbeat:IPv6addr',
+                'res_neutron_haproxy': 'lsb:haproxy'
+            },
+            'resource_params': {
+                'res_neutron_eth0_vip': vip_params,
+                'res_neutron_haproxy': 'op monitor interval="5s"'
+            },
+            'clones': {'cl_nova_haproxy': 'res_neutron_haproxy'}
+        }
+        self._call_hook('ha-relation-joined')
+        self.relation_set.assert_called_with(
+            **_relation_data
+        )
+
     def test_ha_changed(self):
         self.test_relation.set({
             'clustered': 'true',
