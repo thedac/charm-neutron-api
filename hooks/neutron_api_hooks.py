@@ -23,14 +23,12 @@ from charmhelpers.core.host import (
 
 from charmhelpers.fetch import (
     apt_install,
-    apt_update,
-    add_source
+    apt_update
 )
 
 from charmhelpers.contrib.openstack.utils import (
     configure_installation_source,
-    openstack_upgrade_available,
-    lsb_release,
+    openstack_upgrade_available
 )
 from charmhelpers.contrib.openstack.neutron import (
     neutron_plugin_attribute,
@@ -45,6 +43,7 @@ from neutron_api_utils import (
     api_port,
     CLUSTER_RES,
     do_openstack_upgrade,
+    setup_ipv6
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
@@ -62,7 +61,7 @@ from charmhelpers.contrib.openstack.ip import (
 from charmhelpers.contrib.network.ip import (
     get_iface_for_address,
     get_netmask_for_address,
-    get_ipv6_addr,
+    get_ipv6_addr
 )
 
 hooks = Hooks()
@@ -92,14 +91,11 @@ def configure_https():
 def install():
     execd_preinstall()
     configure_installation_source(config('openstack-origin'))
-    trusty = lsb_release()['DISTRIB_CODENAME'] == 'trusty'
-    if config('prefer-ipv6') and trusty:
-        add_source('deb http://archive.ubuntu.com/ubuntu trusty-backports'
-                   ' main')
+    if config('prefer-ipv6'):
+        setup_ipv6()
+
     apt_update()
     apt_install(determine_packages(), fatal=True)
-    if config('prefer-ipv6') and trusty:
-        apt_install('haproxy/trusty-backports', fatal=True)
     [open_port(port) for port in determine_ports()]
 
 
@@ -107,6 +103,9 @@ def install():
 @hooks.hook('config-changed')
 @restart_on_change(restart_map(), stopstart=True)
 def config_changed():
+    if config('prefer-ipv6'):
+        setup_ipv6()
+
     global CONFIGS
     if openstack_upgrade_available('neutron-server'):
         do_openstack_upgrade(CONFIGS)
