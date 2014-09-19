@@ -13,6 +13,7 @@ TO_PATCH = [
 ]
 
 
+@patch('charmhelpers.core.hookenv.config')
 class IdentityServiceContext(CharmTestCase):
     def setUp(self):
         super(IdentityServiceContext, self).setUp(context, TO_PATCH)
@@ -21,12 +22,14 @@ class IdentityServiceContext(CharmTestCase):
         self.test_config.set('region', 'region457')
         self.test_config.set('prefer-ipv6', False)
 
+    @patch.object(charmhelpers.contrib.openstack.context, 'format_ipv6_addr')
     @patch.object(charmhelpers.contrib.openstack.context, 'context_complete')
     @patch.object(charmhelpers.contrib.openstack.context, 'relation_get')
     @patch.object(charmhelpers.contrib.openstack.context, 'related_units')
     @patch.object(charmhelpers.contrib.openstack.context, 'relation_ids')
     @patch.object(charmhelpers.contrib.openstack.context, 'log')
-    def test_ids_ctxt(self, _log, _rids, _runits, _rget, _ctxt_comp):
+    def test_ids_ctxt(self, _log, _rids, _runits, _rget, _ctxt_comp,
+                      format_ipv6_addr, mock_config):
         _rids.return_value = 'rid1'
         _runits.return_value = 'runit'
         _ctxt_comp.return_value = True
@@ -45,7 +48,7 @@ class IdentityServiceContext(CharmTestCase):
 
     @patch.object(charmhelpers.contrib.openstack.context, 'relation_ids')
     @patch.object(charmhelpers.contrib.openstack.context, 'log')
-    def test_ids_ctxt_no_rels(self, _log, _rids):
+    def test_ids_ctxt_no_rels(self, _log, _rids, mock_config):
         _rids.return_value = []
         ids_ctxt = context.IdentityServiceContext()
         self.assertEquals(ids_ctxt(), None)
