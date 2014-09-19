@@ -50,6 +50,7 @@ NEUTRON_CONF = '%s/neutron.conf' % NEUTRON_CONF_DIR
 from random import randrange
 
 
+@patch('charmhelpers.core.hookenv.config')
 class NeutronAPIHooksTests(CharmTestCase):
 
     def setUp(self):
@@ -67,7 +68,7 @@ class NeutronAPIHooksTests(CharmTestCase):
         hooks.hooks.execute([
             'hooks/{}'.format(hookname)])
 
-    def test_install_hook(self):
+    def test_install_hook(self, mock_config):
         _pkgs = ['foo', 'bar']
         _ports = [80, 81, 82]
         _port_calls = [call(port) for port in _ports]
@@ -85,7 +86,7 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.assertTrue(self.execd_preinstall.called)
 
     @patch.object(hooks, 'configure_https')
-    def test_config_changed(self, conf_https):
+    def test_config_changed(self, conf_https, mock_config):
         self.openstack_upgrade_available.return_value = True
         self.relation_ids.side_effect = self._fake_relids
         _n_api_rel_joined = self.patch('neutron_api_relation_joined')
@@ -101,7 +102,7 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.assertTrue(self.CONFIGS.write_all.called)
         self.assertTrue(self.do_openstack_upgrade.called)
 
-    def test_amqp_joined(self):
+    def test_amqp_joined(self, mock_config):
         self._call_hook('amqp-relation-joined')
         self.relation_set.assert_called_with(
             username='neutron',
@@ -109,16 +110,16 @@ class NeutronAPIHooksTests(CharmTestCase):
             relation_id=None
         )
 
-    def test_amqp_changed(self):
+    def test_amqp_changed(self, mock_config):
         self.CONFIGS.complete_contexts.return_value = ['amqp']
         self._call_hook('amqp-relation-changed')
         self.assertTrue(self.CONFIGS.write.called_with(NEUTRON_CONF))
 
-    def test_amqp_departed(self):
+    def test_amqp_departed(self, mock_config):
         self._call_hook('amqp-relation-departed')
         self.assertTrue(self.CONFIGS.write.called_with(NEUTRON_CONF))
 
-    def test_db_joined(self):
+    def test_db_joined(self, mock_config):
         self.is_relation_made.return_value = False
         self.unit_get.return_value = 'myhostname'
         self._call_hook('shared-db-relation-joined')
@@ -128,7 +129,7 @@ class NeutronAPIHooksTests(CharmTestCase):
             hostname='myhostname',
         )
 
-    def test_db_joined_with_postgresql(self):
+    def test_db_joined_with_postgresql(self, mock_config):
         self.is_relation_made.return_value = True
 
         with self.assertRaises(Exception) as context:
@@ -137,7 +138,7 @@ class NeutronAPIHooksTests(CharmTestCase):
                          'Attempting to associate a mysql database when there '
                          'is already associated a postgresql one')
 
-    def test_postgresql_db_joined(self):
+    def test_postgresql_db_joined(self, mock_config):
         self.unit_get.return_value = 'myhostname'
         self.is_relation_made.return_value = False
         self._call_hook('pgsql-db-relation-joined')
@@ -145,7 +146,7 @@ class NeutronAPIHooksTests(CharmTestCase):
             database='neutron',
         )
 
-    def test_postgresql_joined_with_db(self):
+    def test_postgresql_joined_with_db(self, mock_config):
         self.is_relation_made.return_value = True
 
         with self.assertRaises(Exception) as context:
@@ -154,25 +155,25 @@ class NeutronAPIHooksTests(CharmTestCase):
                          'Attempting to associate a postgresql database when'
                          ' there is already associated a mysql one')
 
-    def test_shared_db_changed(self):
+    def test_shared_db_changed(self, mock_config):
         self.CONFIGS.complete_contexts.return_value = ['shared-db']
         self._call_hook('shared-db-relation-changed')
         self.assertTrue(self.CONFIGS.write_all.called)
 
-    def test_shared_db_changed_partial_ctxt(self):
+    def test_shared_db_changed_partial_ctxt(self, mock_config):
         self.CONFIGS.complete_contexts.return_value = []
         self._call_hook('shared-db-relation-changed')
         self.assertFalse(self.CONFIGS.write_all.called)
 
-    def test_pgsql_db_changed(self):
+    def test_pgsql_db_changed(self, mock_config):
         self._call_hook('pgsql-db-relation-changed')
         self.assertTrue(self.CONFIGS.write.called)
 
-    def test_amqp_broken(self):
+    def test_amqp_broken(self, mock_config):
         self._call_hook('amqp-relation-broken')
         self.assertTrue(self.CONFIGS.write_all.called)
 
-    def test_identity_joined(self):
+    def test_identity_joined(self, mock_config):
         self.canonical_url.return_value = 'http://127.0.0.1'
         self.api_port.return_value = '9696'
         self.test_config.set('region', 'region1')
@@ -190,7 +191,7 @@ class NeutronAPIHooksTests(CharmTestCase):
             relation_settings=_endpoints
         )
 
-    def test_identity_changed_partial_ctxt(self):
+    def test_identity_changed_partial_ctxt(self, mock_config):
         self.CONFIGS.complete_contexts.return_value = []
         _api_rel_joined = self.patch('neutron_api_relation_joined')
         self.relation_ids.side_effect = self._fake_relids
@@ -198,7 +199,7 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.assertFalse(_api_rel_joined.called)
 
     @patch.object(hooks, 'configure_https')
-    def test_identity_changed(self, conf_https):
+    def test_identity_changed(self, conf_https, mock_config):
         self.CONFIGS.complete_contexts.return_value = ['identity-service']
         _api_rel_joined = self.patch('neutron_api_relation_joined')
         self.relation_ids.side_effect = self._fake_relids
@@ -206,7 +207,7 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.assertTrue(self.CONFIGS.write.called_with(NEUTRON_CONF))
         self.assertTrue(_api_rel_joined.called)
 
-    def test_neutron_api_relation_no_id_joined(self):
+    def test_neutron_api_relation_no_id_joined(self, mock_config):
         host = 'http://127.0.0.1'
         port = 1234
         _id_rel_joined = self.patch('identity_joined')
@@ -234,7 +235,7 @@ class NeutronAPIHooksTests(CharmTestCase):
             **_relation_data
         )
 
-    def test_neutron_api_relation_joined(self):
+    def test_neutron_api_relation_joined(self, mock_config):
         host = 'http://127.0.0.1'
         port = 1234
         self.canonical_url.return_value = host
@@ -252,11 +253,11 @@ class NeutronAPIHooksTests(CharmTestCase):
             **_relation_data
         )
 
-    def test_neutron_api_relation_changed(self):
+    def test_neutron_api_relation_changed(self, mock_config):
         self._call_hook('neutron-api-relation-changed')
         self.assertTrue(self.CONFIGS.write.called_with(NEUTRON_CONF))
 
-    def test_neutron_plugin_api_relation_joined(self):
+    def test_neutron_plugin_api_relation_joined(self, mock_config):
         _relation_data = {
             'neutron-security-groups': False,
         }
@@ -266,12 +267,12 @@ class NeutronAPIHooksTests(CharmTestCase):
             **_relation_data
         )
 
-    def test_cluster_changed(self):
+    def test_cluster_changed(self, mock_config):
         self._call_hook('cluster-relation-changed')
         self.assertTrue(self.CONFIGS.write_all.called)
 
     @patch.object(hooks, 'get_hacluster_config')
-    def test_ha_joined(self, _get_ha_config):
+    def test_ha_joined(self, _get_ha_config, mock_config):
         _ha_config = {
             'vip': '10.0.0.1',
             'vip_cidr': '24',
@@ -304,7 +305,7 @@ class NeutronAPIHooksTests(CharmTestCase):
         )
 
     @patch.object(hooks, 'get_hacluster_config')
-    def test_ha_joined_with_ipv6(self, _get_ha_config):
+    def test_ha_joined_with_ipv6(self, _get_ha_config, mock_config):
         self.test_config.set('prefer-ipv6', 'True')
         _ha_config = {
             'vip': '2001:db8:1::1',
@@ -339,7 +340,7 @@ class NeutronAPIHooksTests(CharmTestCase):
             **_relation_data
         )
 
-    def test_ha_changed(self):
+    def test_ha_changed(self, mock_config):
         self.test_relation.set({
             'clustered': 'true',
         })
@@ -351,7 +352,7 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.assertTrue(_n_api_rel_joined.called)
         self.assertTrue(_id_rel_joined.called)
 
-    def test_ha_changed_not_leader(self):
+    def test_ha_changed_not_leader(self, mock_config):
         self.test_relation.set({
             'clustered': 'true',
         })
@@ -363,7 +364,7 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.assertFalse(_n_api_rel_joined.called)
         self.assertFalse(_id_rel_joined.called)
 
-    def test_ha_changed_not_clustered(self):
+    def test_ha_changed_not_clustered(self, mock_config):
         self.test_relation.set({
             'clustered': None,
         })
@@ -375,7 +376,7 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.assertFalse(_n_api_rel_joined.called)
         self.assertFalse(_id_rel_joined.called)
 
-    def test_configure_https(self):
+    def test_configure_https(self, mock_config):
         self.CONFIGS.complete_contexts.return_value = ['https']
         self.relation_ids.side_effect = self._fake_relids
         _id_rel_joined = self.patch('identity_joined')
@@ -384,7 +385,7 @@ class NeutronAPIHooksTests(CharmTestCase):
                                            'openstack_https_frontend'])
         self.assertTrue(_id_rel_joined.called)
 
-    def test_configure_https_nohttps(self):
+    def test_configure_https_nohttps(self, mock_config):
         self.CONFIGS.complete_contexts.return_value = []
         self.relation_ids.side_effect = self._fake_relids
         _id_rel_joined = self.patch('identity_joined')
