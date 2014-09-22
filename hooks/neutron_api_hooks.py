@@ -42,6 +42,7 @@ from neutron_api_utils import (
     api_port,
     CLUSTER_RES,
     do_openstack_upgrade,
+    update_config_file
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
@@ -60,6 +61,7 @@ from charmhelpers.contrib.network.ip import (
     get_iface_for_address,
     get_netmask_for_address
 )
+import charmhelpers.contrib.archive as archive
 
 hooks = Hooks()
 CONFIGS = register_configs()
@@ -83,11 +85,19 @@ def configure_https():
     for rid in relation_ids('identity-service'):
         identity_joined(rid=rid)
 
+ARCHIVE = 'neutron_plugin'
 
 @hooks.hook()
 def install():
     execd_preinstall()
     configure_installation_source(config('openstack-origin'))
+
+    if config('neutron-plugin-rep') is not None:
+        archive.install()
+        archive.create_archive(ARCHIVE)
+        archive.include_deb(ARCHIVE, 'payload')
+        archive.configure_local_source(ARCHIVE)
+
     apt_update()
     apt_install(determine_packages(), fatal=True)
     [open_port(port) for port in determine_ports()]
@@ -110,6 +120,19 @@ def config_changed():
         amqp_joined(relation_id=r_id)
     for r_id in relation_ids('identity-service'):
         identity_joined(rid=r_id)
+    if config('neutron-plugin') is 'vsd':
+        vsd_config_file = '/etc/neutron/plugins/nuage/nuage_plugin.ini'
+        #vsd_config_file = config('vsd-config-file')
+        vsd_servers = config('vsd-servers')
+        update_config_file(vsd_config_file, 'server', vsd_servers)
+        vsd_username = config('vsd-username')
+        vsd_password = config('vsd-password')
+        update_config_file(vsd_config_file, 'serverauth', vsd_username + ':' + vsd_password)
+        update_config_file(vsd_config_file, 'serverssl', config('vsd-auth-ssl'))
+        update_config_file(vsd_config_file, 'organization', config('vsd-organization'))
+        update_config_file(vsd_config_file, 'base_uri', config('vsd-base-uri'))
+        update_config_file(vsd_config_file, 'auth_resource', config('vsd-auth-resource'))
+        update_config_file(vsd_config_file, 'default_net_partition_name', config('vsd-netpart-name'))
 
 
 @hooks.hook('amqp-relation-joined')
