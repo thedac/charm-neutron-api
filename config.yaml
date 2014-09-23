@@ -56,6 +56,7 @@ options:
       .
         ovs - OpenvSwitch Plugin
         nvp - Nicira Network Virtualization Platform
+        Calico - Project Calico Networking
       .
   # HA configuration settings
   vip:

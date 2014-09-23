@@ -88,6 +88,23 @@ def configure_https():
 def install():
     execd_preinstall()
     configure_installation_source(config('openstack-origin'))
+
+    # FIXME: Calico mess
+    if config('neutron-plugin') == 'Calico':
+        check_call(
+            'curl -L http://binaries.projectcalico.org/repo/key | '
+            'apt-key add -',
+            shell=True
+        )
+
+        with open('/etc/apt/sources.list.d/calico.list', 'w') as f:
+            f.write('deb http://binaries.projectcalico.org/repo ./')
+
+        with open('/etc/apt/preferences', 'w') as f:
+            f.write('Package: *\nPin: origin binaries.projectcalico.org\nPin-Priority: 1001\n')
+
+        check_call(['add-apt-repository', 'ppa:cz.nic-labs/bird'])
+
     apt_update()
     apt_install(determine_packages(), fatal=True)
     [open_port(port) for port in determine_ports()]
