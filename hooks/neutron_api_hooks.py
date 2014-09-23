@@ -294,11 +294,8 @@ def ha_joined():
 def ha_changed():
     clustered = relation_get('clustered')
     if not clustered or clustered in [None, 'None', '']:
-        log('ha_changed: hacluster subordinate not fully clustered.:'
-            + str(clustered))
-        return
-    if not is_leader(CLUSTER_RES):
-        log('ha_changed: hacluster complete but we are not leader.')
+        log('ha_changed: hacluster subordinate'
+            ' not fully clustered: %s' % clustered)
         return
     log('Cluster configured, notifying other services and updating '
         'keystone endpoint configuration')
