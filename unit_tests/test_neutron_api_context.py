@@ -89,6 +89,9 @@ class HAProxyContextTest(CharmTestCase):
         service_ports = {'neutron-server': [9696, 9686]}
 
         ctxt_data = {
+            'haproxy_host': '0.0.0.0',
+            'local_host': '127.0.0.1',
+            'stat_port': ':8888',
             'units': unit_addresses,
             'service_ports': service_ports,
             'neutron_bind_port': 9686,

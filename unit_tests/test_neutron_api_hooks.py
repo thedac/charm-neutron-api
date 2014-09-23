@@ -14,6 +14,8 @@ utils.restart_map = MagicMock()
 
 import neutron_api_hooks as hooks
 
+hooks.hooks._config_save = False
+
 utils.register_configs = _reg
 utils.restart_map = _map
 
