@@ -124,6 +124,14 @@ options:
       SSL CA to use with the certificate and key provided - this is only
       required if you are providing a privately signed ssl_cert and ssl_key.
   prefer-ipv6:
-    default: false
     type: boolean
-    description: "Enable IPv6"
+    default: False
+    description: |
+      If True enables IPv6 support. The charm will expect network interfaces
+      to be configured with an IPv6 address. If set to False (default) IPv4
+      is expected.
+      .
+      NOTE: these charms do not currently support IPv6 privacy extension. In
+      order for this charm to function correctly, the privacy must be
+      disabled and a non-temporary address must be configured/available on
+      your network interface.
