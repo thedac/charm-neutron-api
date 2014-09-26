@@ -106,7 +106,8 @@ def install():
 def config_changed():
     if config('prefer-ipv6'):
         setup_ipv6()
-        sync_db_with_multi_ipv6_addresses()
+        sync_db_with_multi_ipv6_addresses(config('database'),
+                                          config('database-user'))
 
     global CONFIGS
     if openstack_upgrade_available('neutron-server'):
@@ -149,7 +150,8 @@ def db_joined():
         raise Exception(e)
 
     if config('prefer-ipv6'):
-        sync_db_with_multi_ipv6_addresses()
+        sync_db_with_multi_ipv6_addresses(config('database'),
+                                          config('database-user'))
     else:
         host = unit_get('private-address')
         relation_set(database=config('database'),
