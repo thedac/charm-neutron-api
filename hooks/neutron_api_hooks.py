@@ -40,13 +40,11 @@ from neutron_api_utils import (
     restart_map,
     NEUTRON_CONF,
     api_port,
-    CLUSTER_RES,
     do_openstack_upgrade,
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
     get_hacluster_config,
-    is_leader,
 )
 
 from charmhelpers.payload.execd import execd_preinstall
