@@ -43,6 +43,7 @@ TO_PATCH = [
     'unit_get',
     'get_iface_for_address',
     'get_netmask_for_address',
+    'get_address_in_network',
 ]
 NEUTRON_CONF_DIR = "/etc/neutron"
 
@@ -94,11 +95,13 @@ class NeutronAPIHooksTests(CharmTestCase):
             self.patch('neutron_plugin_api_relation_joined')
         _amqp_rel_joined = self.patch('amqp_joined')
         _id_rel_joined = self.patch('identity_joined')
+        _id_cluster_joined = self.patch('cluster_joined')
         self._call_hook('config-changed')
         self.assertTrue(_n_api_rel_joined.called)
         self.assertTrue(_n_plugin_api_rel_joined.called)
         self.assertTrue(_amqp_rel_joined.called)
         self.assertTrue(_id_rel_joined.called)
+        self.assertTrue(_id_cluster_joined.called)
         self.assertTrue(self.CONFIGS.write_all.called)
         self.assertTrue(self.do_openstack_upgrade.called)
 

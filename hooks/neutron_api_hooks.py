@@ -56,7 +56,8 @@ from charmhelpers.contrib.openstack.ip import (
 
 from charmhelpers.contrib.network.ip import (
     get_iface_for_address,
-    get_netmask_for_address
+    get_netmask_for_address,
+    get_address_in_network
 )
 
 hooks = Hooks()
@@ -108,6 +109,7 @@ def config_changed():
         amqp_joined(relation_id=r_id)
     for r_id in relation_ids('identity-service'):
         identity_joined(rid=r_id)
+    [cluster_joined(rid) for rid in relation_ids('cluster')]
 
 
 @hooks.hook('amqp-relation-joined')
@@ -239,6 +241,14 @@ def neutron_plugin_api_relation_joined(rid=None):
         'neutron-security-groups': config('neutron-security-groups')
     }
     relation_set(relation_id=rid, **relation_data)
+
+
+@hooks.hook('cluster-relation-joined')
+def cluster_joined(relation_id=None):
+    address = get_address_in_network(config('os-internal-network'),
+                                     unit_get('private-address'))
+    relation_set(relation_id=relation_id,
+                 relation_settings={'private-address': address})
 
 
 @hooks.hook('cluster-relation-changed',
