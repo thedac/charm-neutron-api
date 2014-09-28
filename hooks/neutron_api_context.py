@@ -71,8 +71,8 @@ class NeutronCCContext(context.NeutronContext):
                                                 rid=rid,
                                                 unit=unit)
                 cell_type = relation_get(attribute='cell_type',
-                                                rid=rid,
-                                                unit=unit)
+                                         rid=rid,
+                                         unit=unit)
                 if cell_type and not cell_type == "api":
                     continue
                 if ctxt['nova_url']:
