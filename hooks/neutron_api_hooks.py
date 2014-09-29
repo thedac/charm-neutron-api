@@ -123,11 +123,9 @@ def config_changed():
     if config('neutron-plugin') is 'vsd':
         vsd_config_file = '/etc/neutron/plugins/nuage/nuage_plugin.ini'
         #vsd_config_file = config('vsd-config-file')
-        vsd_servers = config('vsd-servers')
+        vsd_servers = config('vsd-server')
         update_config_file(vsd_config_file, 'server', vsd_servers)
-        vsd_username = config('vsd-username')
-        vsd_password = config('vsd-password')
-        update_config_file(vsd_config_file, 'serverauth', vsd_username + ':' + vsd_password)
+        update_config_file(vsd_config_file, 'serverauth', config('vsd-auth'))
         update_config_file(vsd_config_file, 'serverssl', config('vsd-auth-ssl'))
         update_config_file(vsd_config_file, 'organization', config('vsd-organization'))
         update_config_file(vsd_config_file, 'base_uri', config('vsd-base-uri'))

@@ -128,17 +128,13 @@ options:
       SSL CA to use with the certificate and key provided - this is only
       required if you are providing a privately signed ssl_cert and ssl_key.
   # Neutron Nuage plugin (VSD) configuration
-  vsd-servers:
+  vsd-server:
     type: string
-    description: Space delimited addresses of Nuage VSD Server
-  vsd-username:
-    type: string
-    default: csproot
-    description: Username to connect to Nuage VSD Server
-  vsd-password:
+    description: Nuage VSD Server
+  vsd-auth:
     type: string
     default: csproot
-    description: Password to connect to Nuage VSD Server
+    description: Username:Password to connect to Nuage VSD Server
   vsd-organization:
     type: string
     default: csp
