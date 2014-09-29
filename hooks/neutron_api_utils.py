@@ -201,7 +201,7 @@ def do_openstack_upgrade(configs):
 
 
 def migrate_neutron_database():
-    '''Runs neutron-db-manage to initialize a new database or migrate existing'''
+    '''Runs neutron-db-manage to init a new database or migrate existing'''
     log('Migrating the neutron database.')
     plugin = config('neutron-plugin')
     cmd = ['neutron-db-manage',

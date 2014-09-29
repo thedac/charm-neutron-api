@@ -187,7 +187,8 @@ def db_changed():
         log('shared-db relation incomplete. Peer not ready?')
         return
     CONFIGS.write_all()
-    conditional_neutron_migration() 
+    conditional_neutron_migration()
+
 
 @hooks.hook('pgsql-db-relation-changed')
 @restart_on_change(restart_map())
@@ -196,6 +197,7 @@ def postgresql_neutron_db_changed():
     # DB config might have been moved to main neutron.conf in H?
     CONFIGS.write(neutron_plugin_attribute(plugin, 'config'))
     conditional_neutron_migration()
+
 
 @hooks.hook('amqp-relation-broken',
             'identity-service-relation-broken',
