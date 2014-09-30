@@ -272,6 +272,7 @@ def neutron_plugin_api_relation_joined(rid=None):
     relation_data = {
         'neutron-security-groups': config('neutron-security-groups'),
         'l2-population': get_l2population(),
+        'neutron-ml2-typedriver': config('neutron-ml2-typedriver'),
     }
     relation_set(relation_id=rid, **relation_data)
 
