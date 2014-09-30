@@ -306,6 +306,7 @@ def ha_joined():
 
 
 @hooks.hook('ha-relation-changed')
+@restart_on_change(restart_map())
 def ha_changed():
     clustered = relation_get('clustered')
     if not clustered or clustered in [None, 'None', '']:
@@ -318,6 +319,7 @@ def ha_changed():
         identity_joined(rid=rid)
     for rid in relation_ids('neutron-api'):
         neutron_api_relation_joined(rid=rid)
+    CONFIGS.write_all()
 
 
 def main():
