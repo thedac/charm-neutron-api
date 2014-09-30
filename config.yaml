@@ -57,6 +57,15 @@ options:
         ovs - OpenvSwitch Plugin
         nvp - Nicira Network Virtualization Platform
       .
+  neutron-ml2-typedriver:
+    default: gre
+    type: string
+    description: |
+      ML2 network type driver to use; supports
+      .
+        gre
+        vxlan 
+      .
   # HA configuration settings
   vip:
     type: string
