@@ -11,6 +11,11 @@ from charmhelpers.contrib.hahelpers.cluster import (
 )
 
 
+def get_l2population():
+    plugin = config('neutron-plugin')
+    return config('l2-population') if plugin == "ovs" else False
+
+
 class ApacheSSLContext(context.ApacheSSLContext):
 
     interfaces = ['https']
@@ -49,6 +54,10 @@ class NeutronCCContext(context.NeutronContext):
     def neutron_security_groups(self):
         return config('neutron-security-groups')
 
+    @property
+    def neutron_l2_population(self):
+        return get_l2population()
+
     # Do not need the plugin agent installed on the api server
     def _ensure_packages(self):
         pass
@@ -60,6 +69,7 @@ class NeutronCCContext(context.NeutronContext):
     def __call__(self):
         from neutron_api_utils import api_port
         ctxt = super(NeutronCCContext, self).__call__()
+        ctxt['l2_population'] = self.neutron_l2_population
         ctxt['external_network'] = config('neutron-external-network')
         ctxt['verbose'] = config('verbose')
         ctxt['debug'] = config('debug')
@@ -67,9 +77,9 @@ class NeutronCCContext(context.NeutronContext):
             determine_api_port(api_port('neutron-server'))
         for rid in relation_ids('neutron-api'):
             for unit in related_units(rid):
-                ctxt['nova_url'] = relation_get(attribute='nova_url',
-                                                rid=rid,
-                                                unit=unit)
+                rdata = relation_get(rid=rid, unit=unit)
+                ctxt['nova_url'] = rdata.get('nova_url')
+                ctxt['restart_trigger'] = rdata.get('restart_trigger')
                 if ctxt['nova_url']:
                     return ctxt
         return ctxt
