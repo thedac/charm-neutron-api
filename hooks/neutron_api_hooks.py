@@ -37,15 +37,15 @@ from charmhelpers.contrib.openstack.neutron import (
 )
 
 from neutron_api_utils import (
+    CLUSTER_RES,
+    NEUTRON_CONF,
+    api_port,
     determine_packages,
     determine_ports,
+    do_openstack_upgrade,
     migrate_neutron_database,
     register_configs,
     restart_map,
-    NEUTRON_CONF,
-    api_port,
-    CLUSTER_RES,
-    do_openstack_upgrade,
     setup_ipv6
 )
 from neutron_api_context import get_l2population
