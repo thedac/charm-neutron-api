@@ -14,6 +14,7 @@ TO_PATCH = [
 
 
 class IdentityServiceContext(CharmTestCase):
+
     def setUp(self):
         super(IdentityServiceContext, self).setUp(context, TO_PATCH)
         self.relation_get.side_effect = self.test_relation.get
@@ -67,6 +68,10 @@ class HAProxyContextTest(CharmTestCase):
         hap_ctxt = context.HAProxyContext()
         self.assertTrue('units' not in hap_ctxt())
 
+    @patch.object(
+        charmhelpers.contrib.openstack.context, 'get_netmask_for_address')
+    @patch.object(
+        charmhelpers.contrib.openstack.context, 'get_address_in_network')
     @patch.object(charmhelpers.contrib.openstack.context, 'config')
     @patch.object(charmhelpers.contrib.openstack.context, 'local_unit')
     @patch.object(charmhelpers.contrib.openstack.context, 'unit_get')
@@ -75,7 +80,8 @@ class HAProxyContextTest(CharmTestCase):
     @patch.object(charmhelpers.contrib.openstack.context, 'relation_ids')
     @patch.object(charmhelpers.contrib.openstack.context, 'log')
     def test_context_peers(self, _log, _rids, _runits, _rget, _uget,
-                           _lunit, _config):
+                           _lunit, _config, _get_address_in_network,
+                           _get_netmask_for_address):
         unit_addresses = {
             'neutron-api-0': '10.10.10.10',
             'neutron-api-1': '10.10.10.11',
@@ -86,13 +92,20 @@ class HAProxyContextTest(CharmTestCase):
         _lunit.return_value = "neutron-api/1"
         _uget.return_value = unit_addresses['neutron-api-1']
         _config.return_value = None
+        _get_address_in_network.return_value = None
+        _get_netmask_for_address.return_value = '255.255.255.0'
         service_ports = {'neutron-server': [9696, 9686]}
-
+        self.maxDiff = None
         ctxt_data = {
             'haproxy_host': '0.0.0.0',
             'local_host': '127.0.0.1',
             'stat_port': ':8888',
-            'units': unit_addresses,
+            'frontends': {
+                '10.10.10.11': {
+                    'network': '10.10.10.11/255.255.255.0',
+                    'backends': unit_addresses,
+                }
+            },
             'service_ports': service_ports,
             'neutron_bind_port': 9686,
         }
