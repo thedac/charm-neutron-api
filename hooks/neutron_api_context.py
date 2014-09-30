@@ -111,14 +111,3 @@ class HAProxyContext(context.HAProxyContext):
         # for haproxy.conf
         ctxt['service_ports'] = port_mapping
         return ctxt
-
-
-class NeutronCCIPv6Context(context.SharedDBContext):
-    def __call__(self):
-        ctxt = super(NeutronCCIPv6Context, self).__call__()
-        if config('prefer-ipv6'):
-            ctxt['bind_host'] = '::'
-        else:
-            ctxt['bind_host'] = '0.0.0.0'
-
-        return ctxt

@@ -24,8 +24,7 @@ from charmhelpers.core.host import (
 )
 
 from charmhelpers.fetch import (
-    apt_install,
-    apt_update
+    apt_install, apt_update
 )
 
 from charmhelpers.contrib.openstack.utils import (
@@ -343,7 +342,8 @@ def ha_joined():
             )
             vip_group.append(vip_key)
 
-    relation_set(groups={'grp_neutron_vips': ' '.join(vip_group)})
+    if len(vip_group) >= 1:
+        relation_set(groups={'grp_neutron_vips': ' '.join(vip_group)})
 
     init_services = {
         'res_neutron_haproxy': 'haproxy'
