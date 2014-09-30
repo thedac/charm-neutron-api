@@ -18,7 +18,8 @@ from charmhelpers.core.hookenv import (
 )
 
 from charmhelpers.core.host import (
-    restart_on_change
+    restart_on_change,
+    service_restart,
 )
 
 from charmhelpers.fetch import (
@@ -38,6 +39,7 @@ from charmhelpers.contrib.openstack.neutron import (
 from neutron_api_utils import (
     determine_packages,
     determine_ports,
+    migrate_neutron_database,
     register_configs,
     restart_map,
     NEUTRON_CONF,
@@ -62,7 +64,9 @@ from charmhelpers.contrib.openstack.ip import (
 from charmhelpers.contrib.network.ip import (
     get_iface_for_address,
     get_netmask_for_address,
-    get_ipv6_addr
+    get_address_in_network,
+    get_ipv6_addr,
+    is_ipv6
 )
 
 hooks = Hooks()
@@ -92,9 +96,6 @@ def configure_https():
 def install():
     execd_preinstall()
     configure_installation_source(config('openstack-origin'))
-    if config('prefer-ipv6'):
-        setup_ipv6()
-
     apt_update()
     apt_install(determine_packages(), fatal=True)
     [open_port(port) for port in determine_ports()]
@@ -140,6 +141,30 @@ def amqp_changed():
     CONFIGS.write(NEUTRON_CONF)
 
 
+def conditional_neutron_migration():
+    # This is an attempt to stop a race over the db migration between nova-cc
+    # and neutron-api by having the migration master decided by the presence
+    # of the neutron-api relation. In the long term this should only be done
+    # the neutron-api charm and nova-cc should play no hand in it
+    # * neutron-api refuses to run migrations until neutron-api relation is
+    #   present
+    # * nova-cc refuses to run migration if neutron-api relations is present
+    clustered = relation_get('clustered')
+    if not relation_ids('neutron-api'):
+        log('Not running neutron database migration, no nova-cloud-controller'
+            'is present.')
+    else:
+        if clustered:
+            if is_leader(CLUSTER_RES):
+                migrate_neutron_database()
+                service_restart('neutron-server')
+            else:
+                log('Not running neutron database migration, not leader')
+        else:
+            migrate_neutron_database()
+            service_restart('neutron-server')
+
+
 @hooks.hook('shared-db-relation-joined')
 def db_joined():
     if is_relation_made('pgsql-db'):
@@ -178,6 +203,7 @@ def db_changed():
         log('shared-db relation incomplete. Peer not ready?')
         return
     CONFIGS.write_all()
+    conditional_neutron_migration()
 
 
 @hooks.hook('pgsql-db-relation-changed')
@@ -186,6 +212,7 @@ def postgresql_neutron_db_changed():
     plugin = config('neutron-plugin')
     # DB config might have been moved to main neutron.conf in H?
     CONFIGS.write(neutron_plugin_attribute(plugin, 'config'))
+    conditional_neutron_migration()
 
 
 @hooks.hook('amqp-relation-broken',
@@ -260,29 +287,29 @@ def neutron_plugin_api_relation_joined(rid=None):
     relation_set(relation_id=rid, **relation_data)
 
 
+@hooks.hook('cluster-relation-joined')
+def cluster_joined(relation_id=None):
+    if config('prefer-ipv6'):
+        private_addr = get_ipv6_addr(exc_list=[config('vip')])[0]
+    else:
+        private_addr = unit_get('private-address')
+
+    address = get_address_in_network(config('os-internal-network'),
+                                     private_addr)
+    relation_set(relation_id=relation_id,
+                 relation_settings={'private-address': address})
+
+
 @hooks.hook('cluster-relation-changed',
             'cluster-relation-departed')
 @restart_on_change(restart_map(), stopstart=True)
 def cluster_changed():
-    if config('prefer-ipv6'):
-        for rid in relation_ids('cluster'):
-            addr = get_ipv6_addr(exc_list=[config('vip')])[0]
-            relation_set(relation_id=rid,
-                         relation_settings={'private-address': addr})
-
     CONFIGS.write_all()
 
 
 @hooks.hook('ha-relation-joined')
 def ha_joined():
     cluster_config = get_hacluster_config()
-    if config('prefer-ipv6'):
-        res_neutron_vip = 'ocf:heartbeat:IPv6addr'
-        vip_params = 'ipv6addr'
-    else:
-        res_neutron_vip = 'ocf:heartbeat:IPaddr2'
-        vip_params = 'ip'
-
     resources = {
         'res_neutron_haproxy': 'lsb:haproxy',
     }
@@ -291,6 +318,13 @@ def ha_joined():
     }
     vip_group = []
     for vip in cluster_config['vip'].split():
+        if is_ipv6(vip):
+            res_neutron_vip = 'ocf:heartbeat:IPv6addr'
+            vip_params = 'ipv6addr'
+        else:
+            res_neutron_vip = 'ocf:heartbeat:IPaddr2'
+            vip_params = 'ip'
+
         iface = get_iface_for_address(vip)
         if iface is not None:
             vip_key = 'res_neutron_{}_vip'.format(iface)
