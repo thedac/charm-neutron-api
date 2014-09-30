@@ -73,7 +73,7 @@ options:
       with the other members of the HA Cluster.
   ha-mcastport:
     type: int
-    default: 5404
+    default: 5424
     description: |
        Default multicast port number that will be used to communicate between
        HA Cluster nodes.
@@ -123,6 +123,13 @@ options:
     description: |
       SSL CA to use with the certificate and key provided - this is only
       required if you are providing a privately signed ssl_cert and ssl_key.
+  l2-population:
+    type: boolean
+    default: True
+    description: |
+      Populate the forwarding tables of virtual switches (LinuxBridge or OVS),
+      to decrease broadcast traffics inside the physical networks fabric while
+      using overlays networks (VXLan, GRE).
   prefer-ipv6:
     type: boolean
     default: False
@@ -135,3 +142,4 @@ options:
       order for this charm to function correctly, the privacy extension must be
       disabled and a non-temporary address must be configured/available on
       your network interface.
+
