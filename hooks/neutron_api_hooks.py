@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import sys
+import uuid
 
 from subprocess import check_call
 from charmhelpers.core.hookenv import (
@@ -18,7 +19,8 @@ from charmhelpers.core.hookenv import (
 )
 
 from charmhelpers.core.host import (
-    restart_on_change
+    restart_on_change,
+    service_restart,
 )
 
 from charmhelpers.fetch import (
@@ -34,17 +36,21 @@ from charmhelpers.contrib.openstack.neutron import (
 )
 
 from neutron_api_utils import (
-    determine_packages,
-    determine_ports,
-    register_configs,
-    restart_map,
+    CLUSTER_RES,
     NEUTRON_CONF,
     api_port,
+    determine_packages,
+    determine_ports,
     do_openstack_upgrade,
+    migrate_neutron_database,
+    register_configs,
+    restart_map,
 )
+from neutron_api_context import get_l2population
 
 from charmhelpers.contrib.hahelpers.cluster import (
     get_hacluster_config,
+    is_leader,
 )
 
 from charmhelpers.payload.execd import execd_preinstall
@@ -130,6 +136,30 @@ def amqp_changed():
     CONFIGS.write(NEUTRON_CONF)
 
 
+def conditional_neutron_migration():
+    # This is an attempt to stop a race over the db migration between nova-cc
+    # and neutron-api by having the migration master decided by the presence
+    # of the neutron-api relation. In the long term this should only be done
+    # the neutron-api charm and nova-cc should play no hand in it
+    # * neutron-api refuses to run migrations until neutron-api relation is
+    #   present
+    # * nova-cc refuses to run migration if neutron-api relations is present
+    clustered = relation_get('clustered')
+    if not relation_ids('neutron-api'):
+        log('Not running neutron database migration, no nova-cloud-controller'
+            'is present.')
+    else:
+        if clustered:
+            if is_leader(CLUSTER_RES):
+                migrate_neutron_database()
+                service_restart('neutron-server')
+            else:
+                log('Not running neutron database migration, not leader')
+        else:
+            migrate_neutron_database()
+            service_restart('neutron-server')
+
+
 @hooks.hook('shared-db-relation-joined')
 def db_joined():
     if is_relation_made('pgsql-db'):
@@ -163,6 +193,7 @@ def db_changed():
         log('shared-db relation incomplete. Peer not ready?')
         return
     CONFIGS.write_all()
+    conditional_neutron_migration()
 
 
 @hooks.hook('pgsql-db-relation-changed')
@@ -171,6 +202,7 @@ def postgresql_neutron_db_changed():
     plugin = config('neutron-plugin')
     # DB config might have been moved to main neutron.conf in H?
     CONFIGS.write(neutron_plugin_attribute(plugin, 'config'))
+    conditional_neutron_migration()
 
 
 @hooks.hook('amqp-relation-broken',
@@ -182,7 +214,7 @@ def relation_broken():
 
 
 @hooks.hook('identity-service-relation-joined')
-def identity_joined(rid=None):
+def identity_joined(rid=None, relation_trigger=False):
     public_url = '{}:{}'.format(canonical_url(CONFIGS, PUBLIC),
                                 api_port('neutron-server'))
     admin_url = '{}:{}'.format(canonical_url(CONFIGS, ADMIN),
@@ -190,14 +222,16 @@ def identity_joined(rid=None):
     internal_url = '{}:{}'.format(canonical_url(CONFIGS, INTERNAL),
                                   api_port('neutron-server')
                                   )
-    endpoints = {
+    rel_settings = {
         'quantum_service': 'quantum',
         'quantum_region': config('region'),
         'quantum_public_url': public_url,
         'quantum_admin_url': admin_url,
         'quantum_internal_url': internal_url,
     }
-    relation_set(relation_id=rid, relation_settings=endpoints)
+    if relation_trigger:
+        rel_settings['relation_trigger'] = str(uuid.uuid4())
+    relation_set(relation_id=rid, relation_settings=rel_settings)
 
 
 @hooks.hook('identity-service-relation-changed')
@@ -228,7 +262,7 @@ def neutron_api_relation_joined(rid=None):
     # Nova-cc may have grabbed the quantum endpoint so kick identity-service
     # relation to register that its here
     for r_id in relation_ids('identity-service'):
-        identity_joined(rid=r_id)
+        identity_joined(rid=r_id, relation_trigger=True)
 
 
 @hooks.hook('neutron-api-relation-changed')
@@ -240,7 +274,8 @@ def neutron_api_relation_changed():
 @hooks.hook('neutron-plugin-api-relation-joined')
 def neutron_plugin_api_relation_joined(rid=None):
     relation_data = {
-        'neutron-security-groups': config('neutron-security-groups')
+        'neutron-security-groups': config('neutron-security-groups'),
+        'l2-population': get_l2population(),
     }
     relation_set(relation_id=rid, **relation_data)
 

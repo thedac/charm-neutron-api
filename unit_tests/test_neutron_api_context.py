@@ -1,6 +1,5 @@
 from test_utils import CharmTestCase
-from test_utils import patch_open
-from mock import patch, MagicMock
+from mock import patch
 import neutron_api_context as context
 import charmhelpers
 TO_PATCH = [
@@ -57,6 +56,7 @@ class HAProxyContextTest(CharmTestCase):
         super(HAProxyContextTest, self).setUp(context, TO_PATCH)
         self.determine_api_port.return_value = 9686
         self.determine_apache_port.return_value = 9686
+        self.api_port = 9696
 
     def tearDown(self):
         super(HAProxyContextTest, self).tearDown()
@@ -66,7 +66,8 @@ class HAProxyContextTest(CharmTestCase):
     def test_context_No_peers(self, _log, _rids):
         _rids.return_value = []
         hap_ctxt = context.HAProxyContext()
-        self.assertTrue('units' not in hap_ctxt())
+        with patch('__builtin__.__import__'):
+            self.assertTrue('units' not in hap_ctxt())
 
     @patch.object(
         charmhelpers.contrib.openstack.context, 'get_netmask_for_address')
@@ -79,8 +80,10 @@ class HAProxyContextTest(CharmTestCase):
     @patch.object(charmhelpers.contrib.openstack.context, 'related_units')
     @patch.object(charmhelpers.contrib.openstack.context, 'relation_ids')
     @patch.object(charmhelpers.contrib.openstack.context, 'log')
-    def test_context_peers(self, _log, _rids, _runits, _rget, _uget,
-                           _lunit, _config, _get_address_in_network,
+    @patch('__builtin__.__import__')
+    @patch('__builtin__.open')
+    def test_context_peers(self, _open, _import, _log, _rids, _runits, _rget,
+                           _uget, _lunit, _config,  _get_address_in_network,
                            _get_netmask_for_address):
         unit_addresses = {
             'neutron-api-0': '10.10.10.10',
@@ -109,11 +112,10 @@ class HAProxyContextTest(CharmTestCase):
             'service_ports': service_ports,
             'neutron_bind_port': 9686,
         }
-        with patch_open() as (_open, _file):
-            _file.write = MagicMock()
-            hap_ctxt = context.HAProxyContext()
-            self.assertEquals(hap_ctxt(), ctxt_data)
-            _file.write.assert_called_with('ENABLED=1\n')
+        _import().api_port.return_value = 9696
+        hap_ctxt = context.HAProxyContext()
+        self.assertEquals(hap_ctxt(), ctxt_data)
+        _open.assert_called_with('/etc/default/haproxy', 'w')
 
 
 class NeutronAPIContextsTest(CharmTestCase):
@@ -135,28 +137,33 @@ class NeutronAPIContextsTest(CharmTestCase):
 
     @patch.object(context.NeutronCCContext, 'network_manager')
     @patch.object(context.NeutronCCContext, 'plugin')
-    def test_neutroncc_context_no_setting(self, plugin, nm):
+    @patch('__builtin__.__import__')
+    def test_neutroncc_context_no_setting(self, _import, plugin, nm):
         plugin.return_value = None
-        napi_ctxt = context.NeutronCCContext()
         ctxt_data = {
             'debug': True,
             'external_network': 'bob',
             'neutron_bind_port': self.api_port,
             'verbose': True,
+            'l2_population': True,
         }
+        napi_ctxt = context.NeutronCCContext()
         with patch.object(napi_ctxt, '_ensure_packages'):
             self.assertEquals(ctxt_data, napi_ctxt())
 
     @patch.object(context.NeutronCCContext, 'network_manager')
     @patch.object(context.NeutronCCContext, 'plugin')
-    def test_neutroncc_context_api_rel(self, plugin, nm):
+    @patch('__builtin__.__import__')
+    def test_neutroncc_context_api_rel(self, _import, plugin, nm):
         nova_url = 'http://127.0.0.10'
         plugin.return_value = None
         self.related_units.return_value = ['unit1']
         self.relation_ids.return_value = ['rid2']
-        self.test_relation.set({'nova_url': nova_url})
+        self.test_relation.set({'nova_url': nova_url,
+                                'restart_trigger': 'bob'})
         napi_ctxt = context.NeutronCCContext()
         self.assertEquals(nova_url, napi_ctxt()['nova_url'])
+        self.assertEquals('bob', napi_ctxt()['restart_trigger'])
         self.assertEquals(self.api_port, napi_ctxt()['neutron_bind_port'])
 
     def test_neutroncc_context_manager(self):
