@@ -77,9 +77,9 @@ class NeutronCCContext(context.NeutronContext):
             determine_api_port(api_port('neutron-server'))
         for rid in relation_ids('neutron-api'):
             for unit in related_units(rid):
-                ctxt['nova_url'] = relation_get(attribute='nova_url',
-                                                rid=rid,
-                                                unit=unit)
+                rdata = relation_get(rid=rid, unit=unit)
+                ctxt['nova_url'] = rdata.get('nova_url')
+                ctxt['restart_trigger'] = rdata.get('restart_trigger')
                 if ctxt['nova_url']:
                     return ctxt
         return ctxt
