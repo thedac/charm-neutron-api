@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import sys
+import uuid
 
 from subprocess import check_call
 from charmhelpers.core.hookenv import (
@@ -48,6 +49,7 @@ from neutron_api_utils import (
     do_openstack_upgrade,
     setup_ipv6
 )
+from neutron_api_context import get_l2population
 
 from charmhelpers.contrib.hahelpers.cluster import (
     get_hacluster_config,
@@ -224,7 +226,7 @@ def relation_broken():
 
 
 @hooks.hook('identity-service-relation-joined')
-def identity_joined(rid=None):
+def identity_joined(rid=None, relation_trigger=False):
     public_url = '{}:{}'.format(canonical_url(CONFIGS, PUBLIC),
                                 api_port('neutron-server'))
     admin_url = '{}:{}'.format(canonical_url(CONFIGS, ADMIN),
@@ -232,14 +234,16 @@ def identity_joined(rid=None):
     internal_url = '{}:{}'.format(canonical_url(CONFIGS, INTERNAL),
                                   api_port('neutron-server')
                                   )
-    endpoints = {
+    rel_settings = {
         'quantum_service': 'quantum',
         'quantum_region': config('region'),
         'quantum_public_url': public_url,
         'quantum_admin_url': admin_url,
         'quantum_internal_url': internal_url,
     }
-    relation_set(relation_id=rid, relation_settings=endpoints)
+    if relation_trigger:
+        rel_settings['relation_trigger'] = str(uuid.uuid4())
+    relation_set(relation_id=rid, relation_settings=rel_settings)
 
 
 @hooks.hook('identity-service-relation-changed')
@@ -270,7 +274,7 @@ def neutron_api_relation_joined(rid=None):
     # Nova-cc may have grabbed the quantum endpoint so kick identity-service
     # relation to register that its here
     for r_id in relation_ids('identity-service'):
-        identity_joined(rid=r_id)
+        identity_joined(rid=r_id, relation_trigger=True)
 
 
 @hooks.hook('neutron-api-relation-changed')
@@ -282,7 +286,8 @@ def neutron_api_relation_changed():
 @hooks.hook('neutron-plugin-api-relation-joined')
 def neutron_plugin_api_relation_joined(rid=None):
     relation_data = {
-        'neutron-security-groups': config('neutron-security-groups')
+        'neutron-security-groups': config('neutron-security-groups'),
+        'l2-population': get_l2population(),
     }
     relation_set(relation_id=rid, **relation_data)
 
