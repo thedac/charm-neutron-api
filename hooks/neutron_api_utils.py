@@ -19,6 +19,7 @@ from charmhelpers.core.hookenv import (
 )
 from charmhelpers.fetch import apt_update, apt_install, apt_upgrade
 import neutron_api_context
+import subprocess
 
 TEMPLATES = 'templates/'
 
@@ -196,3 +197,18 @@ def do_openstack_upgrade(configs):
 
     # set CONFIGS to load templates from new release
     configs.set_release(openstack_release=new_os_rel)
+    migrate_neutron_database()
+
+
+def migrate_neutron_database():
+    '''Runs neutron-db-manage to init a new database or migrate existing'''
+    log('Migrating the neutron database.')
+    plugin = config('neutron-plugin')
+    cmd = ['neutron-db-manage',
+           '--config-file', NEUTRON_CONF,
+           '--config-file', neutron_plugin_attribute(plugin,
+                                                     'config',
+                                                     'neutron'),
+           'upgrade',
+           'head']
+    subprocess.check_output(cmd)
