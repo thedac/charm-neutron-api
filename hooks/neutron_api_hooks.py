@@ -18,7 +18,8 @@ from charmhelpers.core.hookenv import (
 )
 
 from charmhelpers.core.host import (
-    restart_on_change
+    restart_on_change,
+    service_restart,
 )
 
 from charmhelpers.fetch import (
@@ -34,14 +35,15 @@ from charmhelpers.contrib.openstack.neutron import (
 )
 
 from neutron_api_utils import (
-    determine_packages,
-    determine_ports,
-    register_configs,
-    restart_map,
+    CLUSTER_RES,
     NEUTRON_CONF,
     api_port,
-    CLUSTER_RES,
+    determine_packages,
+    determine_ports,
     do_openstack_upgrade,
+    migrate_neutron_database,
+    register_configs,
+    restart_map,
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
@@ -128,6 +130,30 @@ def amqp_changed():
     CONFIGS.write(NEUTRON_CONF)
 
 
+def conditional_neutron_migration():
+    # This is an attempt to stop a race over the db migration between nova-cc
+    # and neutron-api by having the migration master decided by the presence
+    # of the neutron-api relation. In the long term this should only be done
+    # the neutron-api charm and nova-cc should play no hand in it
+    # * neutron-api refuses to run migrations until neutron-api relation is
+    #   present
+    # * nova-cc refuses to run migration if neutron-api relations is present
+    clustered = relation_get('clustered')
+    if not relation_ids('neutron-api'):
+        log('Not running neutron database migration, no nova-cloud-controller'
+            'is present.')
+    else:
+        if clustered:
+            if is_leader(CLUSTER_RES):
+                migrate_neutron_database()
+                service_restart('neutron-server')
+            else:
+                log('Not running neutron database migration, not leader')
+        else:
+            migrate_neutron_database()
+            service_restart('neutron-server')
+
+
 @hooks.hook('shared-db-relation-joined')
 def db_joined():
     if is_relation_made('pgsql-db'):
@@ -161,6 +187,7 @@ def db_changed():
         log('shared-db relation incomplete. Peer not ready?')
         return
     CONFIGS.write_all()
+    conditional_neutron_migration()
 
 
 @hooks.hook('pgsql-db-relation-changed')
@@ -169,6 +196,7 @@ def postgresql_neutron_db_changed():
     plugin = config('neutron-plugin')
     # DB config might have been moved to main neutron.conf in H?
     CONFIGS.write(neutron_plugin_attribute(plugin, 'config'))
+    conditional_neutron_migration()
 
 
 @hooks.hook('amqp-relation-broken',
