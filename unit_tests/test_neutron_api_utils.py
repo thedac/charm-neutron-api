@@ -5,7 +5,9 @@ import charmhelpers.contrib.openstack.templating as templating
 
 templating.OSConfigRenderer = MagicMock()
 
-import neutron_api_utils as nutils
+with patch('charmhelpers.core.hookenv.config') as config:
+    config.return_value = 'neutron'
+    import neutron_api_utils as nutils
 
 from test_utils import (
     CharmTestCase,
@@ -26,6 +28,7 @@ TO_PATCH = [
     'log',
     'neutron_plugin_attribute',
     'os_release',
+    'subprocess',
 ]
 
 
@@ -102,7 +105,7 @@ class TestNeutronAPIUtils(CharmTestCase):
             (ML2CONF, {
                 'services': ['neutron-server'],
             }),
-            (nutils.APACHE_CONF, {
+            (nutils.APACHE_24_CONF, {
                 'services': ['apache2'],
             }),
             (nutils.HAPROXY_CONF, {
@@ -126,7 +129,7 @@ class TestNeutronAPIUtils(CharmTestCase):
         confs = ['/etc/neutron/neutron.conf',
                  '/etc/default/neutron-server',
                  '/etc/neutron/plugins/ml2/ml2_conf.ini',
-                 '/etc/apache2/sites-available/openstack_https_frontend',
+                 '/etc/apache2/sites-available/openstack_https_frontend.conf',
                  '/etc/haproxy/haproxy.cfg']
         self.assertItemsEqual(_regconfs.configs, confs)
 
@@ -166,3 +169,12 @@ class TestNeutronAPIUtils(CharmTestCase):
         self.configure_installation_source.assert_called_with(
             'cloud:precise-havana'
         )
+
+    def test_migrate_neutron_database(self):
+        nutils.migrate_neutron_database()
+        cmd = ['neutron-db-manage',
+               '--config-file', '/etc/neutron/neutron.conf',
+               '--config-file', '/etc/neutron/plugins/ml2/ml2_conf.ini',
+               'upgrade',
+               'head']
+        self.subprocess.check_output.assert_called_with(cmd)
