@@ -129,6 +129,7 @@ class NeutronAPIContextsTest(CharmTestCase):
             'external_network': 'bob',
             'neutron_bind_port': self.api_port,
             'verbose': True,
+            'l2_population': True,
         }
         napi_ctxt = context.NeutronCCContext()
         with patch.object(napi_ctxt, '_ensure_packages'):
