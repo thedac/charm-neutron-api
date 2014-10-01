@@ -31,6 +31,7 @@ from charmhelpers.contrib.openstack.utils import (
     configure_installation_source,
     openstack_upgrade_available,
     os_release,
+    sync_db_with_multi_ipv6_addresses
 )
 from charmhelpers.contrib.openstack.neutron import (
     neutron_plugin_attribute,
@@ -46,6 +47,7 @@ from neutron_api_utils import (
     migrate_neutron_database,
     register_configs,
     restart_map,
+    setup_ipv6
 )
 from neutron_api_context import get_l2population
 
@@ -63,7 +65,10 @@ from charmhelpers.contrib.openstack.ip import (
 
 from charmhelpers.contrib.network.ip import (
     get_iface_for_address,
-    get_netmask_for_address
+    get_netmask_for_address,
+    get_address_in_network,
+    get_ipv6_addr,
+    is_ipv6
 )
 
 hooks = Hooks()
@@ -102,6 +107,11 @@ def install():
 @hooks.hook('config-changed')
 @restart_on_change(restart_map(), stopstart=True)
 def config_changed():
+    if config('prefer-ipv6'):
+        setup_ipv6()
+        sync_db_with_multi_ipv6_addresses(config('database'),
+                                          config('database-user'))
+
     global CONFIGS
     if openstack_upgrade_available('neutron-server'):
         do_openstack_upgrade(CONFIGS)
@@ -169,9 +179,14 @@ def db_joined():
         log(e, level=ERROR)
         raise Exception(e)
 
-    relation_set(database=config('database'),
-                 username=config('database-user'),
-                 hostname=unit_get('private-address'))
+    if config('prefer-ipv6'):
+        sync_db_with_multi_ipv6_addresses(config('database'),
+                                          config('database-user'))
+    else:
+        host = unit_get('private-address')
+        relation_set(database=config('database'),
+                     username=config('database-user'),
+                     hostname=host)
 
 
 @hooks.hook('pgsql-db-relation-joined')
@@ -280,6 +295,19 @@ def neutron_plugin_api_relation_joined(rid=None):
     relation_set(relation_id=rid, **relation_data)
 
 
+@hooks.hook('cluster-relation-joined')
+def cluster_joined(relation_id=None):
+    if config('prefer-ipv6'):
+        private_addr = get_ipv6_addr(exc_list=[config('vip')])[0]
+    else:
+        private_addr = unit_get('private-address')
+
+    address = get_address_in_network(config('os-internal-network'),
+                                     private_addr)
+    relation_set(relation_id=relation_id,
+                 relation_settings={'private-address': address})
+
+
 @hooks.hook('cluster-relation-changed',
             'cluster-relation-departed')
 @restart_on_change(restart_map(), stopstart=True)
@@ -289,7 +317,7 @@ def cluster_changed():
 
 @hooks.hook('ha-relation-joined')
 def ha_joined():
-    config = get_hacluster_config()
+    cluster_config = get_hacluster_config()
     resources = {
         'res_neutron_haproxy': 'lsb:haproxy',
     }
@@ -297,16 +325,24 @@ def ha_joined():
         'res_neutron_haproxy': 'op monitor interval="5s"'
     }
     vip_group = []
-    for vip in config['vip'].split():
+    for vip in cluster_config['vip'].split():
+        if is_ipv6(vip):
+            res_neutron_vip = 'ocf:heartbeat:IPv6addr'
+            vip_params = 'ipv6addr'
+        else:
+            res_neutron_vip = 'ocf:heartbeat:IPaddr2'
+            vip_params = 'ip'
+
         iface = get_iface_for_address(vip)
         if iface is not None:
             vip_key = 'res_neutron_{}_vip'.format(iface)
-            resources[vip_key] = 'ocf:heartbeat:IPaddr2'
+            resources[vip_key] = res_neutron_vip
             resource_params[vip_key] = (
-                'params ip="{vip}" cidr_netmask="{netmask}"'
-                ' nic="{iface}"'.format(vip=vip,
-                                        iface=iface,
-                                        netmask=get_netmask_for_address(vip))
+                'params {ip}="{vip}" cidr_netmask="{netmask}" '
+                'nic="{iface}"'.format(ip=vip_params,
+                                       vip=vip,
+                                       iface=iface,
+                                       netmask=get_netmask_for_address(vip))
             )
             vip_group.append(vip_key)
 
@@ -320,8 +356,8 @@ def ha_joined():
         'cl_nova_haproxy': 'res_neutron_haproxy'
     }
     relation_set(init_services=init_services,
-                 corosync_bindiface=config['ha-bindiface'],
-                 corosync_mcastport=config['ha-mcastport'],
+                 corosync_bindiface=cluster_config['ha-bindiface'],
+                 corosync_mcastport=cluster_config['ha-mcastport'],
                  resources=resources,
                  resource_params=resource_params,
                  clones=clones)
