@@ -39,6 +39,7 @@ TO_PATCH = [
     'neutron_plugin_attribute',
     'open_port',
     'openstack_upgrade_available',
+    'os_release',
     'relation_get',
     'relation_ids',
     'relation_set',
@@ -379,11 +380,23 @@ class NeutronAPIHooksTests(CharmTestCase):
             'is present.'
         )
 
+    def test_conditional_neutron_migration_icehouse(self):
+        self.test_relation.set({
+            'clustered': 'false',
+        })
+        self.os_release.return_value = 'icehouse'
+        hooks.conditional_neutron_migration()
+        self.log.assert_called_with(
+            'Not running neutron database migration as migrations are handled'
+            'by the neutron-server process.'
+        )
+
     def test_conditional_neutron_migration_ncc_rel_leader(self):
         self.test_relation.set({
             'clustered': 'true',
         })
         self.is_leader.return_value = True
+        self.os_release.return_value = 'juno'
         hooks.conditional_neutron_migration()
         self.migrate_neutron_database.assert_called_with()
         self.service_restart.assert_called_with('neutron-server')
@@ -393,6 +406,7 @@ class NeutronAPIHooksTests(CharmTestCase):
             'clustered': 'true',
         })
         self.is_leader.return_value = False
+        self.os_release.return_value = 'juno'
         hooks.conditional_neutron_migration()
         self.assertFalse(self.migrate_neutron_database.called)
         self.assertFalse(self.service_restart.called)
@@ -405,6 +419,7 @@ class NeutronAPIHooksTests(CharmTestCase):
             'clustered': 'false',
         })
         self.relation_ids.return_value = ['nova-cc/o']
+        self.os_release.return_value = 'juno'
         hooks.conditional_neutron_migration()
         self.migrate_neutron_database.assert_called_with()
         self.service_restart.assert_called_with('neutron-server')
