@@ -58,7 +58,7 @@ options:
         nvp - Nicira Network Virtualization Platform
         vsp - Nuage Networks VSP
       .
-  neutron-plugin-rep
+  neutron-plugin-rep:
     type: string
     description: Optional URL to Neutron Plugin local folder containing Debian packages.
   # HA configuration settings
@@ -140,7 +140,7 @@ options:
     default: csp
     description: Name of the organization to create in Nuage VSD
   vsd-auth-ssl:
-    type: bool
+    type: boolean
     default: true
     description: SSL authentication of the Nuage VSD Server
   vsd-base-uri:
