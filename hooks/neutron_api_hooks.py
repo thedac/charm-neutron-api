@@ -30,6 +30,7 @@ from charmhelpers.fetch import (
 from charmhelpers.contrib.openstack.utils import (
     configure_installation_source,
     openstack_upgrade_available,
+    os_release,
 )
 from charmhelpers.contrib.openstack.neutron import (
     neutron_plugin_attribute,
@@ -144,6 +145,9 @@ def conditional_neutron_migration():
     if not relation_ids('neutron-api'):
         log('Not running neutron database migration, no nova-cloud-controller'
             'is present.')
+    elif os_release('nova-common') <= 'icehouse':
+        log('Not running neutron database migration as migrations are handled'
+            'by the neutron-server process.')
     else:
         if clustered:
             if is_leader(CLUSTER_RES):
