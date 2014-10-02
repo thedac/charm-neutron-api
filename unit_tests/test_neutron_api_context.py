@@ -130,6 +130,7 @@ class NeutronAPIContextsTest(CharmTestCase):
             'neutron_bind_port': self.api_port,
             'verbose': True,
             'l2_population': True,
+            'overlay_network_type': 'gre',
         }
         napi_ctxt = context.NeutronCCContext()
         with patch.object(napi_ctxt, '_ensure_packages'):
