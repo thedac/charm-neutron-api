@@ -269,6 +269,7 @@ class NeutronAPIHooksTests(CharmTestCase):
         _relation_data = {
             'neutron-security-groups': False,
             'l2-population': False,
+            'overlay-network-type': 'gre',
         }
         self.get_l2population.return_value = False
         self._call_hook('neutron-plugin-api-relation-joined')
