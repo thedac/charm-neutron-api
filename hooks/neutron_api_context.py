@@ -70,7 +70,7 @@ class NeutronCCContext(context.NeutronContext):
         from neutron_api_utils import api_port
         ctxt = super(NeutronCCContext, self).__call__()
         ctxt['l2_population'] = self.neutron_l2_population
-        ctxt['ml2_typedriver'] = config('neutron-ml2-typedriver')
+        ctxt['overlay_network_type'] = config('overlay-network-type')
         ctxt['external_network'] = config('neutron-external-network')
         ctxt['verbose'] = config('verbose')
         ctxt['debug'] = config('debug')

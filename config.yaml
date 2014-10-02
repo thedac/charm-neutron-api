@@ -57,11 +57,11 @@ options:
         ovs - OpenvSwitch Plugin
         nvp - Nicira Network Virtualization Platform
       .
-  neutron-ml2-typedriver:
+  overlay-network-type:
     default: gre
     type: string
     description: |
-      ML2 network type driver to use; supports
+      Overlay network type to use chooese one of:
       .
         gre
         vxlan 
