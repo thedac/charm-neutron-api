@@ -13,6 +13,7 @@ utils.register_configs = MagicMock()
 utils.restart_map = MagicMock()
 
 import neutron_api_hooks as hooks
+hooks.hooks._config_save = False
 
 hooks.hooks._config_save = False
 
@@ -38,6 +39,7 @@ TO_PATCH = [
     'neutron_plugin_attribute',
     'open_port',
     'openstack_upgrade_available',
+    'os_release',
     'relation_get',
     'relation_ids',
     'relation_set',
@@ -317,6 +319,42 @@ class NeutronAPIHooksTests(CharmTestCase):
             **_relation_data
         )
 
+    @patch.object(hooks, 'get_hacluster_config')
+    def test_ha_joined_with_ipv6(self, _get_ha_config):
+        self.test_config.set('prefer-ipv6', 'True')
+        _ha_config = {
+            'vip': '2001:db8:1::1',
+            'vip_cidr': '64',
+            'vip_iface': 'eth0',
+            'ha-bindiface': 'eth1',
+            'ha-mcastport': '5405',
+        }
+        vip_params = 'params ipv6addr="%s" ' \
+                     'cidr_netmask="ffff.ffff.ffff.ffff" ' \
+                     'nic="%s"' % \
+                     (_ha_config['vip'], _ha_config['vip_iface'])
+        _get_ha_config.return_value = _ha_config
+        self.get_iface_for_address.return_value = 'eth0'
+        self.get_netmask_for_address.return_value = 'ffff.ffff.ffff.ffff'
+        _relation_data = {
+            'init_services': {'res_neutron_haproxy': 'haproxy'},
+            'corosync_bindiface': _ha_config['ha-bindiface'],
+            'corosync_mcastport': _ha_config['ha-mcastport'],
+            'resources': {
+                'res_neutron_eth0_vip': 'ocf:heartbeat:IPv6addr',
+                'res_neutron_haproxy': 'lsb:haproxy'
+            },
+            'resource_params': {
+                'res_neutron_eth0_vip': vip_params,
+                'res_neutron_haproxy': 'op monitor interval="5s"'
+            },
+            'clones': {'cl_nova_haproxy': 'res_neutron_haproxy'}
+        }
+        self._call_hook('ha-relation-joined')
+        self.relation_set.assert_called_with(
+            **_relation_data
+        )
+
     def test_ha_changed(self):
         self.test_relation.set({
             'clustered': 'true',
@@ -368,11 +406,23 @@ class NeutronAPIHooksTests(CharmTestCase):
             'is present.'
         )
 
+    def test_conditional_neutron_migration_icehouse(self):
+        self.test_relation.set({
+            'clustered': 'false',
+        })
+        self.os_release.return_value = 'icehouse'
+        hooks.conditional_neutron_migration()
+        self.log.assert_called_with(
+            'Not running neutron database migration as migrations are handled'
+            'by the neutron-server process.'
+        )
+
     def test_conditional_neutron_migration_ncc_rel_leader(self):
         self.test_relation.set({
             'clustered': 'true',
         })
         self.is_leader.return_value = True
+        self.os_release.return_value = 'juno'
         hooks.conditional_neutron_migration()
         self.migrate_neutron_database.assert_called_with()
         self.service_restart.assert_called_with('neutron-server')
@@ -382,6 +432,7 @@ class NeutronAPIHooksTests(CharmTestCase):
             'clustered': 'true',
         })
         self.is_leader.return_value = False
+        self.os_release.return_value = 'juno'
         hooks.conditional_neutron_migration()
         self.assertFalse(self.migrate_neutron_database.called)
         self.assertFalse(self.service_restart.called)
@@ -394,6 +445,7 @@ class NeutronAPIHooksTests(CharmTestCase):
             'clustered': 'false',
         })
         self.relation_ids.return_value = ['nova-cc/o']
+        self.os_release.return_value = 'juno'
         hooks.conditional_neutron_migration()
         self.migrate_neutron_database.assert_called_with()
         self.service_restart.assert_called_with('neutron-server')
