@@ -139,6 +139,33 @@ class NeutronAPIContextsTest(CharmTestCase):
     @patch.object(context.NeutronCCContext, 'network_manager')
     @patch.object(context.NeutronCCContext, 'plugin')
     @patch('__builtin__.__import__')
+    def test_neutroncc_context_vxlan(self, _import, plugin, nm):
+        plugin.return_value = None
+        self.test_config.set('overlay-network-type', 'vxlan')
+        ctxt_data = {
+            'debug': True,
+            'external_network': 'bob',
+            'neutron_bind_port': self.api_port,
+            'verbose': True,
+            'l2_population': True,
+            'overlay_network_type': 'vxlan',
+        }
+        napi_ctxt = context.NeutronCCContext()
+        with patch.object(napi_ctxt, '_ensure_packages'):
+            self.assertEquals(ctxt_data, napi_ctxt())
+
+    @patch.object(context.NeutronCCContext, 'network_manager')
+    @patch.object(context.NeutronCCContext, 'plugin')
+    @patch('__builtin__.__import__')
+    def test_neutroncc_context_unsupported_overlay(self, _import, plugin, nm):
+        plugin.return_value = None
+        self.test_config.set('overlay-network-type', 'bobswitch')
+        with self.assertRaises(Exception) as context:
+            context.NeutronCCContext()
+
+    @patch.object(context.NeutronCCContext, 'network_manager')
+    @patch.object(context.NeutronCCContext, 'plugin')
+    @patch('__builtin__.__import__')
     def test_neutroncc_context_api_rel(self, _import, plugin, nm):
         nova_url = 'http://127.0.0.10'
         plugin.return_value = None

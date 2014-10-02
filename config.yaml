@@ -61,7 +61,7 @@ options:
     default: gre
     type: string
     description: |
-      Overlay network type to use chooese one of:
+      Overlay network type to use choose one of:
       .
         gre
         vxlan 

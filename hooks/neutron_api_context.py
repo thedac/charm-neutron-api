@@ -71,6 +71,8 @@ class NeutronCCContext(context.NeutronContext):
         ctxt = super(NeutronCCContext, self).__call__()
         ctxt['l2_population'] = self.neutron_l2_population
         ctxt['overlay_network_type'] = config('overlay-network-type')
+        if ctxt['overlay_network_type'] not in [None, 'vxlan', 'gre']:
+            raise Exception('Unsupported overlay-network-type')
         ctxt['external_network'] = config('neutron-external-network')
         ctxt['verbose'] = config('verbose')
         ctxt['debug'] = config('debug')
