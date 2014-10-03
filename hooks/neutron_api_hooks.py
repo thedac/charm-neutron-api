@@ -22,7 +22,7 @@ from charmhelpers.core.host import (
 )
 
 from charmhelpers.fetch import (
-    apt_install, apt_update
+    apt_install, apt_update, apt_upgrade
 )
 
 from charmhelpers.contrib.openstack.utils import (
@@ -100,10 +100,13 @@ def install():
         with open('/etc/apt/sources.list.d/calico.list', 'w') as f:
             f.write('deb http://binaries.projectcalico.org/repo ./')
 
-        with open('/etc/apt/preferences', 'w') as f:
+        with open('/etc/apt/preferences.d/calico-pin-1001', 'w') as f:
             f.write('Package: *\nPin: origin binaries.projectcalico.org\nPin-Priority: 1001\n')
 
         check_call(['add-apt-repository', 'ppa:cz.nic-labs/bird'])
+
+        apt_update()
+        apt_upgrade(options=['--force-yes'])
 
     apt_update()
     apt_install(determine_packages(), fatal=True)
