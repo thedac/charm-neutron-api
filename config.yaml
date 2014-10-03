@@ -77,7 +77,7 @@ options:
       with the other members of the HA Cluster.
   ha-mcastport:
     type: int
-    default: 5404
+    default: 5424
     description: |
        Default multicast port number that will be used to communicate between
        HA Cluster nodes.
@@ -159,3 +159,23 @@ options:
     type: string
     description: VSD configuration file name.
   # end of Nuage VSD configuration
+  l2-population:
+    type: boolean
+    default: True
+    description: |
+      Populate the forwarding tables of virtual switches (LinuxBridge or OVS),
+      to decrease broadcast traffics inside the physical networks fabric while
+      using overlays networks (VXLan, GRE).
+  prefer-ipv6:
+    type: boolean
+    default: False
+    description: |
+      If True enables IPv6 support. The charm will expect network interfaces
+      to be configured with an IPv6 address. If set to False (default) IPv4
+      is expected.
+      .
+      NOTE: these charms do not currently support IPv6 privacy extension. In
+      order for this charm to function correctly, the privacy extension must be
+      disabled and a non-temporary address must be configured/available on
+      your network interface.
+
