@@ -49,7 +49,10 @@ from neutron_api_utils import (
     restart_map,
     setup_ipv6
 )
-from neutron_api_context import get_l2population
+from neutron_api_context import (
+    get_l2population,
+    get_overlay_network_type,
+)
 
 from charmhelpers.contrib.hahelpers.cluster import (
     get_hacluster_config,
@@ -291,6 +294,7 @@ def neutron_plugin_api_relation_joined(rid=None):
     relation_data = {
         'neutron-security-groups': config('neutron-security-groups'),
         'l2-population': get_l2population(),
+        'overlay-network-type': get_overlay_network_type(),
     }
     relation_set(relation_id=rid, **relation_data)
 
