@@ -85,21 +85,27 @@ def configure_https():
     for rid in relation_ids('identity-service'):
         identity_joined(rid=rid)
 
-ARCHIVE = 'neutron_plugin'
+ARCHIVE = 'neutron_plugin_nuage'
 
 @hooks.hook()
 def install():
     execd_preinstall()
     configure_installation_source(config('openstack-origin'))
 
-    if config('neutron-plugin-rep') is not None:
+    packages = determine_packages()
+    if config('neutron-plugin') is 'vsp':
         archive.install()
         archive.create_archive(ARCHIVE)
         archive.include_deb(ARCHIVE, 'payload')
         archive.configure_local_source(ARCHIVE)
 
+        # Install configured packages
+        #nuage_dependencies = "nuage-neutron nuagenetlib neutron-plugin-nuage"
+        packages += "nuage-neutron"
+        packages += "nuagenetlib"
+
     apt_update()
-    apt_install(determine_packages(), fatal=True)
+    apt_install(packages, fatal=True)
     [open_port(port) for port in determine_ports()]
 
 
@@ -120,17 +126,19 @@ def config_changed():
         amqp_joined(relation_id=r_id)
     for r_id in relation_ids('identity-service'):
         identity_joined(rid=r_id)
-    if config('neutron-plugin') is 'vsd':
+    if config('neutron-plugin') is 'vsp':
         vsd_config_file = '/etc/neutron/plugins/nuage/nuage_plugin.ini'
         #vsd_config_file = config('vsd-config-file')
-        vsd_servers = config('vsd-server')
-        update_config_file(vsd_config_file, 'server', vsd_servers)
-        update_config_file(vsd_config_file, 'serverauth', config('vsd-auth'))
-        update_config_file(vsd_config_file, 'serverssl', config('vsd-auth-ssl'))
-        update_config_file(vsd_config_file, 'organization', config('vsd-organization'))
-        update_config_file(vsd_config_file, 'base_uri', config('vsd-base-uri'))
-        update_config_file(vsd_config_file, 'auth_resource', config('vsd-auth-resource'))
-        update_config_file(vsd_config_file, 'default_net_partition_name', config('vsd-netpart-name'))
+        if not config('vsd-server'):
+            raise ConfigurationError('vsd-server not specified')
+        vsd_server = config('vsd-server')
+        update_config_file(vsd_config_file, 'server', vsd_server)
+        #update_config_file(vsd_config_file, 'serverauth', config('vsd-auth'))
+        #update_config_file(vsd_config_file, 'serverssl', config('vsd-auth-ssl'))
+        #update_config_file(vsd_config_file, 'organization', config('vsd-organization'))
+        #update_config_file(vsd_config_file, 'base_uri', config('vsd-base-uri'))
+        #update_config_file(vsd_config_file, 'auth_resource', config('vsd-auth-resource'))
+        #update_config_file(vsd_config_file, 'default_net_partition_name', config('vsd-netpart-name'))
 
 
 @hooks.hook('amqp-relation-joined')
