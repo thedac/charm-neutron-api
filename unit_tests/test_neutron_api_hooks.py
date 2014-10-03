@@ -34,6 +34,7 @@ TO_PATCH = [
     'get_iface_for_address',
     'get_l2population',
     'get_netmask_for_address',
+    'get_overlay_network_type',
     'is_leader',
     'is_relation_made',
     'log',
@@ -271,8 +272,10 @@ class NeutronAPIHooksTests(CharmTestCase):
         _relation_data = {
             'neutron-security-groups': False,
             'l2-population': False,
+            'overlay-network-type': 'vxlan',
         }
         self.get_l2population.return_value = False
+        self.get_overlay_network_type.return_value = 'vxlan'
         self._call_hook('neutron-plugin-api-relation-joined')
         self.relation_set.assert_called_with(
             relation_id=None,
