@@ -58,7 +58,7 @@ options:
         nvp - Nicira Network Virtualization Platform
         vsp - Nuage Networks VSP
       .
-  neutron-plugin-rep:
+  neutron-plugin-repository-url:
     type: string
     description: Optional URL to Neutron Plugin local folder containing Debian packages.
   # HA configuration settings
@@ -128,6 +128,10 @@ options:
       SSL CA to use with the certificate and key provided - this is only
       required if you are providing a privately signed ssl_cert and ssl_key.
   # Neutron Nuage plugin (VSD) configuration
+  vsp-packages:
+    type: string
+    default: "nuagenetlib"
+    description: List of packages to install for neutron-plugin-nuage: VSP.
   vsd-server:
     type: string
     description: Nuage VSD Server
