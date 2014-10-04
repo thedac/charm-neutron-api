@@ -213,10 +213,7 @@ def do_openstack_upgrade(configs):
     migrate_neutron_database()
 
 def update_config_file(config_file, key, value):
-    """Updates or append configuration
-    as key value pairs """
-    #config_file = '/etc/default/openvswitch-switch'
-    #config_file = config('vrs-config-file')
+    """Updates or append configuration as key value pairs """
     insert_config = key + "=" + value
     with open(config_file, "r+") as vrs_file:
         mm = mmap.mmap(vrs_file.fileno(), 0)
@@ -226,14 +223,14 @@ def update_config_file(config_file, key, value):
         match = re.search(search_str, mm, re.MULTILINE)
         if match is not None:
             start_index = match.start()
-            end_index = mm.find("\n", start_index)
+            end_index = mm.find("\n", match.end())
             if end_index != -1:
                 origSize = end_index - start_index
                 if newSize > origSize:
                     newFileSize = origFileSize + len(insert_config) - origSize
                     mm.resize(newFileSize)
                     mm[start_index + newSize:] = mm[end_index:origFileSize]
-                else:
+                elif newSize < origSize:
                     insert_config += (" " * (int(origSize) - int(newSize)))
                     newSize = origSize
                 mm[start_index:start_index+newSize] = insert_config
