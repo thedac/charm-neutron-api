@@ -74,6 +74,8 @@ from charmhelpers.contrib.network.ip import (
     is_ipv6
 )
 
+from charmhelpers.contrib.openstack.context import ADDRESS_TYPES
+
 hooks = Hooks()
 CONFIGS = register_configs()
 
@@ -128,6 +130,7 @@ def config_changed():
         amqp_joined(relation_id=r_id)
     for r_id in relation_ids('identity-service'):
         identity_joined(rid=r_id)
+    [cluster_joined(rid) for rid in relation_ids('cluster')]
 
 
 @hooks.hook('amqp-relation-joined')
@@ -301,15 +304,19 @@ def neutron_plugin_api_relation_joined(rid=None):
 
 @hooks.hook('cluster-relation-joined')
 def cluster_joined(relation_id=None):
+    for addr_type in ADDRESS_TYPES:
+        address = get_address_in_network(
+            config('os-{}-network'.format(addr_type))
+        )
+        if address:
+            relation_set(
+                relation_id=relation_id,
+                relation_settings={'{}-address'.format(addr_type): address}
+            )
     if config('prefer-ipv6'):
         private_addr = get_ipv6_addr(exc_list=[config('vip')])[0]
-    else:
-        private_addr = unit_get('private-address')
-
-    address = get_address_in_network(config('os-internal-network'),
-                                     private_addr)
-    relation_set(relation_id=relation_id,
-                 relation_settings={'private-address': address})
+        relation_set(relation_id=relation_id,
+                     relation_settings={'private-address': private_addr})
 
 
 @hooks.hook('cluster-relation-changed',
@@ -371,11 +378,8 @@ def ha_joined():
 def ha_changed():
     clustered = relation_get('clustered')
     if not clustered or clustered in [None, 'None', '']:
-        log('ha_changed: hacluster subordinate not fully clustered.:'
-            + str(clustered))
-        return
-    if not is_leader(CLUSTER_RES):
-        log('ha_changed: hacluster complete but we are not leader.')
+        log('ha_changed: hacluster subordinate'
+            ' not fully clustered: %s' % clustered)
         return
     log('Cluster configured, notifying other services and updating '
         'keystone endpoint configuration')
