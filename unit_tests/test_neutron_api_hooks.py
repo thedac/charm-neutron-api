@@ -15,6 +15,8 @@ utils.restart_map = MagicMock()
 import neutron_api_hooks as hooks
 hooks.hooks._config_save = False
 
+hooks.hooks._config_save = False
+
 utils.register_configs = _reg
 utils.restart_map = _map
 
@@ -31,11 +33,8 @@ TO_PATCH = [
     'determine_ports',
     'do_openstack_upgrade',
     'execd_preinstall',
-    'get_iface_for_address',
     'get_l2population',
-    'get_netmask_for_address',
     'get_overlay_network_type',
-    'is_leader',
     'is_relation_made',
     'log',
     'neutron_plugin_attribute',
@@ -48,8 +47,10 @@ TO_PATCH = [
     'unit_get',
     'get_iface_for_address',
     'get_netmask_for_address',
+    'get_address_in_network',
     'migrate_neutron_database',
     'service_restart',
+    'is_leader',
 ]
 NEUTRON_CONF_DIR = "/etc/neutron"
 
@@ -101,11 +102,13 @@ class NeutronAPIHooksTests(CharmTestCase):
             self.patch('neutron_plugin_api_relation_joined')
         _amqp_rel_joined = self.patch('amqp_joined')
         _id_rel_joined = self.patch('identity_joined')
+        _id_cluster_joined = self.patch('cluster_joined')
         self._call_hook('config-changed')
         self.assertTrue(_n_api_rel_joined.called)
         self.assertTrue(_n_plugin_api_rel_joined.called)
         self.assertTrue(_amqp_rel_joined.called)
         self.assertTrue(_id_rel_joined.called)
+        self.assertTrue(_id_cluster_joined.called)
         self.assertTrue(self.CONFIGS.write_all.called)
         self.assertTrue(self.do_openstack_upgrade.called)
 
@@ -359,7 +362,6 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.test_relation.set({
             'clustered': 'true',
         })
-        self.is_leader.return_value = True
         self.relation_ids.side_effect = self._fake_relids
         _n_api_rel_joined = self.patch('neutron_api_relation_joined')
         _id_rel_joined = self.patch('identity_joined')
@@ -367,23 +369,10 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.assertTrue(_n_api_rel_joined.called)
         self.assertTrue(_id_rel_joined.called)
 
-    def test_ha_changed_not_leader(self):
-        self.test_relation.set({
-            'clustered': 'true',
-        })
-        self.is_leader.return_value = False
-        self.relation_ids.side_effect = self._fake_relids
-        _n_api_rel_joined = self.patch('neutron_api_relation_joined')
-        _id_rel_joined = self.patch('identity_joined')
-        self._call_hook('ha-relation-changed')
-        self.assertFalse(_n_api_rel_joined.called)
-        self.assertFalse(_id_rel_joined.called)
-
     def test_ha_changed_not_clustered(self):
         self.test_relation.set({
             'clustered': None,
         })
-        self.is_leader.return_value = False
         self.relation_ids.side_effect = self._fake_relids
         _n_api_rel_joined = self.patch('neutron_api_relation_joined')
         _id_rel_joined = self.patch('identity_joined')
