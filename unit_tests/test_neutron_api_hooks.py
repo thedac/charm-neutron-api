@@ -13,6 +13,9 @@ utils.register_configs = MagicMock()
 utils.restart_map = MagicMock()
 
 import neutron_api_hooks as hooks
+hooks.hooks._config_save = False
+
+hooks.hooks._config_save = False
 
 utils.register_configs = _reg
 utils.restart_map = _map
@@ -30,20 +33,24 @@ TO_PATCH = [
     'determine_ports',
     'do_openstack_upgrade',
     'execd_preinstall',
-    'is_leader',
+    'get_l2population',
+    'get_overlay_network_type',
     'is_relation_made',
     'log',
     'neutron_plugin_attribute',
     'open_port',
     'openstack_upgrade_available',
+    'os_release',
     'relation_get',
     'relation_ids',
     'relation_set',
     'unit_get',
     'get_iface_for_address',
     'get_netmask_for_address',
+    'get_address_in_network',
     'migrate_neutron_database',
     'service_restart',
+    'is_leader',
 ]
 NEUTRON_CONF_DIR = "/etc/neutron"
 
@@ -95,11 +102,13 @@ class NeutronAPIHooksTests(CharmTestCase):
             self.patch('neutron_plugin_api_relation_joined')
         _amqp_rel_joined = self.patch('amqp_joined')
         _id_rel_joined = self.patch('identity_joined')
+        _id_cluster_joined = self.patch('cluster_joined')
         self._call_hook('config-changed')
         self.assertTrue(_n_api_rel_joined.called)
         self.assertTrue(_n_plugin_api_rel_joined.called)
         self.assertTrue(_amqp_rel_joined.called)
         self.assertTrue(_id_rel_joined.called)
+        self.assertTrue(_id_cluster_joined.called)
         self.assertTrue(self.CONFIGS.write_all.called)
         self.assertTrue(self.do_openstack_upgrade.called)
 
@@ -262,10 +271,14 @@ class NeutronAPIHooksTests(CharmTestCase):
         self._call_hook('neutron-api-relation-changed')
         self.assertTrue(self.CONFIGS.write.called_with(NEUTRON_CONF))
 
-    def test_neutron_plugin_api_relation_joined(self):
+    def test_neutron_plugin_api_relation_joined_nol2(self):
         _relation_data = {
             'neutron-security-groups': False,
+            'l2-population': False,
+            'overlay-network-type': 'vxlan',
         }
+        self.get_l2population.return_value = False
+        self.get_overlay_network_type.return_value = 'vxlan'
         self._call_hook('neutron-plugin-api-relation-joined')
         self.relation_set.assert_called_with(
             relation_id=None,
@@ -309,11 +322,46 @@ class NeutronAPIHooksTests(CharmTestCase):
             **_relation_data
         )
 
+    @patch.object(hooks, 'get_hacluster_config')
+    def test_ha_joined_with_ipv6(self, _get_ha_config):
+        self.test_config.set('prefer-ipv6', 'True')
+        _ha_config = {
+            'vip': '2001:db8:1::1',
+            'vip_cidr': '64',
+            'vip_iface': 'eth0',
+            'ha-bindiface': 'eth1',
+            'ha-mcastport': '5405',
+        }
+        vip_params = 'params ipv6addr="%s" ' \
+                     'cidr_netmask="ffff.ffff.ffff.ffff" ' \
+                     'nic="%s"' % \
+                     (_ha_config['vip'], _ha_config['vip_iface'])
+        _get_ha_config.return_value = _ha_config
+        self.get_iface_for_address.return_value = 'eth0'
+        self.get_netmask_for_address.return_value = 'ffff.ffff.ffff.ffff'
+        _relation_data = {
+            'init_services': {'res_neutron_haproxy': 'haproxy'},
+            'corosync_bindiface': _ha_config['ha-bindiface'],
+            'corosync_mcastport': _ha_config['ha-mcastport'],
+            'resources': {
+                'res_neutron_eth0_vip': 'ocf:heartbeat:IPv6addr',
+                'res_neutron_haproxy': 'lsb:haproxy'
+            },
+            'resource_params': {
+                'res_neutron_eth0_vip': vip_params,
+                'res_neutron_haproxy': 'op monitor interval="5s"'
+            },
+            'clones': {'cl_nova_haproxy': 'res_neutron_haproxy'}
+        }
+        self._call_hook('ha-relation-joined')
+        self.relation_set.assert_called_with(
+            **_relation_data
+        )
+
     def test_ha_changed(self):
         self.test_relation.set({
             'clustered': 'true',
         })
-        self.is_leader.return_value = True
         self.relation_ids.side_effect = self._fake_relids
         _n_api_rel_joined = self.patch('neutron_api_relation_joined')
         _id_rel_joined = self.patch('identity_joined')
@@ -321,23 +369,10 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.assertTrue(_n_api_rel_joined.called)
         self.assertTrue(_id_rel_joined.called)
 
-    def test_ha_changed_not_leader(self):
-        self.test_relation.set({
-            'clustered': 'true',
-        })
-        self.is_leader.return_value = False
-        self.relation_ids.side_effect = self._fake_relids
-        _n_api_rel_joined = self.patch('neutron_api_relation_joined')
-        _id_rel_joined = self.patch('identity_joined')
-        self._call_hook('ha-relation-changed')
-        self.assertFalse(_n_api_rel_joined.called)
-        self.assertFalse(_id_rel_joined.called)
-
     def test_ha_changed_not_clustered(self):
         self.test_relation.set({
             'clustered': None,
         })
-        self.is_leader.return_value = False
         self.relation_ids.side_effect = self._fake_relids
         _n_api_rel_joined = self.patch('neutron_api_relation_joined')
         _id_rel_joined = self.patch('identity_joined')
@@ -374,11 +409,23 @@ class NeutronAPIHooksTests(CharmTestCase):
             'is present.'
         )
 
+    def test_conditional_neutron_migration_icehouse(self):
+        self.test_relation.set({
+            'clustered': 'false',
+        })
+        self.os_release.return_value = 'icehouse'
+        hooks.conditional_neutron_migration()
+        self.log.assert_called_with(
+            'Not running neutron database migration as migrations are handled'
+            'by the neutron-server process.'
+        )
+
     def test_conditional_neutron_migration_ncc_rel_leader(self):
         self.test_relation.set({
             'clustered': 'true',
         })
         self.is_leader.return_value = True
+        self.os_release.return_value = 'juno'
         hooks.conditional_neutron_migration()
         self.migrate_neutron_database.assert_called_with()
         self.service_restart.assert_called_with('neutron-server')
@@ -388,6 +435,7 @@ class NeutronAPIHooksTests(CharmTestCase):
             'clustered': 'true',
         })
         self.is_leader.return_value = False
+        self.os_release.return_value = 'juno'
         hooks.conditional_neutron_migration()
         self.assertFalse(self.migrate_neutron_database.called)
         self.assertFalse(self.service_restart.called)
@@ -400,6 +448,7 @@ class NeutronAPIHooksTests(CharmTestCase):
             'clustered': 'false',
         })
         self.relation_ids.return_value = ['nova-cc/o']
+        self.os_release.return_value = 'juno'
         hooks.conditional_neutron_migration()
         self.migrate_neutron_database.assert_called_with()
         self.service_restart.assert_called_with('neutron-server')

@@ -30,6 +30,8 @@ from charmhelpers.fetch import (
 from charmhelpers.contrib.openstack.utils import (
     configure_installation_source,
     openstack_upgrade_available,
+    os_release,
+    sync_db_with_multi_ipv6_addresses
 )
 from charmhelpers.contrib.openstack.neutron import (
     neutron_plugin_attribute,
@@ -45,6 +47,11 @@ from neutron_api_utils import (
     migrate_neutron_database,
     register_configs,
     restart_map,
+    setup_ipv6
+)
+from neutron_api_context import (
+    get_l2population,
+    get_overlay_network_type,
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
@@ -61,8 +68,13 @@ from charmhelpers.contrib.openstack.ip import (
 
 from charmhelpers.contrib.network.ip import (
     get_iface_for_address,
-    get_netmask_for_address
+    get_netmask_for_address,
+    get_address_in_network,
+    get_ipv6_addr,
+    is_ipv6
 )
+
+from charmhelpers.contrib.openstack.context import ADDRESS_TYPES
 
 hooks = Hooks()
 CONFIGS = register_configs()
@@ -100,6 +112,11 @@ def install():
 @hooks.hook('config-changed')
 @restart_on_change(restart_map(), stopstart=True)
 def config_changed():
+    if config('prefer-ipv6'):
+        setup_ipv6()
+        sync_db_with_multi_ipv6_addresses(config('database'),
+                                          config('database-user'))
+
     global CONFIGS
     if openstack_upgrade_available('neutron-server'):
         do_openstack_upgrade(CONFIGS)
@@ -113,6 +130,7 @@ def config_changed():
         amqp_joined(relation_id=r_id)
     for r_id in relation_ids('identity-service'):
         identity_joined(rid=r_id)
+    [cluster_joined(rid) for rid in relation_ids('cluster')]
 
 
 @hooks.hook('amqp-relation-joined')
@@ -143,6 +161,9 @@ def conditional_neutron_migration():
     if not relation_ids('neutron-api'):
         log('Not running neutron database migration, no nova-cloud-controller'
             'is present.')
+    elif os_release('nova-common') <= 'icehouse':
+        log('Not running neutron database migration as migrations are handled'
+            'by the neutron-server process.')
     else:
         if clustered:
             if is_leader(CLUSTER_RES):
@@ -164,9 +185,14 @@ def db_joined():
         log(e, level=ERROR)
         raise Exception(e)
 
-    relation_set(database=config('database'),
-                 username=config('database-user'),
-                 hostname=unit_get('private-address'))
+    if config('prefer-ipv6'):
+        sync_db_with_multi_ipv6_addresses(config('database'),
+                                          config('database-user'))
+    else:
+        host = unit_get('private-address')
+        relation_set(database=config('database'),
+                     username=config('database-user'),
+                     hostname=host)
 
 
 @hooks.hook('pgsql-db-relation-joined')
@@ -269,9 +295,28 @@ def neutron_api_relation_changed():
 @hooks.hook('neutron-plugin-api-relation-joined')
 def neutron_plugin_api_relation_joined(rid=None):
     relation_data = {
-        'neutron-security-groups': config('neutron-security-groups')
+        'neutron-security-groups': config('neutron-security-groups'),
+        'l2-population': get_l2population(),
+        'overlay-network-type': get_overlay_network_type(),
     }
     relation_set(relation_id=rid, **relation_data)
+
+
+@hooks.hook('cluster-relation-joined')
+def cluster_joined(relation_id=None):
+    for addr_type in ADDRESS_TYPES:
+        address = get_address_in_network(
+            config('os-{}-network'.format(addr_type))
+        )
+        if address:
+            relation_set(
+                relation_id=relation_id,
+                relation_settings={'{}-address'.format(addr_type): address}
+            )
+    if config('prefer-ipv6'):
+        private_addr = get_ipv6_addr(exc_list=[config('vip')])[0]
+        relation_set(relation_id=relation_id,
+                     relation_settings={'private-address': private_addr})
 
 
 @hooks.hook('cluster-relation-changed',
@@ -283,7 +328,7 @@ def cluster_changed():
 
 @hooks.hook('ha-relation-joined')
 def ha_joined():
-    config = get_hacluster_config()
+    cluster_config = get_hacluster_config()
     resources = {
         'res_neutron_haproxy': 'lsb:haproxy',
     }
@@ -291,16 +336,24 @@ def ha_joined():
         'res_neutron_haproxy': 'op monitor interval="5s"'
     }
     vip_group = []
-    for vip in config['vip'].split():
+    for vip in cluster_config['vip'].split():
+        if is_ipv6(vip):
+            res_neutron_vip = 'ocf:heartbeat:IPv6addr'
+            vip_params = 'ipv6addr'
+        else:
+            res_neutron_vip = 'ocf:heartbeat:IPaddr2'
+            vip_params = 'ip'
+
         iface = get_iface_for_address(vip)
         if iface is not None:
             vip_key = 'res_neutron_{}_vip'.format(iface)
-            resources[vip_key] = 'ocf:heartbeat:IPaddr2'
+            resources[vip_key] = res_neutron_vip
             resource_params[vip_key] = (
-                'params ip="{vip}" cidr_netmask="{netmask}"'
-                ' nic="{iface}"'.format(vip=vip,
-                                        iface=iface,
-                                        netmask=get_netmask_for_address(vip))
+                'params {ip}="{vip}" cidr_netmask="{netmask}" '
+                'nic="{iface}"'.format(ip=vip_params,
+                                       vip=vip,
+                                       iface=iface,
+                                       netmask=get_netmask_for_address(vip))
             )
             vip_group.append(vip_key)
 
@@ -314,8 +367,8 @@ def ha_joined():
         'cl_nova_haproxy': 'res_neutron_haproxy'
     }
     relation_set(init_services=init_services,
-                 corosync_bindiface=config['ha-bindiface'],
-                 corosync_mcastport=config['ha-mcastport'],
+                 corosync_bindiface=cluster_config['ha-bindiface'],
+                 corosync_mcastport=cluster_config['ha-mcastport'],
                  resources=resources,
                  resource_params=resource_params,
                  clones=clones)
@@ -325,11 +378,8 @@ def ha_joined():
 def ha_changed():
     clustered = relation_get('clustered')
     if not clustered or clustered in [None, 'None', '']:
-        log('ha_changed: hacluster subordinate not fully clustered.:'
-            + str(clustered))
-        return
-    if not is_leader(CLUSTER_RES):
-        log('ha_changed: hacluster complete but we are not leader.')
+        log('ha_changed: hacluster subordinate'
+            ' not fully clustered: %s' % clustered)
         return
     log('Cluster configured, notifying other services and updating '
         'keystone endpoint configuration')

@@ -11,6 +11,18 @@ from charmhelpers.contrib.hahelpers.cluster import (
 )
 
 
+def get_l2population():
+    plugin = config('neutron-plugin')
+    return config('l2-population') if plugin == "ovs" else False
+
+
+def get_overlay_network_type():
+    overlay_net = config('overlay-network-type')
+    if overlay_net not in ['vxlan', 'gre']:
+        raise Exception('Unsupported overlay-network-type')
+    return overlay_net
+
+
 class ApacheSSLContext(context.ApacheSSLContext):
 
     interfaces = ['https']
@@ -49,6 +61,14 @@ class NeutronCCContext(context.NeutronContext):
     def neutron_security_groups(self):
         return config('neutron-security-groups')
 
+    @property
+    def neutron_l2_population(self):
+        return get_l2population()
+
+    @property
+    def neutron_overlay_network_type(self):
+        return get_overlay_network_type()
+
     # Do not need the plugin agent installed on the api server
     def _ensure_packages(self):
         pass
@@ -60,6 +80,8 @@ class NeutronCCContext(context.NeutronContext):
     def __call__(self):
         from neutron_api_utils import api_port
         ctxt = super(NeutronCCContext, self).__call__()
+        ctxt['l2_population'] = self.neutron_l2_population
+        ctxt['overlay_network_type'] = self.neutron_overlay_network_type
         ctxt['external_network'] = config('neutron-external-network')
         ctxt['verbose'] = config('verbose')
         ctxt['debug'] = config('debug')
