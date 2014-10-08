@@ -74,7 +74,8 @@ BASE_RESOURCE_MAP = OrderedDict([
                      neutron_api_context.IdentityServiceContext(),
                      neutron_api_context.NeutronCCContext(),
                      context.SyslogContext(),
-                     context.BindHostContext()],
+                     context.BindHostContext(),
+                     context.WorkerConfigContext()],
     }),
     (NEUTRON_DEFAULT, {
         'services': ['neutron-server'],
