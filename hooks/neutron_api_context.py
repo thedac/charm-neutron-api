@@ -90,8 +90,14 @@ class NeutronCCContext(context.NeutronContext):
         for rid in relation_ids('neutron-api'):
             for unit in related_units(rid):
                 rdata = relation_get(rid=rid, unit=unit)
+                cell_type = rdata.get('cell_type')
                 ctxt['nova_url'] = rdata.get('nova_url')
                 ctxt['restart_trigger'] = rdata.get('restart_trigger')
+                # If there are multiple nova-cloud-controllers joined to this
+                # service in a cell deployment then ignore the non-api cell
+                # ones
+                if cell_type and not cell_type == "api":
+                    continue
                 if ctxt['nova_url']:
                     return ctxt
         return ctxt
