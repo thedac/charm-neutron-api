@@ -131,14 +131,14 @@ options:
   vsp-packages:
     type: string
     default: "nuagenetlib"
-    description: List of packages to install for neutron-plugin-nuage: VSP.
+    description: List of packages to install for neutron-plugin-nuage VSP.
   vsd-server:
     type: string
     description: Nuage VSD Server
   vsd-auth:
     type: string
     default: csproot
-    description: Username:Password to connect to Nuage VSD Server
+    description: Username Password to connect to Nuage VSD Server
   vsd-organization:
     type: string
     default: csp
