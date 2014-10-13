@@ -267,9 +267,11 @@ class NeutronAPIHooksTests(CharmTestCase):
             **_relation_data
         )
 
-    def test_neutron_api_relation_changed(self):
+    @patch.object(hooks, 'conditional_neutron_migration')
+    def test_neutron_api_relation_changed(self, cond_neutron_mig):
         self._call_hook('neutron-api-relation-changed')
         self.assertTrue(self.CONFIGS.write.called_with(NEUTRON_CONF))
+        cond_neutron_mig.assert_called_with()
 
     def test_neutron_plugin_api_relation_joined_nol2(self):
         _relation_data = {
