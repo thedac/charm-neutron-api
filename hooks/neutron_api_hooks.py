@@ -24,7 +24,9 @@ from charmhelpers.core.host import (
 )
 
 from charmhelpers.fetch import (
-    apt_install, apt_update
+    apt_install,
+    apt_update,
+    filter_installed_packages,
 )
 
 from charmhelpers.contrib.openstack.utils import (
@@ -112,6 +114,8 @@ def install():
 @hooks.hook('config-changed')
 @restart_on_change(restart_map(), stopstart=True)
 def config_changed():
+    apt_install(filter_installed_packages(determine_packages()),
+                fatal=True)
     if config('prefer-ipv6'):
         setup_ipv6()
         sync_db_with_multi_ipv6_addresses(config('database'),
