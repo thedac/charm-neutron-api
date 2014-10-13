@@ -24,7 +24,7 @@ from charmhelpers.core.host import (
 )
 
 from charmhelpers.fetch import (
-    apt_install, apt_update
+    apt_install, apt_update, add_source
 )
 
 from charmhelpers.contrib.openstack.utils import (
@@ -72,7 +72,6 @@ from charmhelpers.contrib.network.ip import (
     is_ipv6
 )
 import charmhelpers.contrib.archive as archive
-from charmhelpers.fetch.archiveurl import ArchiveUrlFetchHandler
 
 hooks = Hooks()
 CONFIGS = register_configs()
@@ -96,28 +95,24 @@ def configure_https():
     for rid in relation_ids('identity-service'):
         identity_joined(rid=rid)
 
-ARCHIVE = 'neutron_plugin_nuage'
-
+ARCHIVE = 'NEUTRON_PLUGIN'
 @hooks.hook()
 def install():
     execd_preinstall()
     configure_installation_source(config('openstack-origin'))
 
+    if config('neutron-plugin-repository-url') is not None:
+        add_source(config('neutron-plugin-repository-url'))
     packages = determine_packages()
-    if config('neutron-plugin') is 'vsp':
-        archive.install()
-        archive.create_archive(ARCHIVE)
-        if config('neutron-plugin-repository-url') is not None:
-            handler = ArchiveUrlFetchHandler()
-            path = handler.install(config('neutron-plugin-repository-url'))
-            archive.include_deb(ARCHIVE, path)
-        else:
-            archive.include_deb(ARCHIVE, 'payload')
 
-        archive.configure_local_source(ARCHIVE)
-        # Install configured packages
-        #nuage_dependencies = "nuage-neutron nuagenetlib neutron-plugin-nuage"
+    if config('neutron-plugin') == 'vsp':
         packages += config('vsp-packages').split()
+
+        if config('neutron-plugin-repository-url') is None:
+            archive.install()
+            archive.create_archive(ARCHIVE)
+            archive.include_deb(ARCHIVE, 'payload')
+            archive.configure_local_source(ARCHIVE)
 
     apt_update()
     apt_install(packages, fatal=True)
@@ -146,7 +141,7 @@ def config_changed():
         amqp_joined(relation_id=r_id)
     for r_id in relation_ids('identity-service'):
         identity_joined(rid=r_id)
-    if config('neutron-plugin') is 'vsp':
+    if config('neutron-plugin') == 'vsp':
         vsd_config_file = '/etc/neutron/plugins/nuage/nuage_plugin.ini'
         #vsd_config_file = config('vsd-config-file')
         if not config('vsd-server'):
