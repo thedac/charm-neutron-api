@@ -165,4 +165,33 @@ options:
       The CPU core multiplier to use when configuring worker processes for
       Neutron.  By default, the number of workers for each daemon is set to
       twice the number of CPU cores a service unit has.
-
+  # Neutron NVP and VMware NSX plugin configuration
+  nvp-controllers:
+    type: string
+    default:
+    description: Space delimited addresses of NVP/NSX controllers
+  nvp-username:
+    type: string
+    default: admin
+    description: Username to connect to NVP/NSX controllers with
+  nvp-password:
+    type: string
+    default: admin
+    description: Password to connect to NVP/NSX controllers with
+  nvp-cluster-name:
+    type: string
+    default: example
+    description: Name of the NVP cluster configuration to create (grizzly only)
+  nvp-tz-uuid:
+    type: string
+    default:
+    description: |
+      This is uuid of the default NVP/NSX Transport zone that will be used for
+      creating tunneled isolated Quantum networks.  It needs to be created
+      in NVP before starting Quantum with the nvp plugin.
+  nvp-l3-uuid:
+    type: string
+    default:
+    description: |
+      This is uuid of the default NVP/NSX L3 Gateway Service.
+  # end of NVP/NSX configuration
