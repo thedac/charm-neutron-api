@@ -122,10 +122,10 @@ class HAProxyContextTest(CharmTestCase):
         _open.assert_called_with('/etc/default/haproxy', 'w')
 
 
-class NeutronAPIContextsTest(CharmTestCase):
+class NeutronCCContextTest(CharmTestCase):
 
     def setUp(self):
-        super(NeutronAPIContextsTest, self).setUp(context, TO_PATCH)
+        super(NeutronCCContextTest, self).setUp(context, TO_PATCH)
         self.relation_get.side_effect = self.test_relation.get
         self.config.side_effect = self.test_config.get
         self.api_port = 9696
@@ -135,9 +135,14 @@ class NeutronAPIContextsTest(CharmTestCase):
         self.test_config.set('debug', True)
         self.test_config.set('verbose', True)
         self.test_config.set('neutron-external-network', 'bob')
+        self.test_config.set('nsx-username', 'bob')
+        self.test_config.set('nsx-password', 'hardpass')
+        self.test_config.set('nsx-tz-uuid', 'tzuuid')
+        self.test_config.set('nsx-l3-uuid', 'l3uuid')
+        self.test_config.set('nsx-controllers', 'ctrl1 ctrl2')
 
     def tearDown(self):
-        super(NeutronAPIContextsTest, self).tearDown()
+        super(NeutronCCContextTest, self).tearDown()
 
     @patch.object(context.NeutronCCContext, 'network_manager')
     @patch.object(context.NeutronCCContext, 'plugin')
@@ -209,3 +214,22 @@ class NeutronAPIContextsTest(CharmTestCase):
         with patch.object(napi_ctxt, '_ensure_packages') as ep:
             napi_ctxt._ensure_packages()
             ep.assert_has_calls([])
+
+    @patch.object(context.NeutronCCContext, 'network_manager')
+    @patch.object(context.NeutronCCContext, 'plugin')
+    @patch('__builtin__.__import__')
+    def test_neutroncc_context_nsx(self, _import, plugin, nm):
+        plugin.return_value = 'nsx'
+        self.related_units.return_value = []
+        self.test_config.set('neutron-plugin', 'nsx')
+        napi_ctxt = context.NeutronCCContext()()
+        expect = {
+            'nsx_controllers': 'ctrl1,ctrl2',
+            'nsx_controllers_list': ['ctrl1', 'ctrl2'],
+            'nsx_l3_uuid': 'l3uuid',
+            'nsx_password': 'hardpass',
+            'nsx_tz_uuid': 'tzuuid',
+            'nsx_username': 'bob',
+        }
+        for key in expect.iterkeys():
+            self.assertEquals(napi_ctxt[key], expect[key])
