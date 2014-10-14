@@ -301,12 +301,12 @@ def neutron_api_relation_changed():
 def neutron_plugin_api_relation_joined(rid=None):
     if config('neutron-plugin') == 'nsx':
         relation_data = {
-            'nvp-username': config('nvp-username'),
-            'nvp-password': config('nvp-password'),
-            'nvp-cluster-name': config('nvp-cluster-name'),
-            'nvp-tz-uuid': config('nvp-tz-uuid'),
-            'nvp-l3-uuid': config('nvp-l3-uuid'),
-            'nvp-controllers': config('nvp-controllers'),
+            'nsx-username': config('nsx-username'),
+            'nsx-password': config('nsx-password'),
+            'nsx-cluster-name': config('nsx-cluster-name'),
+            'nsx-tz-uuid': config('nsx-tz-uuid'),
+            'nsx-l3-uuid': config('nsx-l3-uuid'),
+            'nsx-controllers': config('nsx-controllers'),
         }
     else:
         relation_data = {

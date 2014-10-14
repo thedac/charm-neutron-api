@@ -81,16 +81,15 @@ class NeutronCCContext(context.NeutronContext):
         from neutron_api_utils import api_port
         ctxt = super(NeutronCCContext, self).__call__()
         if config('neutron-plugin') == 'nsx':
-            ctxt['nvp_username'] = config('nvp-username')
-            ctxt['nvp_password'] = config('nvp-password')
-            ctxt['nvp_cluster_name'] = config('nvp-cluster-name')
-            ctxt['nvp_tz_uuid'] = config('nvp-tz-uuid')
-            ctxt['nvp_l3_uuid'] = config('nvp-l3-uuid')
-            if 'nvp-controllers' in config():
-                ctxt['nvp_controllers'] = \
-                    ','.join(config('nvp-controllers').split())
-                ctxt['nvp_controllers_list'] = \
-                    config('nvp-controllers').split()
+            ctxt['nsx_username'] = config('nsx-username')
+            ctxt['nsx_password'] = config('nsx-password')
+            ctxt['nsx_tz_uuid'] = config('nsx-tz-uuid')
+            ctxt['nsx_l3_uuid'] = config('nsx-l3-uuid')
+            if 'nsx-controllers' in config():
+                ctxt['nsx_controllers'] = \
+                    ','.join(config('nsx-controllers').split())
+                ctxt['nsx_controllers_list'] = \
+                    config('nsx-controllers').split()
         ctxt['l2_population'] = self.neutron_l2_population
         ctxt['overlay_network_type'] = self.neutron_overlay_network_type
         ctxt['external_network'] = config('neutron-external-network')

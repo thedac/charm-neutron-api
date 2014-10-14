@@ -135,12 +135,11 @@ class NeutronCCContextTest(CharmTestCase):
         self.test_config.set('debug', True)
         self.test_config.set('verbose', True)
         self.test_config.set('neutron-external-network', 'bob')
-        self.test_config.set('nvp-username', 'bob')
-        self.test_config.set('nvp-password', 'hardpass')
-        self.test_config.set('nvp-cluster-name', 'nsxclus')
-        self.test_config.set('nvp-tz-uuid', 'tzuuid')
-        self.test_config.set('nvp-l3-uuid', 'l3uuid')
-        self.test_config.set('nvp-controllers', 'ctrl1 ctrl2')
+        self.test_config.set('nsx-username', 'bob')
+        self.test_config.set('nsx-password', 'hardpass')
+        self.test_config.set('nsx-tz-uuid', 'tzuuid')
+        self.test_config.set('nsx-l3-uuid', 'l3uuid')
+        self.test_config.set('nsx-controllers', 'ctrl1 ctrl2')
 
     def tearDown(self):
         super(NeutronCCContextTest, self).tearDown()
@@ -225,13 +224,12 @@ class NeutronCCContextTest(CharmTestCase):
         self.test_config.set('neutron-plugin', 'nsx')
         napi_ctxt = context.NeutronCCContext()()
         expect = {
-            'nvp_cluster_name': 'nsxclus',
-            'nvp_controllers': 'ctrl1,ctrl2',
-            'nvp_controllers_list': ['ctrl1', 'ctrl2'],
-            'nvp_l3_uuid': 'l3uuid',
-            'nvp_password': 'hardpass',
-            'nvp_tz_uuid': 'tzuuid',
-            'nvp_username': 'bob',
+            'nsx_controllers': 'ctrl1,ctrl2',
+            'nsx_controllers_list': ['ctrl1', 'ctrl2'],
+            'nsx_l3_uuid': 'l3uuid',
+            'nsx_password': 'hardpass',
+            'nsx_tz_uuid': 'tzuuid',
+            'nsx_username': 'bob',
         }
         for key in expect.iterkeys():
             self.assertEquals(napi_ctxt[key], expect[key])

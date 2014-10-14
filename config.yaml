@@ -55,7 +55,7 @@ options:
       Neutron plugin to use for network management; supports
       .
         ovs - OpenvSwitch Plugin
-        nvp - Nicira Network Virtualization Platform
+        nsx - VMWare NSX
       .
   overlay-network-type:
     default: gre
@@ -165,33 +165,29 @@ options:
       The CPU core multiplier to use when configuring worker processes for
       Neutron.  By default, the number of workers for each daemon is set to
       twice the number of CPU cores a service unit has.
-  # Neutron NVP and VMware NSX plugin configuration
-  nvp-controllers:
+  # VMware NSX plugin configuration
+  nsx-controllers:
     type: string
     default:
-    description: Space delimited addresses of NVP/NSX controllers
-  nvp-username:
+    description: Space delimited addresses of NSX controllers
+  nsx-username:
     type: string
     default: admin
-    description: Username to connect to NVP/NSX controllers with
-  nvp-password:
+    description: Username to connect to NSX controllers with
+  nsx-password:
     type: string
     default: admin
-    description: Password to connect to NVP/NSX controllers with
-  nvp-cluster-name:
-    type: string
-    default: example
-    description: Name of the NVP cluster configuration to create (grizzly only)
-  nvp-tz-uuid:
+    description: Password to connect to NSX controllers with
+  nsx-tz-uuid:
     type: string
     default:
     description: |
-      This is uuid of the default NVP/NSX Transport zone that will be used for
+      This is uuid of the default NSX Transport zone that will be used for
       creating tunneled isolated Quantum networks.  It needs to be created
-      in NVP before starting Quantum with the nvp plugin.
-  nvp-l3-uuid:
+      in NSX before starting Quantum with the nsx plugin.
+  nsx-l3-uuid:
     type: string
     default:
     description: |
-      This is uuid of the default NVP/NSX L3 Gateway Service.
-  # end of NVP/NSX configuration
+      This is uuid of the default NSX L3 Gateway Service.
+  # end of NSX configuration
