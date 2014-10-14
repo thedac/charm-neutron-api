@@ -299,11 +299,21 @@ def neutron_api_relation_changed():
 
 @hooks.hook('neutron-plugin-api-relation-joined')
 def neutron_plugin_api_relation_joined(rid=None):
-    relation_data = {
-        'neutron-security-groups': config('neutron-security-groups'),
-        'l2-population': get_l2population(),
-        'overlay-network-type': get_overlay_network_type(),
-    }
+    if config('neutron-plugin') == 'nsx':
+        relation_data = {
+            'nvp-username': config('nvp-username'),
+            'nvp-password': config('nvp-password'),
+            'nvp-cluster-name': config('nvp-cluster-name'),
+            'nvp-tz-uuid': config('nvp-tz-uuid'),
+            'nvp-l3-uuid': config('nvp-l3-uuid'),
+            'nvp-controllers': config('nvp-controllers'),
+        }
+    else:
+        relation_data = {
+            'neutron-security-groups': config('neutron-security-groups'),
+            'l2-population': get_l2population(),
+            'overlay-network-type': get_overlay_network_type(),
+        }
     relation_set(relation_id=rid, **relation_data)
 
 
