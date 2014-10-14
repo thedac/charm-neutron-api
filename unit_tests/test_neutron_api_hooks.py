@@ -33,6 +33,7 @@ TO_PATCH = [
     'determine_ports',
     'do_openstack_upgrade',
     'execd_preinstall',
+    'filter_installed_packages',
     'get_l2population',
     'get_overlay_network_type',
     'is_relation_made',
@@ -111,6 +112,7 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.assertTrue(_id_cluster_joined.called)
         self.assertTrue(self.CONFIGS.write_all.called)
         self.assertTrue(self.do_openstack_upgrade.called)
+        self.assertTrue(self.apt_install.called)
 
     def test_amqp_joined(self):
         self._call_hook('amqp-relation-joined')

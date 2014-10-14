@@ -80,7 +80,6 @@ class NeutronCCContext(context.NeutronContext):
     def __call__(self):
         from neutron_api_utils import api_port
         ctxt = super(NeutronCCContext, self).__call__()
-        ctxt['external_network'] = config('neutron-external-network')
         if config('neutron-plugin') == 'nsx':
             ctxt['nvp_username'] = config('nvp-username')
             ctxt['nvp_password'] = config('nvp-password')
