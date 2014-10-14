@@ -24,7 +24,9 @@ from charmhelpers.core.host import (
 )
 
 from charmhelpers.fetch import (
-    apt_install, apt_update
+    apt_install,
+    apt_update,
+    filter_installed_packages,
 )
 
 from charmhelpers.contrib.openstack.utils import (
@@ -112,6 +114,8 @@ def install():
 @hooks.hook('config-changed')
 @restart_on_change(restart_map(), stopstart=True)
 def config_changed():
+    apt_install(filter_installed_packages(determine_packages()),
+                fatal=True)
     if config('prefer-ipv6'):
         setup_ipv6()
         sync_db_with_multi_ipv6_addresses(config('database'),
@@ -295,11 +299,21 @@ def neutron_api_relation_changed():
 
 @hooks.hook('neutron-plugin-api-relation-joined')
 def neutron_plugin_api_relation_joined(rid=None):
-    relation_data = {
-        'neutron-security-groups': config('neutron-security-groups'),
-        'l2-population': get_l2population(),
-        'overlay-network-type': get_overlay_network_type(),
-    }
+    if config('neutron-plugin') == 'nsx':
+        relation_data = {
+            'nsx-username': config('nsx-username'),
+            'nsx-password': config('nsx-password'),
+            'nsx-cluster-name': config('nsx-cluster-name'),
+            'nsx-tz-uuid': config('nsx-tz-uuid'),
+            'nsx-l3-uuid': config('nsx-l3-uuid'),
+            'nsx-controllers': config('nsx-controllers'),
+        }
+    else:
+        relation_data = {
+            'neutron-security-groups': config('neutron-security-groups'),
+            'l2-population': get_l2population(),
+            'overlay-network-type': get_overlay_network_type(),
+        }
     relation_set(relation_id=rid, **relation_data)
 
 
