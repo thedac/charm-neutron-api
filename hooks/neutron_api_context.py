@@ -11,6 +11,18 @@ from charmhelpers.contrib.hahelpers.cluster import (
 )
 
 
+def get_l2population():
+    plugin = config('neutron-plugin')
+    return config('l2-population') if plugin == "ovs" else False
+
+
+def get_overlay_network_type():
+    overlay_net = config('overlay-network-type')
+    if overlay_net not in ['vxlan', 'gre']:
+        raise Exception('Unsupported overlay-network-type')
+    return overlay_net
+
+
 class ApacheSSLContext(context.ApacheSSLContext):
 
     interfaces = ['https']
@@ -49,6 +61,14 @@ class NeutronCCContext(context.NeutronContext):
     def neutron_security_groups(self):
         return config('neutron-security-groups')
 
+    @property
+    def neutron_l2_population(self):
+        return get_l2population()
+
+    @property
+    def neutron_overlay_network_type(self):
+        return get_overlay_network_type()
+
     # Do not need the plugin agent installed on the api server
     def _ensure_packages(self):
         pass
@@ -60,6 +80,18 @@ class NeutronCCContext(context.NeutronContext):
     def __call__(self):
         from neutron_api_utils import api_port
         ctxt = super(NeutronCCContext, self).__call__()
+        if config('neutron-plugin') == 'nsx':
+            ctxt['nsx_username'] = config('nsx-username')
+            ctxt['nsx_password'] = config('nsx-password')
+            ctxt['nsx_tz_uuid'] = config('nsx-tz-uuid')
+            ctxt['nsx_l3_uuid'] = config('nsx-l3-uuid')
+            if 'nsx-controllers' in config():
+                ctxt['nsx_controllers'] = \
+                    ','.join(config('nsx-controllers').split())
+                ctxt['nsx_controllers_list'] = \
+                    config('nsx-controllers').split()
+        ctxt['l2_population'] = self.neutron_l2_population
+        ctxt['overlay_network_type'] = self.neutron_overlay_network_type
         ctxt['external_network'] = config('neutron-external-network')
         ctxt['verbose'] = config('verbose')
         ctxt['debug'] = config('debug')
@@ -67,9 +99,15 @@ class NeutronCCContext(context.NeutronContext):
             determine_api_port(api_port('neutron-server'))
         for rid in relation_ids('neutron-api'):
             for unit in related_units(rid):
-                ctxt['nova_url'] = relation_get(attribute='nova_url',
-                                                rid=rid,
-                                                unit=unit)
+                rdata = relation_get(rid=rid, unit=unit)
+                cell_type = rdata.get('cell_type')
+                ctxt['nova_url'] = rdata.get('nova_url')
+                ctxt['restart_trigger'] = rdata.get('restart_trigger')
+                # If there are multiple nova-cloud-controllers joined to this
+                # service in a cell deployment then ignore the non-api cell
+                # ones
+                if cell_type and not cell_type == "api":
+                    continue
                 if ctxt['nova_url']:
                     return ctxt
         return ctxt
