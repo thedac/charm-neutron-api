@@ -74,13 +74,10 @@ BASE_RESOURCE_MAP = OrderedDict([
                      neutron_api_context.IdentityServiceContext(),
                      neutron_api_context.NeutronCCContext(),
                      context.SyslogContext(),
-<<<<<<< TREE
                      context.ZeroMQContext(),
-                     context.NotificationDriverContext(),],
-=======
+                     context.NotificationDriverContext(),
                      context.BindHostContext(),
                      context.WorkerConfigContext()],
->>>>>>> MERGE-SOURCE
     }),
     (NEUTRON_DEFAULT, {
         'services': ['neutron-server'],
@@ -215,7 +212,8 @@ def do_openstack_upgrade(configs):
 
     # set CONFIGS to load templates from new release
     configs.set_release(openstack_release=new_os_rel)
-<<<<<<< TREE
+    migrate_neutron_database()
+
 
 def get_topics():
     return ['q-l3-plugin',
@@ -225,8 +223,6 @@ def get_topics():
             'q-metering-plugin',
             'q-plugin',
             'neutron']
-=======
-    migrate_neutron_database()
 
 
 def migrate_neutron_database():
@@ -257,4 +253,3 @@ def setup_ipv6():
                    ' main')
         apt_update()
         apt_install('haproxy/trusty-backports', fatal=True)
->>>>>>> MERGE-SOURCE

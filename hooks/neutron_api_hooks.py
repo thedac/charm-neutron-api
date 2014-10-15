@@ -139,12 +139,9 @@ def config_changed():
         amqp_joined(relation_id=r_id)
     for r_id in relation_ids('identity-service'):
         identity_joined(rid=r_id)
-<<<<<<< TREE
     for rid in relation_ids('zeromq-configuration'):
         zeromq_configuration_relation_joined(rid)
-=======
     [cluster_joined(rid) for rid in relation_ids('cluster')]
->>>>>>> MERGE-SOURCE
 
 
 @hooks.hook('amqp-relation-joined')
