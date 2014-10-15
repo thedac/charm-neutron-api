@@ -49,19 +49,16 @@ from neutron_api_utils import (
     migrate_neutron_database,
     register_configs,
     restart_map,
-<<<<<<< TREE
     NEUTRON_CONF,
     api_port,
     CLUSTER_RES,
     do_openstack_upgrade,
     get_topics,
-=======
-    setup_ipv6
+    setup_ipv6,
 )
 from neutron_api_context import (
     get_l2population,
     get_overlay_network_type,
->>>>>>> MERGE-SOURCE
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
