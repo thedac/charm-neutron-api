@@ -159,7 +159,7 @@ def resource_map():
 
 
 def register_configs(release=None):
-    release = release or os_release('nova-common')
+    release = release or os_release('neutron-server')
     configs = templating.OSConfigRenderer(templates_dir=TEMPLATES,
                                           openstack_release=release)
     for cfg, rscs in resource_map().iteritems():
@@ -189,6 +189,7 @@ def do_openstack_upgrade(configs):
 
     :param configs: The charms main OSConfigRenderer object.
     """
+    cur_os_rel = os_release('neutron-server')
     new_src = config('openstack-origin')
     new_os_rel = get_os_codename_install_source(new_src)
 
@@ -210,11 +211,28 @@ def do_openstack_upgrade(configs):
 
     # set CONFIGS to load templates from new release
     configs.set_release(openstack_release=new_os_rel)
+
+    if cur_os_rel == 'icehouse':
+        stamp_neutron_database('icehouse')
     migrate_neutron_database()
 
 
+def stamp_neutron_database(release):
+    '''Stamp the database with the current release before upgrade.'''
+    log('Stamping the neutron database with release %s.' % release)
+    plugin = config('neutron-plugin')
+    cmd = ['neutron-db-manage',
+           '--config-file', NEUTRON_CONF,
+           '--config-file', neutron_plugin_attribute(plugin,
+                                                     'config',
+                                                     'neutron'),
+           'stamp',
+           release]
+    subprocess.check_output(cmd)
+
+
 def migrate_neutron_database():
-    '''Runs neutron-db-manage to init a new database or migrate existing'''
+    '''Initializes a new database or upgrades an existing database.'''
     log('Migrating the neutron database.')
     plugin = config('neutron-plugin')
     cmd = ['neutron-db-manage',
