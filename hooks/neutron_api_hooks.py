@@ -294,7 +294,8 @@ def neutron_api_relation_joined(rid=None):
 @restart_on_change(restart_map())
 def neutron_api_relation_changed():
     CONFIGS.write(NEUTRON_CONF)
-    conditional_neutron_migration()
+    if 'shared-db' in CONFIGS.complete_contexts():
+        conditional_neutron_migration()
 
 
 @hooks.hook('neutron-plugin-api-relation-joined')
