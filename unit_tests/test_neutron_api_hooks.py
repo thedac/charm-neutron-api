@@ -271,9 +271,18 @@ class NeutronAPIHooksTests(CharmTestCase):
 
     @patch.object(hooks, 'conditional_neutron_migration')
     def test_neutron_api_relation_changed(self, cond_neutron_mig):
+        self.CONFIGS.complete_contexts.return_value = ['shared-db']
         self._call_hook('neutron-api-relation-changed')
         self.assertTrue(self.CONFIGS.write.called_with(NEUTRON_CONF))
         cond_neutron_mig.assert_called_with()
+
+    @patch.object(hooks, 'conditional_neutron_migration')
+    def test_neutron_api_relation_changed_incomplere_ctxt(self,
+                                                          cond_neutron_mig):
+        self.CONFIGS.complete_contexts.return_value = []
+        self._call_hook('neutron-api-relation-changed')
+        self.assertTrue(self.CONFIGS.write.called_with(NEUTRON_CONF))
+        self.assertFalse(cond_neutron_mig.called)
 
     def test_neutron_plugin_api_relation_joined_nol2(self):
         _relation_data = {
