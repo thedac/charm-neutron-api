@@ -47,12 +47,9 @@ from neutron_api_utils import (
     determine_ports,
     do_openstack_upgrade,
     migrate_neutron_database,
+    os_requires_version,
     register_configs,
     restart_map,
-    NEUTRON_CONF,
-    api_port,
-    CLUSTER_RES,
-    do_openstack_upgrade,
     get_topics,
     setup_ipv6,
 )
@@ -412,6 +409,7 @@ def ha_changed():
 
 
 @hooks.hook('zeromq-configuration-relation-joined')
+@os_requires_version('juno', 'ceilometer-agent-central')
 def zeromq_configuration_relation_joined(relid=None):
     relation_set(relation_id=relid,
                  topics=" ".join(get_topics()),
