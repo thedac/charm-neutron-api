@@ -33,6 +33,7 @@ from charmhelpers.contrib.openstack.utils import (
     configure_installation_source,
     openstack_upgrade_available,
     os_release,
+    os_requires_version,
     sync_db_with_multi_ipv6_addresses
 )
 from charmhelpers.contrib.openstack.neutron import (
@@ -47,7 +48,6 @@ from neutron_api_utils import (
     determine_ports,
     do_openstack_upgrade,
     migrate_neutron_database,
-    os_requires_version,
     register_configs,
     restart_map,
     get_topics,
