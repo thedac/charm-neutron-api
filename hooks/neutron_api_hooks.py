@@ -165,7 +165,7 @@ def conditional_neutron_migration():
     if not relation_ids('neutron-api'):
         log('Not running neutron database migration, no nova-cloud-controller'
             'is present.')
-    elif os_release('nova-common') <= 'icehouse':
+    elif os_release('neutron-server') <= 'icehouse':
         log('Not running neutron database migration as migrations are handled'
             'by the neutron-server process.')
     else:
