@@ -118,6 +118,15 @@ def install():
     apt_install(packages, fatal=True)
     [open_port(port) for port in determine_ports()]
 
+@hooks.hook('vsd-rest-api-relation-changed')
+def vsd_changed(relation_id=None, remote_unit=None):
+    vsd_ip_address = relation_get('vsd-ip-address')
+    if not vsd_ip_address:
+        return
+    if config('neutron-plugin') == 'vsp':
+        vsd_config_file = config('vsd-config-file')
+        update_config_file(vsd_config_file, 'server', vsd_ip_address)
+
 
 @hooks.hook('upgrade-charm')
 @hooks.hook('config-changed')
@@ -142,10 +151,12 @@ def config_changed():
     for r_id in relation_ids('identity-service'):
         identity_joined(rid=r_id)
     if config('neutron-plugin') == 'vsp':
-        vsd_config_file = '/etc/neutron/plugins/nuage/nuage_plugin.ini'
-        #vsd_config_file = config('vsd-config-file')
+        #vsd_config_file = '/etc/neutron/plugins/nuage/nuage_plugin.ini'
+        vsd_config_file = config('vsd-config-file')
         if not config('vsd-server'):
-            raise ConfigurationError('vsd-server not specified')
+            e = 'neutron plugin:vsp vsd-server not specified'
+            log(e, level=ERROR)
+            raise Exception(e)
         vsd_server = config('vsd-server')
         update_config_file(vsd_config_file, 'server', vsd_server)
         if config('vsd-auth'):
