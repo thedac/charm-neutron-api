@@ -31,6 +31,9 @@ requires:
   ha:
     interface: hacluster
     scope: container
+  vsd-rest-api:
+    interface: http
+    scope: global
 peers:
   cluster:
     interface: neutron-api-ha

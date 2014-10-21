@@ -161,6 +161,7 @@ options:
     description: Name of the organization to create in Nuage VSD
   vsd-config-file:
     type: string
+    default: "/etc/neutron/plugins/nuage/nuage_plugin.ini"
     description: VSD configuration file name.
   # end of Nuage VSD configuration
   l2-population:
