@@ -30,7 +30,6 @@ from charmhelpers.core.host import (
 )
 
 import neutron_api_context
-import subprocess
 
 TEMPLATES = 'templates/'
 
@@ -189,7 +188,6 @@ def do_openstack_upgrade(configs):
 
     :param configs: The charms main OSConfigRenderer object.
     """
-    cur_os_rel = os_release('neutron-server')
     new_src = config('openstack-origin')
     new_os_rel = get_os_codename_install_source(new_src)
 
@@ -211,38 +209,6 @@ def do_openstack_upgrade(configs):
 
     # set CONFIGS to load templates from new release
     configs.set_release(openstack_release=new_os_rel)
-
-    if cur_os_rel == 'icehouse':
-        stamp_neutron_database('icehouse')
-    migrate_neutron_database()
-
-
-def stamp_neutron_database(release):
-    '''Stamp the database with the current release before upgrade.'''
-    log('Stamping the neutron database with release %s.' % release)
-    plugin = config('neutron-plugin')
-    cmd = ['neutron-db-manage',
-           '--config-file', NEUTRON_CONF,
-           '--config-file', neutron_plugin_attribute(plugin,
-                                                     'config',
-                                                     'neutron'),
-           'stamp',
-           release]
-    subprocess.check_output(cmd)
-
-
-def migrate_neutron_database():
-    '''Initializes a new database or upgrades an existing database.'''
-    log('Migrating the neutron database.')
-    plugin = config('neutron-plugin')
-    cmd = ['neutron-db-manage',
-           '--config-file', NEUTRON_CONF,
-           '--config-file', neutron_plugin_attribute(plugin,
-                                                     'config',
-                                                     'neutron'),
-           'upgrade',
-           'head']
-    subprocess.check_output(cmd)
 
 
 def setup_ipv6():
