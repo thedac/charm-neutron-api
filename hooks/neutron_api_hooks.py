@@ -92,16 +92,18 @@ def install():
     # FIXME: Calico mess
     if config('neutron-plugin') == 'Calico':
         check_call(
-            'curl -L http://binaries.projectcalico.org/repo/key | '
+            'curl -L https://calico-pkg.s3.amazonaws.com/key | '
             'apt-key add -',
             shell=True
         )
 
+        # TODO(CB2): This pins a specific package version by downloading from a
+        # static package mirror. We'll replace this with a PPA at some stage.
         with open('/etc/apt/sources.list.d/calico.list', 'w') as f:
-            f.write('deb http://binaries.projectcalico.org/repo ./')
+            f.write('deb http://calico-pkg.s3.amazonaws.com calico main')
 
-        with open('/etc/apt/preferences.d/calico-pin-1001', 'w') as f:
-            f.write('Package: *\nPin: origin binaries.projectcalico.org\nPin-Priority: 1001\n')
+        with open('/etc/apt/preferences', 'w') as f:
+            f.write('Package: *\nPin: origin calico-pkg.s3.amazonaws.com\nPin-Priority: 1001\n')
 
         check_call(['add-apt-repository', 'ppa:cz.nic-labs/bird'])
 
