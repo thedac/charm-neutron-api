@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+import os.path
 import sys
 
 from subprocess import check_call
@@ -89,8 +90,16 @@ def install():
     execd_preinstall()
     configure_installation_source(config('openstack-origin'))
 
-    # FIXME: Calico mess
-    if config('neutron-plugin') == 'Calico':
+    # FIXME: Calico mess.
+    # Note that we install these packages unconditionally. This needs
+    # to change in future, but is used for demos.
+    #if config('neutron-plugin') == 'Calico':
+    if True:
+        if os.path.exists('/etc/apt/sources.list.d/cz_nic-labs-bird-trusty.list'):
+            return
+
+        env = os.environ.copy()
+
         check_call(
             'curl -L https://calico-pkg.s3.amazonaws.com/key | '
             'apt-key add -',
@@ -105,10 +114,11 @@ def install():
         with open('/etc/apt/preferences', 'w') as f:
             f.write('Package: *\nPin: origin calico-pkg.s3.amazonaws.com\nPin-Priority: 1001\n')
 
-        check_call(['add-apt-repository', 'ppa:cz.nic-labs/bird'])
+        env['LANG'] = 'en_US.UTF-8'
+        check_call(['add-apt-repository', 'ppa:cz.nic-labs/bird'], env=env)
 
         apt_update()
-        apt_upgrade(options=['--force-yes'])
+        apt_upgrade(options=['--force-yes'], dist=True)
 
     apt_update()
     apt_install(determine_packages(), fatal=True)
