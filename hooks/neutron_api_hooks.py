@@ -73,6 +73,8 @@ from charmhelpers.contrib.network.ip import (
 
 from charmhelpers.contrib.openstack.context import ADDRESS_TYPES
 
+from charmhelpers.contrib.charmsupport.nrpe import NRPE
+
 hooks = Hooks()
 CONFIGS = register_configs()
 
@@ -120,6 +122,7 @@ def config_changed():
     if openstack_upgrade_available('neutron-server'):
         do_openstack_upgrade(CONFIGS)
     configure_https()
+    update_nrpe_config()
     CONFIGS.write_all()
     for r_id in relation_ids('neutron-api'):
         neutron_api_relation_joined(rid=r_id)
@@ -367,6 +370,20 @@ def ha_changed():
         identity_joined(rid=rid)
     for rid in relation_ids('neutron-api'):
         neutron_api_relation_joined(rid=rid)
+
+
+@hooks.hook('nrpe-external-master-relation-joined', 'nrpe-external-master-relation-changed')
+def update_nrpe_config():
+    nrpe = NRPE()
+    apt_install('python-dbus')
+    
+    nrpe.add_check(
+        shortname='neutron-api',
+        description='neutron-server process',
+        check_cmd = 'check_upstart_job neutron-server',
+        )
+
+    nrpe.write()
 
 
 def main():
