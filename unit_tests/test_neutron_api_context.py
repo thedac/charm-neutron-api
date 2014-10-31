@@ -13,6 +13,7 @@ TO_PATCH = [
 
 
 class IdentityServiceContext(CharmTestCase):
+
     def setUp(self):
         super(IdentityServiceContext, self).setUp(context, TO_PATCH)
         self.relation_get.side_effect = self.test_relation.get
@@ -71,6 +72,10 @@ class HAProxyContextTest(CharmTestCase):
         with patch('__builtin__.__import__'):
             self.assertTrue('units' not in hap_ctxt())
 
+    @patch.object(
+        charmhelpers.contrib.openstack.context, 'get_netmask_for_address')
+    @patch.object(
+        charmhelpers.contrib.openstack.context, 'get_address_in_network')
     @patch.object(charmhelpers.contrib.openstack.context, 'config')
     @patch.object(charmhelpers.contrib.openstack.context, 'local_unit')
     @patch.object(charmhelpers.contrib.openstack.context, 'unit_get')
@@ -81,7 +86,8 @@ class HAProxyContextTest(CharmTestCase):
     @patch('__builtin__.__import__')
     @patch('__builtin__.open')
     def test_context_peers(self, _open, _import, _log, _rids, _runits, _rget,
-                           _uget, _lunit, _config):
+                           _uget, _lunit, _config,  _get_address_in_network,
+                           _get_netmask_for_address):
         unit_addresses = {
             'neutron-api-0': '10.10.10.10',
             'neutron-api-1': '10.10.10.11',
@@ -92,13 +98,21 @@ class HAProxyContextTest(CharmTestCase):
         _lunit.return_value = "neutron-api/1"
         _uget.return_value = unit_addresses['neutron-api-1']
         _config.return_value = None
+        _get_address_in_network.return_value = None
+        _get_netmask_for_address.return_value = '255.255.255.0'
         service_ports = {'neutron-server': [9696, 9686]}
-
+        self.maxDiff = None
         ctxt_data = {
             'local_host': '127.0.0.1',
             'haproxy_host': '0.0.0.0',
+            'local_host': '127.0.0.1',
             'stat_port': ':8888',
-            'units': unit_addresses,
+            'frontends': {
+                '10.10.10.11': {
+                    'network': '10.10.10.11/255.255.255.0',
+                    'backends': unit_addresses,
+                }
+            },
             'service_ports': service_ports,
             'neutron_bind_port': 9686,
         }
@@ -108,10 +122,10 @@ class HAProxyContextTest(CharmTestCase):
         _open.assert_called_with('/etc/default/haproxy', 'w')
 
 
-class NeutronAPIContextsTest(CharmTestCase):
+class NeutronCCContextTest(CharmTestCase):
 
     def setUp(self):
-        super(NeutronAPIContextsTest, self).setUp(context, TO_PATCH)
+        super(NeutronCCContextTest, self).setUp(context, TO_PATCH)
         self.relation_get.side_effect = self.test_relation.get
         self.config.side_effect = self.test_config.get
         self.api_port = 9696
@@ -121,9 +135,14 @@ class NeutronAPIContextsTest(CharmTestCase):
         self.test_config.set('debug', True)
         self.test_config.set('verbose', True)
         self.test_config.set('neutron-external-network', 'bob')
+        self.test_config.set('nsx-username', 'bob')
+        self.test_config.set('nsx-password', 'hardpass')
+        self.test_config.set('nsx-tz-uuid', 'tzuuid')
+        self.test_config.set('nsx-l3-uuid', 'l3uuid')
+        self.test_config.set('nsx-controllers', 'ctrl1 ctrl2')
 
     def tearDown(self):
-        super(NeutronAPIContextsTest, self).tearDown()
+        super(NeutronCCContextTest, self).tearDown()
 
     @patch.object(context.NeutronCCContext, 'network_manager')
     @patch.object(context.NeutronCCContext, 'plugin')
@@ -136,10 +155,38 @@ class NeutronAPIContextsTest(CharmTestCase):
             'neutron_bind_port': self.api_port,
             'verbose': True,
             'l2_population': True,
+            'overlay_network_type': 'gre',
         }
         napi_ctxt = context.NeutronCCContext()
         with patch.object(napi_ctxt, '_ensure_packages'):
             self.assertEquals(ctxt_data, napi_ctxt())
+
+    @patch.object(context.NeutronCCContext, 'network_manager')
+    @patch.object(context.NeutronCCContext, 'plugin')
+    @patch('__builtin__.__import__')
+    def test_neutroncc_context_vxlan(self, _import, plugin, nm):
+        plugin.return_value = None
+        self.test_config.set('overlay-network-type', 'vxlan')
+        ctxt_data = {
+            'debug': True,
+            'external_network': 'bob',
+            'neutron_bind_port': self.api_port,
+            'verbose': True,
+            'l2_population': True,
+            'overlay_network_type': 'vxlan',
+        }
+        napi_ctxt = context.NeutronCCContext()
+        with patch.object(napi_ctxt, '_ensure_packages'):
+            self.assertEquals(ctxt_data, napi_ctxt())
+
+    @patch.object(context.NeutronCCContext, 'network_manager')
+    @patch.object(context.NeutronCCContext, 'plugin')
+    @patch('__builtin__.__import__')
+    def test_neutroncc_context_unsupported_overlay(self, _import, plugin, nm):
+        plugin.return_value = None
+        self.test_config.set('overlay-network-type', 'bobswitch')
+        with self.assertRaises(Exception) as context:
+            context.NeutronCCContext()
 
     @patch.object(context.NeutronCCContext, 'network_manager')
     @patch.object(context.NeutronCCContext, 'plugin')
@@ -167,3 +214,22 @@ class NeutronAPIContextsTest(CharmTestCase):
         with patch.object(napi_ctxt, '_ensure_packages') as ep:
             napi_ctxt._ensure_packages()
             ep.assert_has_calls([])
+
+    @patch.object(context.NeutronCCContext, 'network_manager')
+    @patch.object(context.NeutronCCContext, 'plugin')
+    @patch('__builtin__.__import__')
+    def test_neutroncc_context_nsx(self, _import, plugin, nm):
+        plugin.return_value = 'nsx'
+        self.related_units.return_value = []
+        self.test_config.set('neutron-plugin', 'nsx')
+        napi_ctxt = context.NeutronCCContext()()
+        expect = {
+            'nsx_controllers': 'ctrl1,ctrl2',
+            'nsx_controllers_list': ['ctrl1', 'ctrl2'],
+            'nsx_l3_uuid': 'l3uuid',
+            'nsx_password': 'hardpass',
+            'nsx_tz_uuid': 'tzuuid',
+            'nsx_username': 'bob',
+        }
+        for key in expect.iterkeys():
+            self.assertEquals(napi_ctxt[key], expect[key])

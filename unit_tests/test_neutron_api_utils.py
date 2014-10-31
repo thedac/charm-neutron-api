@@ -28,7 +28,6 @@ TO_PATCH = [
     'log',
     'neutron_plugin_attribute',
     'os_release',
-    'subprocess',
 ]
 
 
@@ -148,33 +147,26 @@ class TestNeutronAPIUtils(CharmTestCase):
 
     def test_do_openstack_upgrade(self):
         self.config.side_effect = self.test_config.get
-        self.test_config.set('openstack-origin', 'cloud:precise-havana')
-        self.get_os_codename_install_source.return_value = 'havana'
+        self.test_config.set('openstack-origin', 'cloud:trusty-juno')
+        self.os_release.side_effect = 'icehouse'
+        self.get_os_codename_install_source.return_value = 'juno'
         configs = MagicMock()
         nutils.do_openstack_upgrade(configs)
-        configs.set_release.assert_called_with(openstack_release='havana')
         self.log.assert_called()
+        self.configure_installation_source.assert_called_with(
+            'cloud:trusty-juno'
+        )
         self.apt_update.assert_called_with(fatal=True)
         dpkg_opts = [
             '--option', 'Dpkg::Options::=--force-confnew',
             '--option', 'Dpkg::Options::=--force-confdef',
         ]
+        self.apt_upgrade.assert_called_with(options=dpkg_opts,
+                                            fatal=True,
+                                            dist=True)
         pkgs = nutils.BASE_PACKAGES
         pkgs.sort()
-        self.apt_install.assert_called_with(
-            options=dpkg_opts,
-            packages=pkgs,
-            fatal=True
-        )
-        self.configure_installation_source.assert_called_with(
-            'cloud:precise-havana'
-        )
-
-    def test_migrate_neutron_database(self):
-        nutils.migrate_neutron_database()
-        cmd = ['neutron-db-manage',
-               '--config-file', '/etc/neutron/neutron.conf',
-               '--config-file', '/etc/neutron/plugins/ml2/ml2_conf.ini',
-               'upgrade',
-               'head']
-        self.subprocess.check_output.assert_called_with(cmd)
+        self.apt_install.assert_called_with(packages=pkgs,
+                                            options=dpkg_opts,
+                                            fatal=True)
+        configs.set_release.assert_called_with(openstack_release='juno')

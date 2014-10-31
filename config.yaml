@@ -55,8 +55,17 @@ options:
       Neutron plugin to use for network management; supports
       .
         ovs - OpenvSwitch Plugin
-        nvp - Nicira Network Virtualization Platform
         vsp - Nuage Networks VSP
+        nsx - VMWare NSX
+      .
+  overlay-network-type:
+    default: gre
+    type: string
+    description: |
+      Overlay network type to use choose one of:
+      .
+        gre
+        vxlan 
       .
   neutron-plugin-repository-url:
     type: string
@@ -64,6 +73,7 @@ options:
   # HA configuration settings
   vip:
     type: string
+    default:
     description: |
       Virtual IP(s) to use to front API services in HA configuration.
       .
@@ -93,6 +103,7 @@ options:
   # by default all access is over 'private-address'
   os-admin-network:
     type: string
+    default:
     description: |
       The IP address and netmask of the OpenStack Admin network (e.g.,
       192.168.0.0/24)
@@ -100,6 +111,7 @@ options:
       This network will be used for admin endpoints.
   os-internal-network:
     type: string
+    default:
     description: |
       The IP address and netmask of the OpenStack Internal network (e.g.,
       192.168.0.0/24)
@@ -107,6 +119,7 @@ options:
       This network will be used for internal endpoints.
   os-public-network:
     type: string
+    default:
     description: |
       The IP address and netmask of the OpenStack Public network (e.g.,
       192.168.0.0/24)
@@ -114,6 +127,7 @@ options:
       This network will be used for public endpoints.
   ssl_cert:
     type: string
+    default:
     description: |
       SSL certificate to install and use for API ports.  Setting this value
       and ssl_key will enable reverse proxying, point Neutron's entry in the
@@ -121,9 +135,11 @@ options:
       issued by Keystone (if it is configured to do so).
   ssl_key:
     type: string
+    default:
     description: SSL key to use with certificate specified as ssl_cert.
   ssl_ca:
     type: string
+    default:
     description: |
       SSL CA to use with the certificate and key provided - this is only
       required if you are providing a privately signed ssl_cert and ssl_key.
@@ -183,4 +199,36 @@ options:
       order for this charm to function correctly, the privacy extension must be
       disabled and a non-temporary address must be configured/available on
       your network interface.
-
+  worker-multiplier:
+    type: int
+    default: 2
+    description: |
+      The CPU core multiplier to use when configuring worker processes for
+      Neutron.  By default, the number of workers for each daemon is set to
+      twice the number of CPU cores a service unit has.
+  # VMware NSX plugin configuration
+  nsx-controllers:
+    type: string
+    default:
+    description: Space delimited addresses of NSX controllers
+  nsx-username:
+    type: string
+    default: admin
+    description: Username to connect to NSX controllers with
+  nsx-password:
+    type: string
+    default: admin
+    description: Password to connect to NSX controllers with
+  nsx-tz-uuid:
+    type: string
+    default:
+    description: |
+      This is uuid of the default NSX Transport zone that will be used for
+      creating tunneled isolated Quantum networks.  It needs to be created
+      in NSX before starting Quantum with the nsx plugin.
+  nsx-l3-uuid:
+    type: string
+    default:
+    description: |
+      This is uuid of the default NSX L3 Gateway Service.
+  # end of NSX configuration
