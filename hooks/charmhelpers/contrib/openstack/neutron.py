@@ -154,7 +154,7 @@ def neutron_plugins():
             'services': [],
             'packages': [],
             'server_packages': ['neutron-server',
-                                'neutron-plugin-nuage'],
+                                'python-neutron-plugin-nuage'],
             'server_services': ['neutron-server']
         }
     }
