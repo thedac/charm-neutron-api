@@ -20,17 +20,16 @@ from charmhelpers.core.hookenv import (
 
 from charmhelpers.core.host import (
     restart_on_change,
-    service_restart,
 )
 
 from charmhelpers.fetch import (
-    apt_install, apt_update, add_source
+    apt_install, apt_update, add_source,
+    filter_installed_packages,
 )
 
 from charmhelpers.contrib.openstack.utils import (
     configure_installation_source,
     openstack_upgrade_available,
-    os_release,
     sync_db_with_multi_ipv6_addresses
 )
 from charmhelpers.contrib.openstack.neutron import (
@@ -38,23 +37,22 @@ from charmhelpers.contrib.openstack.neutron import (
 )
 
 from neutron_api_utils import (
-    CLUSTER_RES,
     NEUTRON_CONF,
     api_port,
     determine_packages,
     determine_ports,
     do_openstack_upgrade,
-    migrate_neutron_database,
     register_configs,
     restart_map,
-    update_config_file,
     setup_ipv6
 )
-from neutron_api_context import get_l2population
+from neutron_api_context import (
+    get_l2population,
+    get_overlay_network_type,
+)
 
 from charmhelpers.contrib.hahelpers.cluster import (
     get_hacluster_config,
-    is_leader,
 )
 
 from charmhelpers.payload.execd import execd_preinstall
@@ -71,7 +69,8 @@ from charmhelpers.contrib.network.ip import (
     get_ipv6_addr,
     is_ipv6
 )
-import charmhelpers.contrib.archive as archive
+
+from charmhelpers.contrib.openstack.context import ADDRESS_TYPES
 
 hooks = Hooks()
 CONFIGS = register_configs()
@@ -95,7 +94,6 @@ def configure_https():
     for rid in relation_ids('identity-service'):
         identity_joined(rid=rid)
 
-ARCHIVE = 'NEUTRON_PLUGIN'
 @hooks.hook()
 def install():
     execd_preinstall()
@@ -107,12 +105,6 @@ def install():
 
     if config('neutron-plugin') == 'vsp':
         packages += config('vsp-packages').split()
-
-        if config('neutron-plugin-repository-url') is None:
-            archive.install()
-            archive.create_archive(ARCHIVE)
-            archive.include_deb(ARCHIVE, 'payload')
-            archive.configure_local_source(ARCHIVE)
 
     apt_update()
     apt_install(packages, fatal=True)
@@ -132,6 +124,8 @@ def vsd_changed(relation_id=None, remote_unit=None):
 @hooks.hook('config-changed')
 @restart_on_change(restart_map(), stopstart=True)
 def config_changed():
+    apt_install(filter_installed_packages(determine_packages()),
+                fatal=True)
     if config('prefer-ipv6'):
         setup_ipv6()
         sync_db_with_multi_ipv6_addresses(config('database'),
@@ -150,27 +144,7 @@ def config_changed():
         amqp_joined(relation_id=r_id)
     for r_id in relation_ids('identity-service'):
         identity_joined(rid=r_id)
-    if config('neutron-plugin') == 'vsp':
-        #vsd_config_file = '/etc/neutron/plugins/nuage/nuage_plugin.ini'
-        vsd_config_file = config('vsd-config-file')
-        if not config('vsd-server'):
-            e = 'neutron plugin:vsp vsd-server not specified'
-            log(e, level=ERROR)
-            raise Exception(e)
-        vsd_server = config('vsd-server')
-        update_config_file(vsd_config_file, 'server', vsd_server)
-        if config('vsd-auth'):
-            update_config_file(vsd_config_file, 'serverauth', config('vsd-auth'))
-        if config('vsd-auth-ssl'):
-            update_config_file(vsd_config_file, 'serverssl', config('vsd-auth-ssl'))
-        if config('vsd-organization'):
-            update_config_file(vsd_config_file, 'organization', config('vsd-organization'))
-        if config('vsd-base-uri'):
-            update_config_file(vsd_config_file, 'base_uri', config('vsd-base-uri'))
-        if config('vsd-auth-resource'):
-            update_config_file(vsd_config_file, 'auth_resource', config('vsd-auth-resource'))
-        if config('vsd-netpart-name'):
-            update_config_file(vsd_config_file, 'default_net_partition_name', config('vsd-netpart-name'))
+    [cluster_joined(rid) for rid in relation_ids('cluster')]
 
 
 @hooks.hook('amqp-relation-joined')
@@ -187,33 +161,6 @@ def amqp_changed():
         log('amqp relation incomplete. Peer not ready?')
         return
     CONFIGS.write(NEUTRON_CONF)
-
-
-def conditional_neutron_migration():
-    # This is an attempt to stop a race over the db migration between nova-cc
-    # and neutron-api by having the migration master decided by the presence
-    # of the neutron-api relation. In the long term this should only be done
-    # the neutron-api charm and nova-cc should play no hand in it
-    # * neutron-api refuses to run migrations until neutron-api relation is
-    #   present
-    # * nova-cc refuses to run migration if neutron-api relations is present
-    clustered = relation_get('clustered')
-    if not relation_ids('neutron-api'):
-        log('Not running neutron database migration, no nova-cloud-controller'
-            'is present.')
-    elif os_release('nova-common') <= 'icehouse':
-        log('Not running neutron database migration as migrations are handled'
-            'by the neutron-server process.')
-    else:
-        if clustered:
-            if is_leader(CLUSTER_RES):
-                migrate_neutron_database()
-                service_restart('neutron-server')
-            else:
-                log('Not running neutron database migration, not leader')
-        else:
-            migrate_neutron_database()
-            service_restart('neutron-server')
 
 
 @hooks.hook('shared-db-relation-joined')
@@ -254,7 +201,6 @@ def db_changed():
         log('shared-db relation incomplete. Peer not ready?')
         return
     CONFIGS.write_all()
-    conditional_neutron_migration()
 
 
 @hooks.hook('pgsql-db-relation-changed')
@@ -263,7 +209,6 @@ def postgresql_neutron_db_changed():
     plugin = config('neutron-plugin')
     # DB config might have been moved to main neutron.conf in H?
     CONFIGS.write(neutron_plugin_attribute(plugin, 'config'))
-    conditional_neutron_migration()
 
 
 @hooks.hook('amqp-relation-broken',
@@ -334,24 +279,39 @@ def neutron_api_relation_changed():
 
 @hooks.hook('neutron-plugin-api-relation-joined')
 def neutron_plugin_api_relation_joined(rid=None):
-    relation_data = {
-        'neutron-security-groups': config('neutron-security-groups'),
-        'l2-population': get_l2population(),
-    }
+    if config('neutron-plugin') == 'nsx':
+        relation_data = {
+            'nsx-username': config('nsx-username'),
+            'nsx-password': config('nsx-password'),
+            'nsx-cluster-name': config('nsx-cluster-name'),
+            'nsx-tz-uuid': config('nsx-tz-uuid'),
+            'nsx-l3-uuid': config('nsx-l3-uuid'),
+            'nsx-controllers': config('nsx-controllers'),
+        }
+    else:
+        relation_data = {
+            'neutron-security-groups': config('neutron-security-groups'),
+            'l2-population': get_l2population(),
+            'overlay-network-type': get_overlay_network_type(),
+        }
     relation_set(relation_id=rid, **relation_data)
 
 
 @hooks.hook('cluster-relation-joined')
 def cluster_joined(relation_id=None):
+    for addr_type in ADDRESS_TYPES:
+        address = get_address_in_network(
+            config('os-{}-network'.format(addr_type))
+        )
+        if address:
+            relation_set(
+                relation_id=relation_id,
+                relation_settings={'{}-address'.format(addr_type): address}
+            )
     if config('prefer-ipv6'):
         private_addr = get_ipv6_addr(exc_list=[config('vip')])[0]
-    else:
-        private_addr = unit_get('private-address')
-
-    address = get_address_in_network(config('os-internal-network'),
-                                     private_addr)
-    relation_set(relation_id=relation_id,
-                 relation_settings={'private-address': address})
+        relation_set(relation_id=relation_id,
+                     relation_settings={'private-address': private_addr})
 
 
 @hooks.hook('cluster-relation-changed',
@@ -413,11 +373,8 @@ def ha_joined():
 def ha_changed():
     clustered = relation_get('clustered')
     if not clustered or clustered in [None, 'None', '']:
-        log('ha_changed: hacluster subordinate not fully clustered.:'
-            + str(clustered))
-        return
-    if not is_leader(CLUSTER_RES):
-        log('ha_changed: hacluster complete but we are not leader.')
+        log('ha_changed: hacluster subordinate'
+            ' not fully clustered: %s' % clustered)
         return
     log('Cluster configured, notifying other services and updating '
         'keystone endpoint configuration')

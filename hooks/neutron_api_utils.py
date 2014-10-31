@@ -30,8 +30,6 @@ from charmhelpers.core.host import (
 )
 
 import neutron_api_context
-import mmap, re
-import subprocess
 
 TEMPLATES = 'templates/'
 
@@ -75,7 +73,8 @@ BASE_RESOURCE_MAP = OrderedDict([
                      neutron_api_context.IdentityServiceContext(),
                      neutron_api_context.NeutronCCContext(),
                      context.SyslogContext(),
-                     context.BindHostContext()],
+                     context.BindHostContext(),
+                     context.WorkerConfigContext()],
     }),
     (NEUTRON_DEFAULT, {
         'services': ['neutron-server'],
@@ -159,7 +158,7 @@ def resource_map():
 
 
 def register_configs(release=None):
-    release = release or os_release('nova-common')
+    release = release or os_release('neutron-server')
     configs = templating.OSConfigRenderer(templates_dir=TEMPLATES,
                                           openstack_release=release)
     for cfg, rscs in resource_map().iteritems():
@@ -210,52 +209,6 @@ def do_openstack_upgrade(configs):
 
     # set CONFIGS to load templates from new release
     configs.set_release(openstack_release=new_os_rel)
-    migrate_neutron_database()
-
-def update_config_file(config_file, key, value):
-    """Updates or append configuration as key value pairs """
-    insert_config = key + "=" + value
-    with open(config_file, "r+") as vrs_file:
-        mm = mmap.mmap(vrs_file.fileno(), 0)
-        origFileSize = mm.size()
-        newSize = len(insert_config)
-        search_str = '^\s*' + key
-        match = re.search(search_str, mm, re.MULTILINE)
-        if match is not None:
-            start_index = match.start()
-            end_index = mm.find("\n", match.end())
-            if end_index != -1:
-                origSize = end_index - start_index
-                if newSize > origSize:
-                    newFileSize = origFileSize + len(insert_config) - origSize
-                    mm.resize(newFileSize)
-                    mm[start_index + newSize:] = mm[end_index:origFileSize]
-                elif newSize < origSize:
-                    insert_config += (" " * (int(origSize) - int(newSize)))
-                    newSize = origSize
-                mm[start_index:start_index+newSize] = insert_config
-            else:
-                mm.resize(start_index + len(insert_config))
-                mm[start_index:start_index+newSize] = insert_config
-        else:
-            mm.seek(0, os.SEEK_END)
-            mm.resize(origFileSize + len(insert_config) + 1)
-            mm.write("\n" + insert_config)
-        mm.close()
-
-
-def migrate_neutron_database():
-    '''Runs neutron-db-manage to init a new database or migrate existing'''
-    log('Migrating the neutron database.')
-    plugin = config('neutron-plugin')
-    cmd = ['neutron-db-manage',
-           '--config-file', NEUTRON_CONF,
-           '--config-file', neutron_plugin_attribute(plugin,
-                                                     'config',
-                                                     'neutron'),
-           'upgrade',
-           'head']
-    subprocess.check_output(cmd)
 
 
 def setup_ipv6():
