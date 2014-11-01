@@ -116,9 +116,16 @@ def vsd_changed(relation_id=None, remote_unit=None):
     vsd_ip_address = relation_get('vsd-ip-address')
     if not vsd_ip_address:
         return
+    log('vsd-rest-api-relation-changed: ip address: {}'.format(vsd_ip_address))
     if config('neutron-plugin') == 'vsp':
         vsd_config_file = config('vsd-config-file')
+        with open (vsd_config_file, "r") as vsp:
+            contents = vsp.read()
+            log('vsd-rest-api-relation-changed: contents before: {}'.format(contents))
         update_config_file(vsd_config_file, 'server', vsd_ip_address)
+        with open (vsd_config_file, "r") as vsp:
+            contents = vsp.read()
+            log('vsd-rest-api-relation-changed: contents after: {}'.format(contents))
 
 
 @hooks.hook('upgrade-charm')
