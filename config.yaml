@@ -158,7 +158,7 @@ options:
     description: Name of the organization to create in Nuage VSD
   vsd-auth-ssl:
     type: string
-    default: True
+    default: "True"
     description: SSL authentication of the Nuage VSD Server
   vsd-base-uri:
     type: string
