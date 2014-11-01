@@ -112,6 +112,7 @@ def install():
     [open_port(port) for port in determine_ports()]
 
 @hooks.hook('vsd-rest-api-relation-changed')
+@restart_on_change(restart_map(), stopstart=True)
 def vsd_changed(relation_id=None, remote_unit=None):
     vsd_ip_address = relation_get('vsd-ip-address')
     if not vsd_ip_address:
@@ -122,7 +123,8 @@ def vsd_changed(relation_id=None, remote_unit=None):
         with open (vsd_config_file, "r") as vsp:
             contents = vsp.read()
             log('vsd-rest-api-relation-changed: contents before: {}'.format(contents))
-        update_config_file(vsd_config_file, 'server', vsd_ip_address)
+        #update_config_file(vsd_config_file, 'server', vsd_ip_address)
+        update_vsd_config_file(vsd_ip_address)
         with open (vsd_config_file, "r") as vsp:
             contents = vsp.read()
             log('vsd-rest-api-relation-changed: contents after: {}'.format(contents))
@@ -153,6 +155,32 @@ def config_changed():
     for r_id in relation_ids('identity-service'):
         identity_joined(rid=r_id)
     [cluster_joined(rid) for rid in relation_ids('cluster')]
+    #if config('neutron-plugin') == 'vsp':
+        #update_vsd_config_file(None)
+
+
+def update_vsd_config_file(vsd_ip_address):
+    vsd_config_file = config('vsd-config-file')
+    contents = '[restproxy]\n'
+
+    if vsd_ip_address is not None:
+        contents += 'server = {}:8443\n'.format(vsd_ip_address)
+    if config('vsd-auth'):
+        contents += 'serverauth = {}\n'.format(config('vsd-auth'))
+    if config('vsd-auth-ssl'):
+        contents += 'serverssl = {}\n'.format(config('vsd-auth-ssl'))
+    if config('vsd-organization'):
+        contents += 'organization = {}\n'.format(config('vsd-organization'))
+    if config('vsd-base-uri'):
+        contents += 'base_uri = {}\n'.format(config('vsd-base-uri'))
+    if config('vsd-auth-resource'):
+        contents += 'auth_resource = {}\n'.format(config('vsd-auth-resource'))
+    if config('vsd-netpart-name'):
+        contents += 'default_net_partition_name = {}\n'.format(config('vsd-netpart-name'))
+
+    log('write vsd-config-file contents : {}'.format(contents))
+    with open (vsd_config_file, "w") as vsp:
+        vsp.write(contents)
 
 
 @hooks.hook('amqp-relation-joined')
