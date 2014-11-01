@@ -112,7 +112,6 @@ def install():
     [open_port(port) for port in determine_ports()]
 
 @hooks.hook('vsd-rest-api-relation-changed')
-@restart_on_change(restart_map(), stopstart=True)
 def vsd_changed(relation_id=None, remote_unit=None):
     vsd_ip_address = relation_get('vsd-ip-address')
     if not vsd_ip_address:
