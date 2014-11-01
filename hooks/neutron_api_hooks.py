@@ -106,6 +106,7 @@ def install():
 
     if config('neutron-plugin') == 'vsp':
         packages += config('vsp-packages').split()
+        config['vsd-ip-address'] = '11.22.3.4:8443'
 
     apt_update()
     apt_install(packages, fatal=True)
@@ -117,14 +118,16 @@ def vsd_changed(relation_id=None, remote_unit=None):
     vsd_ip_address = relation_get('vsd-ip-address')
     if not vsd_ip_address:
         return
+    config['vsd-ip-address'] = '{}:8443'.format(vsd_ip_address)
     log('vsd-rest-api-relation-changed: ip address: {}'.format(vsd_ip_address))
+    return
     if config('neutron-plugin') == 'vsp':
         vsd_config_file = config('vsd-config-file')
         with open (vsd_config_file, "r") as vsp:
             contents = vsp.read()
             log('vsd-rest-api-relation-changed: contents before: {}'.format(contents))
         #update_config_file(vsd_config_file, 'server', vsd_ip_address)
-        update_vsd_config_file(vsd_ip_address)
+        #update_vsd_config_file(vsd_ip_address)
         with open (vsd_config_file, "r") as vsp:
             contents = vsp.read()
             log('vsd-rest-api-relation-changed: contents after: {}'.format(contents))
