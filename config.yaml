@@ -176,7 +176,7 @@ options:
     description: Name of the organization to create in Nuage VSD
   vsd-netpart-name:
     type: string
-    default: csp
+    default: juju-enterprise
     description: Name of the organization to create in Nuage VSD
   vsd-config-file:
     type: string
