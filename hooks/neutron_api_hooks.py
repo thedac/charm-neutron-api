@@ -2,8 +2,8 @@
 
 import sys
 import uuid
-
-from subprocess import check_call
+import os
+from subprocess import check_call, check_output
 from charmhelpers.core.hookenv import (
     Hooks,
     UnregisteredHookError,
@@ -72,6 +72,7 @@ from charmhelpers.contrib.network.ip import (
 
 from charmhelpers.contrib.openstack.context import ADDRESS_TYPES
 import mmap, re
+from charmhelpers.fetch.archiveurl import ArchiveUrlFetchHandler
 
 hooks = Hooks()
 CONFIGS = register_configs()
@@ -99,13 +100,13 @@ def configure_https():
 def install():
     execd_preinstall()
     configure_installation_source(config('openstack-origin'))
-
-    if config('neutron-plugin-repository-url') is not None:
-        add_source(config('neutron-plugin-repository-url'))
     packages = determine_packages()
 
     if config('neutron-plugin') == 'vsp':
-        packages += config('vsp-packages').split()
+        source = config('neutron-plugin-repository-url')
+        if source is not None and source.startswith('deb'):
+            add_source(config('neutron-plugin-repository-url'))
+            packages += config('vsp-packages').split()
         _config = config()
         if config('vsd-server'):
             _config['vsd-address'] = config('vsd-server')
@@ -115,6 +116,24 @@ def install():
 
     apt_update()
     apt_install(packages, fatal=True)
+
+    if config('neutron-plugin') == 'vsp':
+        source = config('neutron-plugin-tarball-url')
+        if source is not None:
+            try:
+                handler = ArchiveUrlFetchHandler()
+                #packages = config('vsp-packages').split()
+                packages = ['nuage-neutron']
+                path = handler.install(source)
+                for package in packages:
+                    package_path = os.path.join(path, package)
+                    if os.path.exists(package_path):
+                        log('install {0} from: {1}'.format(package, package_path))
+                        check_output(['bash', '-c', 'cd {}; sudo python setup.py install'.format(package_path)])
+            except Exception as e:
+                log('install failed with error: {}'.format(e.message))
+                raise Exception(e)
+
     [open_port(port) for port in determine_ports()]
 
 @hooks.hook('vsd-rest-api-relation-changed')
