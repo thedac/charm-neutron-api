@@ -126,6 +126,7 @@ def vsd_changed(relation_id=None, remote_unit=None):
         with open (vsd_config_file, "r") as vsp:
             contents = vsp.read()
             log('vsd-rest-api-relation-changed: contents after: {}'.format(contents))
+        configure_https()
 
 
 @hooks.hook('upgrade-charm')
