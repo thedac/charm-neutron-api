@@ -106,23 +106,34 @@ def install():
 
     if config('neutron-plugin') == 'vsp':
         packages += config('vsp-packages').split()
+        _config = config()
+        if config('vsd-server'):
+            _config['vsd-address'] = config('vsd-server')
+        else:
+            _config['vsd-address'] = '1.1.1.1:8443'
+        _config.save()
 
     apt_update()
     apt_install(packages, fatal=True)
     [open_port(port) for port in determine_ports()]
 
 @hooks.hook('vsd-rest-api-relation-changed')
+@restart_on_change(restart_map(), stopstart=True)
 def vsd_changed(relation_id=None, remote_unit=None):
-    vsd_ip_address = relation_get('vsd-ip-address')
-    if not vsd_ip_address:
-        return
-    log('vsd-rest-api-relation-changed: ip address: {}'.format(vsd_ip_address))
     if config('neutron-plugin') == 'vsp':
+        vsd_ip_address = relation_get('vsd-ip-address')
+        if not vsd_ip_address:
+            return
+        _config = config()
+        vsd_address = '{}:8443'.format(vsd_ip_address)
+        _config['vsd-address'] = vsd_address
+        _config.save()
+        log('vsd-rest-api-relation-changed: ip address: {}'.format(vsd_address))
         vsd_config_file = config('vsd-config-file')
         with open (vsd_config_file, "r") as vsp:
             contents = vsp.read()
             log('vsd-rest-api-relation-changed: contents before: {}'.format(contents))
-        update_config_file(vsd_config_file, 'server', vsd_ip_address)
+        update_config_file(vsd_config_file, 'server', vsd_address)
         with open (vsd_config_file, "r") as vsp:
             contents = vsp.read()
             log('vsd-rest-api-relation-changed: contents after: {}'.format(contents))
@@ -154,6 +165,17 @@ def config_changed():
     for r_id in relation_ids('identity-service'):
         identity_joined(rid=r_id)
     [cluster_joined(rid) for rid in relation_ids('cluster')]
+    if config('neutron-plugin') == 'vsp':
+        vsd_config_file = config('vsd-config-file')
+        _config = config()
+        vsd_address = _config['vsd-address']
+        log('vsd address: {}'.format(vsd_address))
+
+        #update_config_file(vsd_config_file, 'server', vsd_address)
+        with open (vsd_config_file, "r") as vsp:
+            contents = vsp.read()
+            log('config-changed: contents after: {}'.format(contents))
+
 
 
 @hooks.hook('amqp-relation-joined')
@@ -395,7 +417,7 @@ def ha_changed():
 
 def update_config_file(config_file, key, value):
     """Updates or append configuration as key value pairs """
-    insert_config = key + "=" + str(value)
+    insert_config = key + " = " + str(value)
     with open(config_file, "r+") as vrs_file:
         mm = mmap.mmap(vrs_file.fileno(), 0)
         origFileSize = mm.size()
