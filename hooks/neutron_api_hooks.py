@@ -17,6 +17,7 @@ from charmhelpers.core.hookenv import (
     relations_of_type,
     open_port,
     unit_get,
+    local_unit,
 )
 
 from charmhelpers.core.host import (
@@ -380,13 +381,16 @@ def update_nrpe_config():
     for rel in relations_of_type('nrpe-external-master'):
         if 'nagios_hostname' in rel:
             hostname = rel['nagios_hostname']
+            host_context = rel['nagios_host_context']
             break
     nrpe = NRPE(hostname=hostname)
     apt_install('python-dbus')
-    
+
+    current_unit = "%s:%s" % (host_context, local_unit())
+
     nrpe.add_check(
-        shortname='neutron-api',
-        description='neutron-server process',
+        shortname='neutron-server',
+        description='process check {%s}' % current_unit,
         check_cmd = 'check_upstart_job neutron-server',
         )
 
