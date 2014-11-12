@@ -87,6 +87,22 @@ def api_port(service):
     return API_PORTS[service]
 
 
+def additional_install_locations(plugin):
+    '''
+    Add any required additional package locations for the charm, based
+    on the Neutron plugin being used. This will also force an immediate
+    package upgrade.
+    '''
+    if plugin == 'Calico':
+        add_source('ppa:cory-benfield/project-calico')
+        add_source('ppa:cz.nic-labs/bird')
+
+        apt_update()
+        apt_upgrade()
+
+    return
+
+
 def determine_packages():
     # currently all packages match service names
     packages = [] + BASE_PACKAGES

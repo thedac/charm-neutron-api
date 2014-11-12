@@ -43,6 +43,7 @@ from neutron_api_utils import (
     api_port,
     CLUSTER_RES,
     do_openstack_upgrade,
+    additional_install_locations
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
@@ -89,36 +90,7 @@ def configure_https():
 def install():
     execd_preinstall()
     configure_installation_source(config('openstack-origin'))
-
-    # FIXME: Calico mess.
-    # Note that we install these packages unconditionally. This needs
-    # to change in future, but is used for demos.
-    #if config('neutron-plugin') == 'Calico':
-    if True:
-        if os.path.exists('/etc/apt/sources.list.d/cz_nic-labs-bird-trusty.list'):
-            return
-
-        env = os.environ.copy()
-
-        check_call(
-            'curl -L https://calico-pkg.s3.amazonaws.com/key | '
-            'apt-key add -',
-            shell=True
-        )
-
-        # TODO(CB2): This pins a specific package version by downloading from a
-        # static package mirror. We'll replace this with a PPA at some stage.
-        with open('/etc/apt/sources.list.d/calico.list', 'w') as f:
-            f.write('deb http://calico-pkg.s3.amazonaws.com calico main')
-
-        with open('/etc/apt/preferences', 'w') as f:
-            f.write('Package: *\nPin: origin calico-pkg.s3.amazonaws.com\nPin-Priority: 1001\n')
-
-        env['LANG'] = 'en_US.UTF-8'
-        check_call(['add-apt-repository', 'ppa:cz.nic-labs/bird'], env=env)
-
-        apt_update()
-        apt_upgrade(options=['--force-yes'], dist=True)
+    additional_install_locations(config('neutron-plugin'))
 
     apt_update()
     apt_install(determine_packages(), fatal=True)
@@ -130,6 +102,7 @@ def install():
 @restart_on_change(restart_map(), stopstart=True)
 def config_changed():
     global CONFIGS
+    additional_install_locations(config('neutron-plugin'))
     if openstack_upgrade_available('neutron-server'):
         do_openstack_upgrade(CONFIGS)
     configure_https()
