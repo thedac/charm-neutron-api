@@ -1,6 +1,5 @@
 #!/usr/bin/python
 
-import os.path
 import sys
 
 from subprocess import check_call
@@ -23,7 +22,7 @@ from charmhelpers.core.host import (
 )
 
 from charmhelpers.fetch import (
-    apt_install, apt_update, apt_upgrade
+    apt_install, apt_update
 )
 
 from charmhelpers.contrib.openstack.utils import (
