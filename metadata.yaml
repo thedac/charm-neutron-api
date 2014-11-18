@@ -19,6 +19,8 @@ provides:
     interface: neutron-api
   neutron-plugin-api:
     interface: neutron-plugin-api
+  calico-network-api:
+    interface: calico-network-api
 requires:
   shared-db:
     interface: mysql-shared

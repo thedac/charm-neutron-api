@@ -114,6 +114,8 @@ def config_changed():
         amqp_joined(relation_id=r_id)
     for r_id in relation_ids('identity-service'):
         identity_joined(rid=r_id)
+    for r_id in relation_ids('calico-network-api'):
+        calico_network_api_joined(rid=r_id)
 
 
 @hooks.hook('amqp-relation-joined')
@@ -310,6 +312,14 @@ def ha_changed():
         identity_joined(rid=rid)
     for rid in relation_ids('neutron-api'):
         neutron_api_relation_joined(rid=rid)
+
+
+@hooks.hook('calico-network-api-relation-joined')
+def calico_network_api_joined(rid=None):
+    relation_data = {
+        'plugin_addr': unit_get('private_address')
+    }
+    relation_set(relation_id=rid, **relation_data)
 
 
 def main():
