@@ -91,7 +91,9 @@ class TestNeutronAPIUtils(CharmTestCase):
         [self.assertIn(q_conf, _map.keys()) for q_conf in confs]
         self.assertTrue(nutils.APACHE_CONF not in _map.keys())
 
-    def test_restart_map(self):
+    @patch('os.path.exists')
+    def test_restart_map(self, mock_path_exists):
+        mock_path_exists.return_value = False
         _restart_map = nutils.restart_map()
         ML2CONF = "/etc/neutron/plugins/ml2/ml2_conf.ini"
         expect = OrderedDict([
@@ -104,7 +106,7 @@ class TestNeutronAPIUtils(CharmTestCase):
             (ML2CONF, {
                 'services': ['neutron-server'],
             }),
-            (nutils.APACHE_24_CONF, {
+            (nutils.APACHE_CONF, {
                 'services': ['apache2'],
             }),
             (nutils.HAPROXY_CONF, {
@@ -113,7 +115,10 @@ class TestNeutronAPIUtils(CharmTestCase):
         ])
         self.assertItemsEqual(_restart_map, expect)
 
-    def test_register_configs(self):
+    @patch('os.path.exists')
+    def test_register_configs(self, mock_path_exists):
+        mock_path_exists.return_value = False
+
         class _mock_OSConfigRenderer():
             def __init__(self, templates_dir=None, openstack_release=None):
                 self.configs = []
@@ -128,7 +133,7 @@ class TestNeutronAPIUtils(CharmTestCase):
         confs = ['/etc/neutron/neutron.conf',
                  '/etc/default/neutron-server',
                  '/etc/neutron/plugins/ml2/ml2_conf.ini',
-                 '/etc/apache2/sites-available/openstack_https_frontend.conf',
+                 '/etc/apache2/sites-available/openstack_https_frontend',
                  '/etc/haproxy/haproxy.cfg']
         self.assertItemsEqual(_regconfs.configs, confs)
 
