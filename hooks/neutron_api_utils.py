@@ -17,7 +17,12 @@ from charmhelpers.core.hookenv import (
     config,
     log,
 )
-from charmhelpers.fetch import apt_update, apt_install, apt_upgrade
+from charmhelpers.fetch import (
+    apt_update,
+    apt_install,
+    apt_upgrade,
+    add_source
+)
 import neutron_api_context
 
 TEMPLATES = 'templates/'

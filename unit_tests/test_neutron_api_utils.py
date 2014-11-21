@@ -19,6 +19,7 @@ TO_PATCH = [
     'apt_install',
     'apt_update',
     'apt_upgrade',
+    'add_source',
     'b64encode',
     'config',
     'configure_installation_source',
@@ -166,3 +167,10 @@ class TestNeutronAPIUtils(CharmTestCase):
         self.configure_installation_source.assert_called_with(
             'cloud:precise-havana'
         )
+
+    def test_additional_install_locations_calico(self):
+        nutils.additional_install_locations('Calico')
+        self.add_source.assert_any_call('ppa:cory-benfield/project-calico')
+        self.add_source.assert_any_call('ppa:cz.nic-labs/bird')
+        self.assertEquals(self.add_source.call_count, 2)
+

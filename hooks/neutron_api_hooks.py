@@ -317,7 +317,7 @@ def ha_changed():
 @hooks.hook('calico-network-api-relation-joined')
 def calico_network_api_joined(rid=None):
     relation_data = {
-        'plugin_addr': unit_get('private_address')
+        'plugin_addr': unit_get('private-address')
     }
     relation_set(relation_id=rid, **relation_data)
 
