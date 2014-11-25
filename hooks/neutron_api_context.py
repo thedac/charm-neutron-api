@@ -96,7 +96,8 @@ class NeutronCCContext(context.NeutronContext):
         ctxt['verbose'] = config('verbose')
         ctxt['debug'] = config('debug')
         ctxt['neutron_bind_port'] = \
-            determine_api_port(api_port('neutron-server'))
+            determine_api_port(api_port('neutron-server'),
+                               singlenode_mode=True)
         for rid in relation_ids('neutron-api'):
             for unit in related_units(rid):
                 rdata = relation_get(rid=rid, unit=unit)
@@ -126,7 +127,8 @@ class HAProxyContext(context.HAProxyContext):
         ctxt = super(HAProxyContext, self).__call__()
 
         # Apache ports
-        a_neutron_api = determine_apache_port(api_port('neutron-server'))
+        a_neutron_api = determine_apache_port(api_port('neutron-server'),
+                                              singlenode_mode=True)
 
         port_mapping = {
             'neutron-server': [
@@ -134,7 +136,9 @@ class HAProxyContext(context.HAProxyContext):
         }
 
         ctxt['neutron_bind_port'] = determine_api_port(
-            api_port('neutron-server'))
+            api_port('neutron-server'),
+            singlenode_mode=True,
+        )
 
         # for haproxy.conf
         ctxt['service_ports'] = port_mapping
