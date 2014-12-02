@@ -170,7 +170,5 @@ class TestNeutronAPIUtils(CharmTestCase):
 
     def test_additional_install_locations_calico(self):
         nutils.additional_install_locations('Calico')
-        self.add_source.assert_any_call('ppa:cory-benfield/project-calico')
-        self.add_source.assert_any_call('ppa:cz.nic-labs/bird')
-        self.assertEquals(self.add_source.call_count, 2)
+        self.add_source.assert_called_with('ppa:cory-benfield/project-calico')
 

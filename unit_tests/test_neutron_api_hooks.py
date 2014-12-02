@@ -257,8 +257,10 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.assertTrue(self.CONFIGS.write.called_with(NEUTRON_CONF))
 
     def test_neutron_plugin_api_relation_joined(self):
+        self.unit_get.return_value = '172.18.18.18'
         _relation_data = {
             'neutron-security-groups': False,
+            'addr': '172.18.18.18'
         }
         self._call_hook('neutron-plugin-api-relation-joined')
         self.relation_set.assert_called_with(
