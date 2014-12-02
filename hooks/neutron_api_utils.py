@@ -100,7 +100,6 @@ def additional_install_locations(plugin):
     '''
     if plugin == 'Calico':
         add_source('ppa:cory-benfield/project-calico')
-        add_source('ppa:cz.nic-labs/bird')
 
         apt_update()
         apt_upgrade()
