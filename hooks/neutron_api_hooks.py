@@ -193,7 +193,7 @@ def db_changed():
 def postgresql_neutron_db_changed():
     plugin = config('neutron-plugin')
     # DB config might have been moved to main neutron.conf in H?
-    CONFIGS.write(neutron_plugin_attribute(plugin, 'config'))
+    CONFIGS.write(neutron_plugin_attribute(plugin, 'config', 'neutron'))
 
 
 @hooks.hook('amqp-relation-broken',
