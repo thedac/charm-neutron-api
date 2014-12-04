@@ -276,6 +276,7 @@ class NeutronAPIHooksTests(CharmTestCase):
             'neutron-security-groups': False,
             'l2-population': False,
             'overlay-network-type': 'vxlan',
+            'network-device-mtu': 1500,
         }
         self.get_l2population.return_value = False
         self.get_overlay_network_type.return_value = 'vxlan'
