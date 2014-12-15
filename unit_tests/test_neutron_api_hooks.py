@@ -50,9 +50,6 @@ TO_PATCH = [
     'get_iface_for_address',
     'get_netmask_for_address',
     'get_address_in_network',
-    'migrate_neutron_database',
-    'service_restart',
-    'is_leader',
 ]
 NEUTRON_CONF_DIR = "/etc/neutron"
 
@@ -170,23 +167,19 @@ class NeutronAPIHooksTests(CharmTestCase):
                          'Attempting to associate a postgresql database when'
                          ' there is already associated a mysql one')
 
-    @patch.object(hooks, 'conditional_neutron_migration')
-    def test_shared_db_changed(self, cond_neutron_mig):
+    def test_shared_db_changed(self):
         self.CONFIGS.complete_contexts.return_value = ['shared-db']
         self._call_hook('shared-db-relation-changed')
         self.assertTrue(self.CONFIGS.write_all.called)
-        cond_neutron_mig.assert_called_with()
 
     def test_shared_db_changed_partial_ctxt(self):
         self.CONFIGS.complete_contexts.return_value = []
         self._call_hook('shared-db-relation-changed')
         self.assertFalse(self.CONFIGS.write_all.called)
 
-    @patch.object(hooks, 'conditional_neutron_migration')
-    def test_pgsql_db_changed(self, cond_neutron_mig):
+    def test_pgsql_db_changed(self):
         self._call_hook('pgsql-db-relation-changed')
         self.assertTrue(self.CONFIGS.write.called)
-        cond_neutron_mig.assert_called_with()
 
     def test_amqp_broken(self):
         self._call_hook('amqp-relation-broken')
@@ -272,20 +265,15 @@ class NeutronAPIHooksTests(CharmTestCase):
             **_relation_data
         )
 
-    @patch.object(hooks, 'conditional_neutron_migration')
-    def test_neutron_api_relation_changed(self, cond_neutron_mig):
+    def test_neutron_api_relation_changed(self):
         self.CONFIGS.complete_contexts.return_value = ['shared-db']
         self._call_hook('neutron-api-relation-changed')
         self.assertTrue(self.CONFIGS.write.called_with(NEUTRON_CONF))
-        cond_neutron_mig.assert_called_with()
 
-    @patch.object(hooks, 'conditional_neutron_migration')
-    def test_neutron_api_relation_changed_incomplere_ctxt(self,
-                                                          cond_neutron_mig):
+    def test_neutron_api_relation_changed_incomplere_ctxt(self):
         self.CONFIGS.complete_contexts.return_value = []
         self._call_hook('neutron-api-relation-changed')
         self.assertTrue(self.CONFIGS.write.called_with(NEUTRON_CONF))
-        self.assertFalse(cond_neutron_mig.called)
 
     def test_neutron_plugin_api_relation_joined_nol2(self):
         _relation_data = {
@@ -413,58 +401,3 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.check_call.assert_called_with(['a2dissite',
                                            'openstack_https_frontend'])
         self.assertTrue(_id_rel_joined.called)
-
-    def test_conditional_neutron_migration_no_ncc_rel(self):
-        self.test_relation.set({
-            'clustered': 'false',
-        })
-        self.relation_ids.return_value = []
-        hooks.conditional_neutron_migration()
-        self.log.assert_called_with(
-            'Not running neutron database migration, no nova-cloud-controller'
-            'is present.'
-        )
-
-    def test_conditional_neutron_migration_icehouse(self):
-        self.test_relation.set({
-            'clustered': 'false',
-        })
-        self.os_release.return_value = 'icehouse'
-        hooks.conditional_neutron_migration()
-        self.log.assert_called_with(
-            'Not running neutron database migration as migrations are handled'
-            'by the neutron-server process.'
-        )
-
-    def test_conditional_neutron_migration_ncc_rel_leader(self):
-        self.test_relation.set({
-            'clustered': 'true',
-        })
-        self.is_leader.return_value = True
-        self.os_release.return_value = 'juno'
-        hooks.conditional_neutron_migration()
-        self.migrate_neutron_database.assert_called_with()
-        self.service_restart.assert_called_with('neutron-server')
-
-    def test_conditional_neutron_migration_ncc_rel_notleader(self):
-        self.test_relation.set({
-            'clustered': 'true',
-        })
-        self.is_leader.return_value = False
-        self.os_release.return_value = 'juno'
-        hooks.conditional_neutron_migration()
-        self.assertFalse(self.migrate_neutron_database.called)
-        self.assertFalse(self.service_restart.called)
-        self.log.assert_called_with(
-            'Not running neutron database migration, not leader'
-        )
-
-    def test_conditional_neutron_migration_not_clustered(self):
-        self.test_relation.set({
-            'clustered': 'false',
-        })
-        self.relation_ids.return_value = ['nova-cc/o']
-        self.os_release.return_value = 'juno'
-        hooks.conditional_neutron_migration()
-        self.migrate_neutron_database.assert_called_with()
-        self.service_restart.assert_called_with('neutron-server')
