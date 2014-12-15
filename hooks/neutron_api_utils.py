@@ -30,7 +30,6 @@ from charmhelpers.core.host import (
 )
 
 import neutron_api_context
-import subprocess
 
 TEMPLATES = 'templates/'
 
@@ -161,7 +160,7 @@ def resource_map():
 
 
 def register_configs(release=None):
-    release = release or os_release('nova-common')
+    release = release or os_release('neutron-server')
     configs = templating.OSConfigRenderer(templates_dir=TEMPLATES,
                                           openstack_release=release)
     for cfg, rscs in resource_map().iteritems():
@@ -212,7 +211,6 @@ def do_openstack_upgrade(configs):
 
     # set CONFIGS to load templates from new release
     configs.set_release(openstack_release=new_os_rel)
-    migrate_neutron_database()
 
 
 def get_topics():
@@ -223,20 +221,6 @@ def get_topics():
             'q-metering-plugin',
             'q-plugin',
             'neutron']
-
-
-def migrate_neutron_database():
-    '''Runs neutron-db-manage to init a new database or migrate existing'''
-    log('Migrating the neutron database.')
-    plugin = config('neutron-plugin')
-    cmd = ['neutron-db-manage',
-           '--config-file', NEUTRON_CONF,
-           '--config-file', neutron_plugin_attribute(plugin,
-                                                     'config',
-                                                     'neutron'),
-           'upgrade',
-           'head']
-    subprocess.check_output(cmd)
 
 
 def setup_ipv6():
