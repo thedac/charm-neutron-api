@@ -48,6 +48,7 @@ TO_PATCH = [
     'get_iface_for_address',
     'get_netmask_for_address',
     'get_address_in_network',
+    'update_nrpe_config',
 ]
 NEUTRON_CONF_DIR = "/etc/neutron"
 
