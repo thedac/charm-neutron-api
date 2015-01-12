@@ -172,6 +172,14 @@ def restart_map():
                         if v['services']])
 
 
+def services():
+    ''' Returns a list of services associate with this charm '''
+    _services = []
+    for v in restart_map().values():
+        _services = _services + v
+    return list(set(_services))
+
+
 def keystone_ca_cert_b64():
     '''Returns the local Keystone-provided CA cert if it exists, or None.'''
     if not os.path.isfile(CA_CERT_PATH):
