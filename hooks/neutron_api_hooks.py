@@ -45,6 +45,7 @@ from neutron_api_utils import (
     do_openstack_upgrade,
     register_configs,
     restart_map,
+    services,
     setup_ipv6
 )
 from neutron_api_context import (
@@ -72,6 +73,8 @@ from charmhelpers.contrib.network.ip import (
 )
 
 from charmhelpers.contrib.openstack.context import ADDRESS_TYPES
+
+from charmhelpers.contrib.charmsupport import nrpe
 
 hooks = Hooks()
 CONFIGS = register_configs()
@@ -120,6 +123,7 @@ def config_changed():
     if openstack_upgrade_available('neutron-server'):
         do_openstack_upgrade(CONFIGS)
     configure_https()
+    update_nrpe_config()
     CONFIGS.write_all()
     for r_id in relation_ids('neutron-api'):
         neutron_api_relation_joined(rid=r_id)
@@ -367,6 +371,18 @@ def ha_changed():
         identity_joined(rid=rid)
     for rid in relation_ids('neutron-api'):
         neutron_api_relation_joined(rid=rid)
+
+
+@hooks.hook('nrpe-external-master-relation-joined',
+            'nrpe-external-master-relation-changed')
+def update_nrpe_config():
+    # python-dbus is used by check_upstart_job
+    apt_install('python-dbus')
+    hostname = nrpe.get_nagios_hostname()
+    current_unit = nrpe.get_nagios_unit_name()
+    nrpe_setup = nrpe.NRPE(hostname=hostname)
+    nrpe.add_init_service_checks(nrpe_setup, services(), current_unit)
+    nrpe_setup.write()
 
 
 def main():
