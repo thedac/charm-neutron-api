@@ -15,6 +15,9 @@ description: |
 categories:
   - openstack
 provides:
+  nrpe-external-master:
+    interface: nrpe-external-master
+    scope: container
   neutron-api:
     interface: neutron-api
   neutron-plugin-api:
