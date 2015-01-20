@@ -45,6 +45,12 @@ BASE_PACKAGES = [
     'uuid',
 ]
 
+KILO_PACKAGES = [
+    'python-neutron-lbaas',
+    'python-neutron-fwaas',
+    'python-neutron-vpnaas',
+]
+
 BASE_SERVICES = [
     'neutron-server'
 ]
@@ -100,7 +106,7 @@ def api_port(service):
     return API_PORTS[service]
 
 
-def determine_packages():
+def determine_packages(source=None):
     # currently all packages match service names
     packages = [] + BASE_PACKAGES
     for v in resource_map().values():
@@ -109,6 +115,8 @@ def determine_packages():
                                         'server_packages',
                                         'neutron')
         packages.extend(pkgs)
+    if get_os_codename_install_source(source) >= 'kilo':
+        packages.extend(KILO_PACKAGES)
     return list(set(packages))
 
 
@@ -208,7 +216,7 @@ def do_openstack_upgrade(configs):
     ]
     apt_update(fatal=True)
     apt_upgrade(options=dpkg_opts, fatal=True, dist=True)
-    pkgs = determine_packages()
+    pkgs = determine_packages(new_os_rel)
     # Sort packages just to make unit tests easier
     pkgs.sort()
     apt_install(packages=pkgs,

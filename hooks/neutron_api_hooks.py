@@ -104,7 +104,8 @@ def install():
     execd_preinstall()
     configure_installation_source(config('openstack-origin'))
     apt_update()
-    apt_install(determine_packages(), fatal=True)
+    apt_install(determine_packages(config('openstack-origin')),
+                fatal=True)
     [open_port(port) for port in determine_ports()]
 
 
@@ -112,7 +113,8 @@ def install():
 @hooks.hook('config-changed')
 @restart_on_change(restart_map(), stopstart=True)
 def config_changed():
-    apt_install(filter_installed_packages(determine_packages()),
+    apt_install(filter_installed_packages(
+                    determine_packages(config('openstack-origin'))),
                 fatal=True)
     if config('prefer-ipv6'):
         setup_ipv6()
