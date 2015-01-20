@@ -171,4 +171,3 @@ class TestNeutronAPIUtils(CharmTestCase):
     def test_additional_install_locations_calico(self):
         nutils.additional_install_locations('Calico')
         self.add_source.assert_called_with('ppa:cory-benfield/project-calico')
-
