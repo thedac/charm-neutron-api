@@ -3,11 +3,15 @@ from charmhelpers.core.hookenv import (
     relation_ids,
     related_units,
     relation_get,
+    log,
 )
 from charmhelpers.contrib.openstack import context
 from charmhelpers.contrib.hahelpers.cluster import (
     determine_api_port,
     determine_apache_port,
+)
+from charmhelpers.contrib.openstack.utils import (
+    os_release,
 )
 
 
@@ -21,6 +25,23 @@ def get_overlay_network_type():
     if overlay_net not in ['vxlan', 'gre']:
         raise Exception('Unsupported overlay-network-type')
     return overlay_net
+
+
+def get_dvr():
+    if config('enable-dvr'):
+        if os_release('neutron-server') < 'juno':
+            log('Disabling DVR, enable_dvr is not valid before Juno')
+            return False
+        if config('overlay-network-type') != 'vxlan':
+            log('Disabling DVR, enable_dvr requires the use of the vxlan'
+                'overlay network')
+            return False
+        if not get_l2population():
+            log('Disabling DVR, l2-population must be enabled to use dvr')
+            return False
+        return True
+    else:
+        return False
 
 
 class ApacheSSLContext(context.ApacheSSLContext):
@@ -69,6 +90,10 @@ class NeutronCCContext(context.NeutronContext):
     def neutron_overlay_network_type(self):
         return get_overlay_network_type()
 
+    @property
+    def neutron_dvr(self):
+        return get_dvr()
+
     # Do not need the plugin agent installed on the api server
     def _ensure_packages(self):
         pass
@@ -91,6 +116,7 @@ class NeutronCCContext(context.NeutronContext):
                 ctxt['nsx_controllers_list'] = \
                     config('nsx-controllers').split()
         ctxt['l2_population'] = self.neutron_l2_population
+        ctxt['enable_dvr'] = self.neutron_dvr
         ctxt['overlay_network_type'] = self.neutron_overlay_network_type
         ctxt['external_network'] = config('neutron-external-network')
         ctxt['verbose'] = config('verbose')
