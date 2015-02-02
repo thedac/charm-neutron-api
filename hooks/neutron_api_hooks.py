@@ -49,6 +49,7 @@ from neutron_api_utils import (
     setup_ipv6
 )
 from neutron_api_context import (
+    get_dvr,
     get_l2population,
     get_overlay_network_type,
 )
@@ -281,6 +282,7 @@ def neutron_plugin_api_relation_joined(rid=None):
         relation_data = {
             'neutron-security-groups': config('neutron-security-groups'),
             'l2-population': get_l2population(),
+            'enable-dvr': get_dvr(),
             'overlay-network-type': get_overlay_network_type(),
         }
     relation_set(relation_id=rid, **relation_data)
