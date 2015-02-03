@@ -176,6 +176,11 @@ def neutron_plugins():
         'Calico': {
             'config': '/etc/neutron/plugins/ml2/ml2_conf.ini',
             'driver': 'neutron.plugins.ml2.plugin.Ml2Plugin',
+            'contexts': [
+                context.SharedDBContext(user=config('neutron-database-user'),
+                                        database=config('neutron-database'),
+                                        relation_prefix='neutron',
+                                        ssl_dir=NEUTRON_CONF_DIR)],
             'services': ['calico-felix',
                          'bird',
                          'neutron-dhcp-agent',
@@ -186,6 +191,7 @@ def neutron_plugins():
                           'neutron-dhcp-agent',
                           'nova-api-metadata']],
             'server_packages': ['neutron-server', 'calico-control'],
+            'server_services': ['neutron-server']
         }
     }
     if release >= 'icehouse':
