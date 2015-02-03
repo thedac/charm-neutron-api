@@ -113,6 +113,7 @@ class HAProxyContextTest(CharmTestCase):
                     'backends': unit_addresses,
                 }
             },
+            'default_backend': '10.10.10.11',
             'service_ports': service_ports,
             'neutron_bind_port': 9686,
         }

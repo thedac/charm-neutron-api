@@ -89,7 +89,7 @@ BASE_RESOURCE_MAP = OrderedDict([
         'services': ['apache2'],
     }),
     (HAPROXY_CONF, {
-        'contexts': [context.HAProxyContext(),
+        'contexts': [context.HAProxyContext(singlenode_mode=True),
                      neutron_api_context.HAProxyContext()],
         'services': ['haproxy'],
     }),
@@ -170,6 +170,14 @@ def restart_map():
     return OrderedDict([(cfg, v['services'])
                         for cfg, v in resource_map().iteritems()
                         if v['services']])
+
+
+def services():
+    ''' Returns a list of services associate with this charm '''
+    _services = []
+    for v in restart_map().values():
+        _services = _services + v
+    return list(set(_services))
 
 
 def keystone_ca_cert_b64():
