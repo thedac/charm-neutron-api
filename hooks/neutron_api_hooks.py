@@ -114,7 +114,7 @@ def install():
 @restart_on_change(restart_map(), stopstart=True)
 def config_changed():
     apt_install(filter_installed_packages(
-                    determine_packages(config('openstack-origin'))),
+                determine_packages(config('openstack-origin'))),
                 fatal=True)
     if config('prefer-ipv6'):
         setup_ipv6()
