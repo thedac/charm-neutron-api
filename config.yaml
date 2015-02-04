@@ -66,6 +66,71 @@ options:
         gre
         vxlan 
       .
+  # Quota configuration settings
+  quota_security_group:
+    default: 10
+    type: int
+    description: |
+      Number of security groups allowed per tenant. A negative value means
+      unlimited.
+  quota_security_group_rule:
+    default: 100
+    type: int
+    description: |
+      Number of security group rules allowed per tenant. A negative value means
+      unlimited
+  quota_network:
+    default: 10
+    type: int
+    description: |
+      Number of networks allowed per tenant. A negative value means unlimited.
+  quota_subnet:
+    default: 10
+    type: int
+    description: |
+      Number of subnets allowed per tenant. A negative value means unlimited.
+  quota_port:
+    default: 50
+    type: int
+    description: |
+      Number of ports allowed per tenant. A negative value means unlimited.
+  quota_vip:
+    default: 10
+    type: int
+    description: |
+      Number of vips allowed per tenant. A negative value means unlimited.
+  quota_pool:
+    default: 10
+    type: int
+    description: |
+      Number of pools allowed per tenant. A negative value means unlimited.
+  quota_member:
+    default: -1
+    type: int
+    description: |
+      Number of pool members allowed per tenant. A negative value means unlimited.
+      The default is unlimited because a member is not a real resource consumer
+      on Openstack. However, on back-end, a member is a resource consumer
+      and that is the reason why quota is possible.
+  quota_health_monitors:
+    default: -1
+    type: int
+    description: |
+      Number of health monitors allowed per tenant. A negative value means
+      unlimited.
+      The default is unlimited because a health monitor is not a real resource
+      consumer on Openstack. However, on back-end, a member is a resource consumer
+      and that is the reason why quota is possible.
+  quota_router:
+    default: 10
+    type: int
+    description: |
+      Number of routers allowed per tenant. A negative value means unlimited.
+  quota_floatingip: 
+    default: 50
+    type: int
+    description: |
+      Number of floating IPs allowed per tenant. A negative value means unlimited.
   # HA configuration settings
   vip:
     type: string
