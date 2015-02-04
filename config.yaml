@@ -124,3 +124,10 @@ options:
     description: |
       SSL CA to use with the certificate and key provided - this is only
       required if you are providing a privately signed ssl_cert and ssl_key.
+  calico-origin:
+    default: default
+    type: string
+    description: |
+      Repository from which to install Calico packages. May be one of the
+      following options: default, or ppa:somecustom/ppa. Note that this
+      must be set before the 'install' hook runs.
