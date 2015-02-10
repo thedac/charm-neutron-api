@@ -282,8 +282,12 @@ def neutron_plugin_api_relation_joined(rid=None):
             'neutron-security-groups': config('neutron-security-groups'),
             'l2-population': get_l2population(),
             'overlay-network-type': get_overlay_network_type(),
-            'network-device-mtu': config('network-device-mtu'),
         }
+
+        mtu = config('network-device-mtu')
+        if mtu:
+            relation_data['network-device-mtu'] = mtu
+
     relation_set(relation_id=rid, **relation_data)
 
 
