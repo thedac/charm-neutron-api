@@ -53,7 +53,7 @@ options:
     default: 0
     description: |
       The MTU size for the interfaces managed by neutron. If set to 0, no value
-      will be applied.
+      will be applied. This value will be provided to neutron-plugin-api relations.
   neutron-plugin:
     default: ovs
     type: string
