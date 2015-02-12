@@ -3,6 +3,8 @@
 import sys
 import uuid
 import os
+import mmap
+import re
 from subprocess import check_call, check_output
 from charmhelpers.core.hookenv import (
     Hooks,
@@ -72,7 +74,6 @@ from charmhelpers.contrib.network.ip import (
 )
 
 from charmhelpers.contrib.openstack.context import ADDRESS_TYPES
-import mmap, re
 from charmhelpers.fetch.archiveurl import ArchiveUrlFetchHandler
 
 from charmhelpers.contrib.charmsupport import nrpe
@@ -98,6 +99,7 @@ def configure_https():
 
     for rid in relation_ids('identity-service'):
         identity_joined(rid=rid)
+
 
 @hooks.hook()
 def install():
@@ -139,6 +141,7 @@ def install():
 
     [open_port(port) for port in determine_ports()]
 
+
 @hooks.hook('vsd-rest-api-relation-changed')
 @restart_on_change(restart_map(), stopstart=True)
 def vsd_changed(relation_id=None, remote_unit=None):
@@ -152,13 +155,14 @@ def vsd_changed(relation_id=None, remote_unit=None):
         _config.save()
         log('vsd-rest-api-relation-changed: ip address: {}'.format(vsd_address))
         vsd_config_file = config('vsd-config-file')
-        with open (vsd_config_file, "r") as vsp:
+        with open(vsd_config_file, "r") as vsp:
             contents = vsp.read()
             log('vsd-rest-api-relation-changed: contents before: {}'.format(contents))
         update_config_file(vsd_config_file, 'server', vsd_address)
-        with open (vsd_config_file, "r") as vsp:
+        with open(vsd_config_file, "r") as vsp:
             contents = vsp.read()
             log('vsd-rest-api-relation-changed: contents after: {}'.format(contents))
+
 
 @hooks.hook('upgrade-charm')
 @hooks.hook('config-changed')
@@ -193,10 +197,9 @@ def config_changed():
         log('vsd address: {}'.format(vsd_address))
 
         #update_config_file(vsd_config_file, 'server', vsd_address)
-        with open (vsd_config_file, "r") as vsp:
+        with open(vsd_config_file, "r") as vsp:
             contents = vsp.read()
             log('config-changed: contents after: {}'.format(contents))
-
 
 
 @hooks.hook('amqp-relation-joined')
@@ -470,6 +473,7 @@ def update_config_file(config_file, key, value):
             mm.resize(origFileSize + len(insert_config) + 1)
             mm.write("\n" + insert_config)
         mm.close()
+
 
 @hooks.hook('nrpe-external-master-relation-joined',
             'nrpe-external-master-relation-changed')
