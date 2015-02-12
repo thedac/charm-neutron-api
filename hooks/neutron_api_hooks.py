@@ -133,8 +133,11 @@ def install():
                 for package in packages:
                     package_path = os.path.join(path, package)
                     if os.path.exists(package_path):
-                        log('install {0} from: {1}'.format(package, package_path))
-                        check_output(['bash', '-c', 'cd {}; sudo python setup.py install'.format(package_path)])
+                        log('install {0} from: {1}'.format(package, 
+                                                           package_path))
+                        check_output(['bash', '-c', 
+                          'cd {}; sudo python setup.py install'.format(
+                                                           package_path)])
             except Exception as e:
                 log('install failed with error: {}'.format(e.message))
                 raise Exception(e)
@@ -153,15 +156,17 @@ def vsd_changed(relation_id=None, remote_unit=None):
         vsd_address = '{}:8443'.format(vsd_ip_address)
         _config['vsd-address'] = vsd_address
         _config.save()
-        log('vsd-rest-api-relation-changed: ip address: {}'.format(vsd_address))
+        log('vsd-rest-api-relation-changed: ip address:{}'.format(vsd_address))
         vsd_config_file = config('vsd-config-file')
         with open(vsd_config_file, "r") as vsp:
             contents = vsp.read()
-            log('vsd-rest-api-relation-changed: contents before: {}'.format(contents))
+            log('vsd-rest-api-relation-changed: contents before:{}'.format(
+                                                                     contents))
         update_config_file(vsd_config_file, 'server', vsd_address)
         with open(vsd_config_file, "r") as vsp:
             contents = vsp.read()
-            log('vsd-rest-api-relation-changed: contents after: {}'.format(contents))
+            log('vsd-rest-api-relation-changed: contents after: {}'.format(
+                                                                     contents))
 
 
 @hooks.hook('upgrade-charm')
