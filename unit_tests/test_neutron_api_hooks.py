@@ -38,7 +38,6 @@ TO_PATCH = [
     'get_overlay_network_type',
     'is_relation_made',
     'log',
-    'neutron_plugin_attribute',
     'open_port',
     'openstack_upgrade_available',
     'relation_get',
