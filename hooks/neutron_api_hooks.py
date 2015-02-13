@@ -33,9 +33,6 @@ from charmhelpers.contrib.openstack.utils import (
     openstack_upgrade_available,
     sync_db_with_multi_ipv6_addresses
 )
-from charmhelpers.contrib.openstack.neutron import (
-    neutron_plugin_attribute,
-)
 
 from neutron_api_utils import (
     NEUTRON_CONF,
@@ -195,9 +192,7 @@ def db_changed():
 @hooks.hook('pgsql-db-relation-changed')
 @restart_on_change(restart_map())
 def postgresql_neutron_db_changed():
-    plugin = config('neutron-plugin')
     CONFIGS.write(NEUTRON_CONF)
-    
 
 
 @hooks.hook('amqp-relation-broken',
