@@ -69,9 +69,11 @@ options:
       .
   neutron-plugin-repository-url:
     type: string
+    default:
     description: Optional URL to Neutron Plugin containing Debian packages.
   neutron-plugin-tarball-url:
     type: string
+    default:
     description: Optional URL to Neutron Plugin containing python packages.
   # HA configuration settings
   vip:
@@ -165,6 +167,7 @@ options:
     description: List of packages to install for neutron-plugin-nuage VSP.
   vsd-server:
     type: string
+    default:
     description: Nuage VSD Server
   vsd-auth:
     type: string
