@@ -136,12 +136,12 @@ def install():
                         log('install {0} from: {1}'.format(package,
                                                            package_path))
                         check_output(
-                          [
-                           'bash', '-c',
-                           'cd {}; sudo python setup.py install'.format(
-                                                               package_path)
-                          ]
-                         )
+                            [
+                              'bash', '-c',
+                              'cd {}; sudo python setup.py install'.format(
+                                  package_path)
+                            ]
+                        )
             except Exception as e:
                 log('install failed with error: {}'.format(e.message))
                 raise Exception(e)
