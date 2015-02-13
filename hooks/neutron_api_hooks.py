@@ -136,9 +136,12 @@ def install():
                         log('install {0} from: {1}'.format(package,
                                                            package_path))
                         check_output(
-                          ['bash', '-c',
+                          [
+                           'bash', '-c',
                            'cd {}; sudo python setup.py install'.format(
-                                                               package_path)])
+                                                               package_path)
+                          ]
+                         )
             except Exception as e:
                 log('install failed with error: {}'.format(e.message))
                 raise Exception(e)
@@ -161,15 +164,13 @@ def vsd_changed(relation_id=None, remote_unit=None):
         vsd_config_file = config('vsd-config-file')
         with open(vsd_config_file, "r") as vsp:
             contents = vsp.read()
-            log(
-                'vsd-rest-api-relation-changed: contents before:{}'.format(
-                                                                    contents))
+            log('vsd-rest-api-relation-changed: '
+                'vsd config file before:{}'.format(contents))
         update_config_file(vsd_config_file, 'server', vsd_address)
         with open(vsd_config_file, "r") as vsp:
             contents = vsp.read()
-            log(
-                'vsd-rest-api-relation-changed: contents after: {}'.format(
-                                                                    contents))
+            log('vsd-rest-api-relation-changed: '
+                'vsd config file: after: {}'.format(contents))
 
 
 @hooks.hook('upgrade-charm')
