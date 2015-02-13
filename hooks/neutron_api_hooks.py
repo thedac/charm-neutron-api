@@ -137,9 +137,9 @@ def install():
                                                            package_path))
                         check_output(
                             [
-                              'bash', '-c',
-                              'cd {}; sudo python setup.py install'.format(
-                                  package_path)
+                                'bash', '-c',
+                                'cd {}; sudo python setup.py install'.format(
+                                    package_path)
                             ]
                         )
             except Exception as e:
