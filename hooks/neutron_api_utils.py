@@ -43,6 +43,7 @@ BASE_PACKAGES = [
     'python-mysqldb',
     'python-psycopg2',
     'uuid',
+    'python-six',
 ]
 
 KILO_PACKAGES = [
