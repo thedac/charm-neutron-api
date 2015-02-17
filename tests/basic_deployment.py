@@ -105,7 +105,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
         unit = self.mysql_sentry
         relation = ['shared-db', 'neutron-api:shared-db']
         expected = {
-            'allowed_units': 'neutron-api/0',
+            'allowed_units': 'nova-cloud-controller/0 neutron-api/0',
             'db_host': u.valid_ip,
             'private-address': u.valid_ip,
         }
