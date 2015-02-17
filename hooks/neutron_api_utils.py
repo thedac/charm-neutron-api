@@ -44,7 +44,6 @@ BASE_PACKAGES = [
     'python-psycopg2',
     'python-six',
     'uuid',
-    'python-six',
 ]
 
 KILO_PACKAGES = [
