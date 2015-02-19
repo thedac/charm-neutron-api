@@ -34,11 +34,11 @@ TO_PATCH = [
     'do_openstack_upgrade',
     'execd_preinstall',
     'filter_installed_packages',
+    'get_dvr',
     'get_l2population',
     'get_overlay_network_type',
     'is_relation_made',
     'log',
-    'neutron_plugin_attribute',
     'open_port',
     'openstack_upgrade_available',
     'relation_get',
@@ -275,9 +275,11 @@ class NeutronAPIHooksTests(CharmTestCase):
     def test_neutron_plugin_api_relation_joined_nol2(self):
         _relation_data = {
             'neutron-security-groups': False,
+            'enable-dvr': False,
             'l2-population': False,
             'overlay-network-type': 'vxlan',
         }
+        self.get_dvr.return_value = False
         self.get_l2population.return_value = False
         self.get_overlay_network_type.return_value = 'vxlan'
         self._call_hook('neutron-plugin-api-relation-joined')

@@ -152,6 +152,7 @@ class NeutronCCContextTest(CharmTestCase):
         plugin.return_value = None
         ctxt_data = {
             'debug': True,
+            'enable_dvr': False,
             'external_network': 'bob',
             'neutron_bind_port': self.api_port,
             'verbose': True,
@@ -170,6 +171,7 @@ class NeutronCCContextTest(CharmTestCase):
         self.test_config.set('overlay-network-type', 'vxlan')
         ctxt_data = {
             'debug': True,
+            'enable_dvr': False,
             'external_network': 'bob',
             'neutron_bind_port': self.api_port,
             'verbose': True,

@@ -1,6 +1,7 @@
 
 from mock import MagicMock, patch
 from collections import OrderedDict
+from copy import deepcopy
 import charmhelpers.contrib.openstack.templating as templating
 
 templating.OSConfigRenderer = MagicMock()
@@ -65,8 +66,16 @@ class TestNeutronAPIUtils(CharmTestCase):
 
     def test_determine_packages(self):
         pkg_list = nutils.determine_packages()
-        expect = nutils.BASE_PACKAGES
+        expect = deepcopy(nutils.BASE_PACKAGES)
         expect.extend(['neutron-server', 'neutron-plugin-ml2'])
+        self.assertItemsEqual(pkg_list, expect)
+
+    def test_determine_packages_kilo(self):
+        self.get_os_codename_install_source.return_value = 'kilo'
+        pkg_list = nutils.determine_packages()
+        expect = deepcopy(nutils.BASE_PACKAGES)
+        expect.extend(['neutron-server', 'neutron-plugin-ml2'])
+        expect.extend(nutils.KILO_PACKAGES)
         self.assertItemsEqual(pkg_list, expect)
 
     def test_determine_ports(self):
@@ -169,7 +178,7 @@ class TestNeutronAPIUtils(CharmTestCase):
         self.apt_upgrade.assert_called_with(options=dpkg_opts,
                                             fatal=True,
                                             dist=True)
-        pkgs = nutils.BASE_PACKAGES
+        pkgs = nutils.determine_packages()
         pkgs.sort()
         self.apt_install.assert_called_with(packages=pkgs,
                                             options=dpkg_opts,
