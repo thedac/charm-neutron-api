@@ -47,6 +47,7 @@ from neutron_api_utils import (
 )
 from neutron_api_context import (
     get_dvr,
+    get_l3ha,
     get_l2population,
     get_overlay_network_type,
 )
@@ -280,6 +281,7 @@ def neutron_plugin_api_relation_joined(rid=None):
             'neutron-security-groups': config('neutron-security-groups'),
             'l2-population': get_l2population(),
             'enable-dvr': get_dvr(),
+            'enable-l3ha': get_l3ha(),
             'overlay-network-type': get_overlay_network_type(),
         }
     relation_set(relation_id=rid, **relation_data)
