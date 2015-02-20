@@ -218,3 +218,20 @@ options:
     type: boolean
     description: |
       Enable Distributed Virtual Routing (juno and above).
+  enable-l3ha:
+    default: False
+    type: boolean
+    description: |
+      Enable L3 HA (juno and above).
+  max-l3-agents-per-router:
+    default: 2
+    type: int
+    description: |
+      Maximum number of l3 agents to host a router. Only used when enable-l3ha
+      is True
+  min-l3-agents-per-router:
+    default: 2
+    type: int
+    description: |
+      Minimum number of l3 agents to host a router. Only used when enable-l3ha
+      is True
