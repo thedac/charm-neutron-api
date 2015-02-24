@@ -3,13 +3,129 @@ from mock import patch
 import neutron_api_context as context
 import charmhelpers
 TO_PATCH = [
+    'config',
+    'determine_api_port',
+    'determine_apache_port',
+    'log',
+    'os_release',
     'relation_get',
     'relation_ids',
     'related_units',
-    'config',
-    'determine_api_port',
-    'determine_apache_port'
 ]
+
+
+class GeneralTests(CharmTestCase):
+    def setUp(self):
+        super(GeneralTests, self).setUp(context, TO_PATCH)
+        self.relation_get.side_effect = self.test_relation.get
+        self.config.side_effect = self.test_config.get
+
+    def test_l2population(self):
+        self.test_config.set('l2-population', True)
+        self.test_config.set('neutron-plugin', 'ovs')
+        self.assertEquals(context.get_l2population(), True)
+
+    def test_l2population_nonovs(self):
+        self.test_config.set('l2-population', True)
+        self.test_config.set('neutron-plugin', 'nsx')
+        self.assertEquals(context.get_l2population(), False)
+
+    def test_get_overlay_network_type(self):
+        self.test_config.set('overlay-network-type', 'gre')
+        self.assertEquals(context.get_overlay_network_type(), 'gre')
+
+    def test_get_overlay_network_type_unsupported(self):
+        self.test_config.set('overlay-network-type', 'tokenring')
+        with self.assertRaises(Exception) as _exceptctxt:
+            context.get_overlay_network_type()
+        self.assertEqual(_exceptctxt.exception.message,
+                         'Unsupported overlay-network-type')
+
+    def test_get_l3ha(self):
+        self.test_config.set('enable-l3ha', True)
+        self.test_config.set('overlay-network-type', 'gre')
+        self.test_config.set('neutron-plugin', 'ovs')
+        self.test_config.set('l2-population', False)
+        self.os_release.return_value = 'juno'
+        self.assertEquals(context.get_l3ha(), True)
+
+    def test_get_l3ha_prejuno(self):
+        self.test_config.set('enable-l3ha', True)
+        self.test_config.set('overlay-network-type', 'gre')
+        self.test_config.set('neutron-plugin', 'ovs')
+        self.test_config.set('l2-population', False)
+        self.os_release.return_value = 'icehouse'
+        self.assertEquals(context.get_l3ha(), False)
+
+    def test_get_l3ha_l2pop(self):
+        self.test_config.set('enable-l3ha', True)
+        self.test_config.set('overlay-network-type', 'gre')
+        self.test_config.set('neutron-plugin', 'ovs')
+        self.test_config.set('l2-population', True)
+        self.os_release.return_value = 'juno'
+        self.assertEquals(context.get_l3ha(), False)
+
+    def test_get_l3ha_badoverlay(self):
+        self.test_config.set('enable-l3ha', True)
+        self.test_config.set('overlay-network-type', 'tokenring')
+        self.test_config.set('neutron-plugin', 'ovs')
+        self.test_config.set('l2-population', False)
+        self.os_release.return_value = 'juno'
+        self.assertEquals(context.get_l3ha(), False)
+
+    def test_get_dvr(self):
+        self.test_config.set('enable-dvr', True)
+        self.test_config.set('enable-l3ha', False)
+        self.test_config.set('overlay-network-type', 'vxlan')
+        self.test_config.set('neutron-plugin', 'ovs')
+        self.test_config.set('l2-population', True)
+        self.os_release.return_value = 'juno'
+        self.assertEquals(context.get_dvr(), True)
+
+    def test_get_dvr_explicit_off(self):
+        self.test_config.set('enable-dvr', False)
+        self.test_config.set('enable-l3ha', False)
+        self.test_config.set('overlay-network-type', 'vxlan')
+        self.test_config.set('neutron-plugin', 'ovs')
+        self.test_config.set('l2-population', True)
+        self.os_release.return_value = 'juno'
+        self.assertEquals(context.get_dvr(), False)
+
+    def test_get_dvr_prejuno(self):
+        self.test_config.set('enable-dvr', True)
+        self.test_config.set('enable-l3ha', False)
+        self.test_config.set('overlay-network-type', 'vxlan')
+        self.test_config.set('neutron-plugin', 'ovs')
+        self.test_config.set('l2-population', True)
+        self.os_release.return_value = 'icehouse'
+        self.assertEquals(context.get_dvr(), False)
+
+    def test_get_dvr_gre(self):
+        self.test_config.set('enable-dvr', True)
+        self.test_config.set('enable-l3ha', False)
+        self.test_config.set('overlay-network-type', 'gre')
+        self.test_config.set('neutron-plugin', 'ovs')
+        self.test_config.set('l2-population', True)
+        self.os_release.return_value = 'juno'
+        self.assertEquals(context.get_dvr(), False)
+
+    def test_get_dvr_l3ha_on(self):
+        self.test_config.set('enable-dvr', True)
+        self.test_config.set('enable-l3ha', True)
+        self.test_config.set('overlay-network-type', 'vxlan')
+        self.test_config.set('neutron-plugin', 'ovs')
+        self.test_config.set('l2-population', False)
+        self.os_release.return_value = 'juno'
+        self.assertEquals(context.get_dvr(), False)
+
+    def test_get_dvr_l2pop(self):
+        self.test_config.set('enable-dvr', True)
+        self.test_config.set('enable-l3ha', False)
+        self.test_config.set('overlay-network-type', 'vxlan')
+        self.test_config.set('neutron-plugin', 'ovs')
+        self.test_config.set('l2-population', False)
+        self.os_release.return_value = 'juno'
+        self.assertEquals(context.get_dvr(), False)
 
 
 class IdentityServiceContext(CharmTestCase):
@@ -153,6 +269,7 @@ class NeutronCCContextTest(CharmTestCase):
         ctxt_data = {
             'debug': True,
             'enable_dvr': False,
+            'l3_ha': False,
             'external_network': 'bob',
             'neutron_bind_port': self.api_port,
             'verbose': True,
@@ -172,11 +289,38 @@ class NeutronCCContextTest(CharmTestCase):
         ctxt_data = {
             'debug': True,
             'enable_dvr': False,
+            'l3_ha': False,
             'external_network': 'bob',
             'neutron_bind_port': self.api_port,
             'verbose': True,
             'l2_population': True,
             'overlay_network_type': 'vxlan',
+        }
+        napi_ctxt = context.NeutronCCContext()
+        with patch.object(napi_ctxt, '_ensure_packages'):
+            self.assertEquals(ctxt_data, napi_ctxt())
+
+    @patch.object(context.NeutronCCContext, 'network_manager')
+    @patch.object(context.NeutronCCContext, 'plugin')
+    @patch('__builtin__.__import__')
+    def test_neutroncc_context_l3ha(self, _import, plugin, nm):
+        plugin.return_value = None
+        self.test_config.set('enable-l3ha', True)
+        self.test_config.set('overlay-network-type', 'gre')
+        self.test_config.set('neutron-plugin', 'ovs')
+        self.test_config.set('l2-population', False)
+        self.os_release.return_value = 'juno'
+        ctxt_data = {
+            'debug': True,
+            'enable_dvr': False,
+            'l3_ha': True,
+            'external_network': 'bob',
+            'neutron_bind_port': self.api_port,
+            'verbose': True,
+            'l2_population': False,
+            'overlay_network_type': 'gre',
+            'max_l3_agents_per_router': 2,
+            'min_l3_agents_per_router': 2,
         }
         napi_ctxt = context.NeutronCCContext()
         with patch.object(napi_ctxt, '_ensure_packages'):

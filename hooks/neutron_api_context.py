@@ -42,7 +42,8 @@ def get_l3ha():
         return True
     else:
         return False
-    
+
+
 def get_dvr():
     if config('enable-dvr'):
         if os_release('neutron-server') < 'juno':
@@ -52,11 +53,11 @@ def get_dvr():
             log('Disabling DVR, enable-dvr requires the use of the vxlan'
                 'overlay network')
             return False
-        if not get_l2population():
-            log('Disabling DVR, l2-population must be enabled to use dvr')
-            return False
         if get_l3ha():
             log('Disabling DVR, enable-l3ha must be disabled with dvr')
+            return False
+        if not get_l2population():
+            log('Disabling DVR, l2-population must be enabled to use dvr')
             return False
         return True
     else:
