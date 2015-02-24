@@ -380,7 +380,7 @@ def ha_changed():
 
 
 @hooks.hook('zeromq-configuration-relation-joined')
-@os_requires_version('juno', 'ceilometer-agent-central')
+@os_requires_version('juno', 'neutron-server')
 def zeromq_configuration_relation_joined(relid=None):
     relation_set(relation_id=relid,
                  topics=" ".join(get_topics()),
