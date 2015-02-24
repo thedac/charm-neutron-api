@@ -33,9 +33,6 @@ from charmhelpers.contrib.openstack.utils import (
     openstack_upgrade_available,
     sync_db_with_multi_ipv6_addresses
 )
-from charmhelpers.contrib.openstack.neutron import (
-    neutron_plugin_attribute,
-)
 
 from neutron_api_utils import (
     NEUTRON_CONF,
@@ -104,7 +101,8 @@ def install():
     execd_preinstall()
     configure_installation_source(config('openstack-origin'))
     apt_update()
-    apt_install(determine_packages(), fatal=True)
+    apt_install(determine_packages(config('openstack-origin')),
+                fatal=True)
     [open_port(port) for port in determine_ports()]
 
 
@@ -112,7 +110,8 @@ def install():
 @hooks.hook('config-changed')
 @restart_on_change(restart_map(), stopstart=True)
 def config_changed():
-    apt_install(filter_installed_packages(determine_packages()),
+    apt_install(filter_installed_packages(
+                determine_packages(config('openstack-origin'))),
                 fatal=True)
     if config('prefer-ipv6'):
         setup_ipv6()
@@ -195,9 +194,7 @@ def db_changed():
 @hooks.hook('pgsql-db-relation-changed')
 @restart_on_change(restart_map())
 def postgresql_neutron_db_changed():
-    plugin = config('neutron-plugin')
-    # DB config might have been moved to main neutron.conf in H?
-    CONFIGS.write(neutron_plugin_attribute(plugin, 'config'))
+    CONFIGS.write(NEUTRON_CONF)
 
 
 @hooks.hook('amqp-relation-broken',
