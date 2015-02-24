@@ -38,7 +38,6 @@ TO_PATCH = [
     'get_overlay_network_type',
     'is_relation_made',
     'log',
-    'neutron_plugin_attribute',
     'open_port',
     'openstack_upgrade_available',
     'os_release',
@@ -318,6 +317,38 @@ class NeutronAPIHooksTests(CharmTestCase):
             },
             'resource_params': {
                 'res_neutron_eth0_vip': vip_params,
+                'res_neutron_haproxy': 'op monitor interval="5s"'
+            },
+            'clones': {'cl_nova_haproxy': 'res_neutron_haproxy'}
+        }
+        self._call_hook('ha-relation-joined')
+        self.relation_set.assert_called_with(
+            **_relation_data
+        )
+
+    @patch.object(hooks, 'get_hacluster_config')
+    def test_ha_joined_no_bound_ip(self, _get_ha_config):
+        _ha_config = {
+            'vip': '10.0.0.1',
+            'ha-bindiface': 'eth1',
+            'ha-mcastport': '5405',
+        }
+        vip_params = 'params ip="10.0.0.1" cidr_netmask="21" nic="eth120"'
+        _get_ha_config.return_value = _ha_config
+        self.test_config.set('vip_iface', 'eth120')
+        self.test_config.set('vip_cidr', '21')
+        self.get_iface_for_address.return_value = None
+        self.get_netmask_for_address.return_value = None
+        _relation_data = {
+            'init_services': {'res_neutron_haproxy': 'haproxy'},
+            'corosync_bindiface': _ha_config['ha-bindiface'],
+            'corosync_mcastport': _ha_config['ha-mcastport'],
+            'resources': {
+                'res_neutron_eth120_vip': 'ocf:heartbeat:IPaddr2',
+                'res_neutron_haproxy': 'lsb:haproxy'
+            },
+            'resource_params': {
+                'res_neutron_eth120_vip': vip_params,
                 'res_neutron_haproxy': 'op monitor interval="5s"'
             },
             'clones': {'cl_nova_haproxy': 'res_neutron_haproxy'}
