@@ -67,6 +67,10 @@ options:
         gre
         vxlan 
       .
+  neutron-plugin-ppa-key:
+    type: string
+    default:
+    description: Optional PPA key to Neutron Plugin containing Debian packages.
   neutron-plugin-repository-url:
     type: string
     default:

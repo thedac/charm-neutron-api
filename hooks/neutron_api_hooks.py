@@ -109,8 +109,11 @@ def install():
 
     if config('neutron-plugin') == 'vsp':
         source = config('neutron-plugin-repository-url')
-        if source is not None and source.startswith('deb'):
-            add_source(config('neutron-plugin-repository-url'))
+        if source is not None:
+            key = None
+            if config('neutron-plugin-ppa-key') is not None:
+                key = config('neutron-plugin-ppa-key')
+            add_source(config('neutron-plugin-repository-url'), key)
             packages += config('vsp-packages').split()
         _config = config()
         if config('vsd-server'):
