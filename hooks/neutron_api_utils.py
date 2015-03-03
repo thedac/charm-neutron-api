@@ -244,6 +244,7 @@ def setup_ipv6():
         apt_update()
         apt_install('haproxy/trusty-backports', fatal=True)
 
+
 def dvr_router_present():
     ''' Check For dvr enabled routers '''
     env = neutron_api_context.IdentityServiceContext()()

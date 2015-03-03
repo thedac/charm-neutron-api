@@ -32,6 +32,7 @@ TO_PATCH = [
     'determine_packages',
     'determine_ports',
     'do_openstack_upgrade',
+    'dvr_router_present',
     'execd_preinstall',
     'filter_installed_packages',
     'get_dvr',
@@ -95,6 +96,7 @@ class NeutronAPIHooksTests(CharmTestCase):
     @patch.object(hooks, 'configure_https')
     def test_config_changed(self, conf_https):
         self.openstack_upgrade_available.return_value = True
+        self.dvr_router_present.return_value = False
         self.relation_ids.side_effect = self._fake_relids
         _n_api_rel_joined = self.patch('neutron_api_relation_joined')
         _n_plugin_api_rel_joined =\
