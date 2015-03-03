@@ -2,6 +2,7 @@ from collections import OrderedDict
 from copy import deepcopy
 import os
 from base64 import b64encode
+from neutronclient.v2_0 import client
 from charmhelpers.contrib.openstack import context, templating
 from charmhelpers.contrib.openstack.neutron import (
     neutron_plugin_attribute,
@@ -242,3 +243,21 @@ def setup_ipv6():
                    ' main')
         apt_update()
         apt_install('haproxy/trusty-backports', fatal=True)
+
+def dvr_router_present():
+    ''' Check For dvr enabled routers '''
+    env = neutron_api_context.IdentityServiceContext()()
+    if not env:
+        log('Unable to check resources at this time')
+        return
+
+    auth_url = '%(auth_protocol)s://%(auth_host)s:%(auth_port)s/v2.0' % env
+    neutron_client = client.Client(username=env['admin_user'],
+                                   password=env['admin_password'],
+                                   tenant_name=env['admin_tenant_name'],
+                                   auth_url=auth_url,
+                                   region_name=env['region'])
+    for router in neutron_client.list_routers()['routers']:
+        if router['distributed']:
+            return True
+    return False
