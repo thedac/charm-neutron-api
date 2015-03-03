@@ -40,6 +40,7 @@ from neutron_api_utils import (
     determine_packages,
     determine_ports,
     do_openstack_upgrade,
+    dvr_router_present,
     register_configs,
     restart_map,
     services,
@@ -112,6 +113,11 @@ def install():
 @hooks.hook('config-changed')
 @restart_on_change(restart_map(), stopstart=True)
 def config_changed():
+    if dvr_router_present() and not get_dvr():
+        e = ('Cannot disable dvr while dvr enabled routers exist. Please'
+             ' remove any distributed routers')
+        log(e, level=ERROR)
+        raise Exception(e)
     apt_install(filter_installed_packages(
                 determine_packages(config('openstack-origin'))),
                 fatal=True)
