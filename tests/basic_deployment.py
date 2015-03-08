@@ -65,11 +65,17 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
 
     def _configure_services(self):
         """Configure all of the services."""
+        # NOTE(coreycb): Added the following temporarily to test deploy from source
+        neutron_api_config = {'openstack-origin-git':
+                              "{'neutron':"
+                              "   {'repository': 'git://git.openstack.org/openstack/neutron.git',"
+                              "    'branch': 'stable/icehouse'}}"}
         keystone_config = {'admin-password': 'openstack',
                            'admin-token': 'ubuntutesting'}
         nova_cc_config = {'network-manager': 'Quantum',
                           'quantum-security-groups': 'yes'}
-        configs = {'keystone': keystone_config,
+        configs = {'neutron-api': neutron_api_config,
+                   'keystone': keystone_config,
                    'nova-cloud-controller': nova_cc_config}
         super(NeutronAPIBasicDeployment, self)._configure_services(configs)
 
