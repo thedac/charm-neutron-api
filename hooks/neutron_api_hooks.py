@@ -30,6 +30,7 @@ from charmhelpers.fetch import (
 
 from charmhelpers.contrib.openstack.utils import (
     configure_installation_source,
+    git_install_requested,
     openstack_upgrade_available,
     sync_db_with_multi_ipv6_addresses
 )
@@ -40,6 +41,7 @@ from neutron_api_utils import (
     determine_packages,
     determine_ports,
     do_openstack_upgrade,
+    git_install,
     register_configs,
     restart_map,
     services,
@@ -103,6 +105,14 @@ def install():
     apt_update()
     apt_install(determine_packages(config('openstack-origin')),
                 fatal=True)
+
+    # NOTE(coreycb): This is temporary for sstack proxy, unless we decide
+    # we need to code proxy support into the charms.
+    os.environ["http_proxy"] = "http://squid.internal:3128"
+    os.environ["https_proxy"] = "https://squid.internal:3128"
+
+    git_install(config('openstack-origin-git'))
+
     [open_port(port) for port in determine_ports()]
 
 
@@ -119,8 +129,9 @@ def config_changed():
                                           config('database-user'))
 
     global CONFIGS
-    if openstack_upgrade_available('neutron-server'):
-        do_openstack_upgrade(CONFIGS)
+    if not git_install_requested():
+        if openstack_upgrade_available('neutron-server'):
+            do_openstack_upgrade(CONFIGS)
     configure_https()
     update_nrpe_config()
     CONFIGS.write_all()
@@ -133,6 +144,12 @@ def config_changed():
     for r_id in relation_ids('identity-service'):
         identity_joined(rid=r_id)
     [cluster_joined(rid) for rid in relation_ids('cluster')]
+
+
+#TODO(coreycb): For deploy from git support, need to implement action-set
+#               and action-get to trigger re-install of git-installed
+#               services.  IIUC they'd be triggered via:
+#               juju do <action> <parameters>
 
 
 @hooks.hook('amqp-relation-joined')
