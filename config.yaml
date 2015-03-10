@@ -67,7 +67,6 @@ options:
       .
         gre
         vxlan 
->>>>>>> MERGE-SOURCE
       .
   # HA configuration settings
   vip:

@@ -275,7 +275,7 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.unit_get.return_value = '172.18.18.18'
         _relation_data = {
             'neutron-security-groups': False,
-            'addr': '172.18.18.18'
+            'addr': '172.18.18.18',
             'l2-population': False,
             'overlay-network-type': 'vxlan',
         }

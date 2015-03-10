@@ -43,7 +43,7 @@ from neutron_api_utils import (
     register_configs,
     restart_map,
     services,
-    setup_ipv6
+    setup_ipv6,
     additional_install_locations
 )
 from neutron_api_context import (
