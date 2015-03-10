@@ -17,12 +17,18 @@ from charmhelpers.core.hookenv import (
     config,
     log,
 )
+
 from charmhelpers.fetch import (
     apt_update,
     apt_install,
     apt_upgrade,
     add_source
 )
+
+from charmhelpers.core.host import (
+    lsb_release
+)
+
 import neutron_api_context
 
 TEMPLATES = 'templates/'
@@ -36,7 +42,14 @@ BASE_PACKAGES = [
     'python-keystoneclient',
     'python-mysqldb',
     'python-psycopg2',
+    'python-six',
     'uuid',
+]
+
+KILO_PACKAGES = [
+    'python-neutron-lbaas',
+    'python-neutron-fwaas',
+    'python-neutron-vpnaas',
 ]
 
 BASE_SERVICES = [
@@ -66,7 +79,9 @@ BASE_RESOURCE_MAP = OrderedDict([
                      context.PostgresqlDBContext(database=config('database')),
                      neutron_api_context.IdentityServiceContext(),
                      neutron_api_context.NeutronCCContext(),
-                     context.SyslogContext()],
+                     context.SyslogContext(),
+                     context.BindHostContext(),
+                     context.WorkerConfigContext()],
     }),
     (NEUTRON_DEFAULT, {
         'services': ['neutron-server'],
@@ -81,7 +96,7 @@ BASE_RESOURCE_MAP = OrderedDict([
         'services': ['apache2'],
     }),
     (HAPROXY_CONF, {
-        'contexts': [context.HAProxyContext(),
+        'contexts': [context.HAProxyContext(singlenode_mode=True),
                      neutron_api_context.HAProxyContext()],
         'services': ['haproxy'],
     }),
@@ -112,7 +127,7 @@ def additional_install_locations(plugin):
     return
 
 
-def determine_packages():
+def determine_packages(source=None):
     # currently all packages match service names
     packages = [] + BASE_PACKAGES
     for v in resource_map().values():
@@ -121,6 +136,8 @@ def determine_packages():
                                         'server_packages',
                                         'neutron')
         packages.extend(pkgs)
+    if get_os_codename_install_source(source) >= 'kilo':
+        packages.extend(KILO_PACKAGES)
     return list(set(packages))
 
 
@@ -170,7 +187,7 @@ def resource_map():
 
 
 def register_configs(release=None):
-    release = release or os_release('nova-common')
+    release = release or os_release('neutron-server')
     configs = templating.OSConfigRenderer(templates_dir=TEMPLATES,
                                           openstack_release=release)
     for cfg, rscs in resource_map().iteritems():
@@ -182,6 +199,14 @@ def restart_map():
     return OrderedDict([(cfg, v['services'])
                         for cfg, v in resource_map().iteritems()
                         if v['services']])
+
+
+def services():
+    ''' Returns a list of services associate with this charm '''
+    _services = []
+    for v in restart_map().values():
+        _services = _services + v
+    return list(set(_services))
 
 
 def keystone_ca_cert_b64():
@@ -212,7 +237,7 @@ def do_openstack_upgrade(configs):
     ]
     apt_update(fatal=True)
     apt_upgrade(options=dpkg_opts, fatal=True, dist=True)
-    pkgs = determine_packages()
+    pkgs = determine_packages(new_os_rel)
     # Sort packages just to make unit tests easier
     pkgs.sort()
     apt_install(packages=pkgs,
@@ -221,3 +246,19 @@ def do_openstack_upgrade(configs):
 
     # set CONFIGS to load templates from new release
     configs.set_release(openstack_release=new_os_rel)
+
+
+def setup_ipv6():
+    ubuntu_rel = lsb_release()['DISTRIB_CODENAME'].lower()
+    if ubuntu_rel < "trusty":
+        raise Exception("IPv6 is not supported in the charms for Ubuntu "
+                        "versions less than Trusty 14.04")
+
+    # NOTE(xianghui): Need to install haproxy(1.5.3) from trusty-backports
+    # to support ipv6 address, so check is required to make sure not
+    # breaking other versions, IPv6 only support for >= Trusty
+    if ubuntu_rel == 'trusty':
+        add_source('deb http://archive.ubuntu.com/ubuntu trusty-backports'
+                   ' main')
+        apt_update()
+        apt_install('haproxy/trusty-backports', fatal=True)
