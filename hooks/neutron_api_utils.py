@@ -115,7 +115,7 @@ def additional_install_locations(plugin):
     '''
     if plugin == 'Calico':
         if config('calico-origin') == 'default':
-            calico_source = 'ppa:cory-benfield/project-calico'
+            calico_source = 'ppa:project-calico/icehouse'
         else:
             calico_source = config('calico-origin')
 
