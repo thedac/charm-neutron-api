@@ -98,6 +98,19 @@ class NeutronCCContext(context.NeutronContext):
         ctxt['neutron_bind_port'] = \
             determine_api_port(api_port('neutron-server'),
                                singlenode_mode=True)
+        ctxt['quota_security_group'] = config('quota-security-group')
+        ctxt['quota_security_group_rule'] = \
+            config('quota-security-group-rule')
+        ctxt['quota_network'] = config('quota-network')
+        ctxt['quota_subnet'] = config('quota-subnet')
+        ctxt['quota_port'] = config('quota-port')
+        ctxt['quota_vip'] = config('quota-vip')
+        ctxt['quota_pool'] = config('quota-pool')
+        ctxt['quota_member'] = config('quota-member')
+        ctxt['quota_health_monitors'] = config('quota-health-monitors')
+        ctxt['quota_router'] = config('quota-router')
+        ctxt['quota_floatingip'] = config('quota-floatingip')
+
         for rid in relation_ids('neutron-api'):
             for unit in related_units(rid):
                 rdata = relation_get(rid=rid, unit=unit)

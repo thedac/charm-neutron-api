@@ -77,7 +77,9 @@ BASE_RESOURCE_MAP = OrderedDict([
                          database=config('database'),
                          ssl_dir=NEUTRON_CONF_DIR),
                      context.PostgresqlDBContext(database=config('database')),
-                     neutron_api_context.IdentityServiceContext(),
+                     neutron_api_context.IdentityServiceContext(
+                         service='neutron',
+                         service_user='neutron'),
                      neutron_api_context.NeutronCCContext(),
                      context.SyslogContext(),
                      context.ZeroMQContext(),
