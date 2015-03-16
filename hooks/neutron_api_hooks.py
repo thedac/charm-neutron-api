@@ -31,7 +31,6 @@ from charmhelpers.fetch import (
 from charmhelpers.contrib.openstack.utils import (
     configure_installation_source,
     openstack_upgrade_available,
-    os_release,
     os_requires_version,
     sync_db_with_multi_ipv6_addresses
 )
