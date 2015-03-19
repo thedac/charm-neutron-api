@@ -48,6 +48,13 @@ options:
     type: string
     default: ext_net
     description: Name of the external network for floating IP addresses provided by Neutron.
+  network-device-mtu:
+    type: int
+    default:
+    description: |
+      The MTU size for interfaces managed by neutron. If unset or set to
+      0, no value will be applied. This value will be provided to
+      neutron-plugin-api relations.
   neutron-plugin:
     default: ovs
     type: string
