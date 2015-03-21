@@ -19,10 +19,12 @@ u = OpenStackAmuletUtils(ERROR)
 class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
     """Amulet tests on a basic neutron-api deployment."""
 
-    def __init__(self, series, openstack=None, source=None, stable=False):
+    def __init__(self, series, openstack=None, source=None, git=False,
+                 stable=False):
         """Deploy the entire test environment."""
         super(NeutronAPIBasicDeployment, self).__init__(series, openstack,
                                                         source, stable)
+        self.git = git
         self._add_services()
         self._add_relations()
         self._configure_services()
@@ -65,11 +67,21 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
 
     def _configure_services(self):
         """Configure all of the services."""
-        # NOTE(coreycb): Added the following temporarily to test deploy from source
-        neutron_api_config = {'openstack-origin-git':
-                              "{'neutron':"
-                              "   {'repository': 'git://git.openstack.org/openstack/neutron.git',"
-                              "    'branch': 'stable/icehouse'}}"}
+        neutron_api_config = {}
+        if self.git:
+            branch = 'stable/' + self._get_openstack_release_string()
+            openstack_origin_git = {
+                'repositories': [
+                    {'name': 'requirements',
+                     'repository': 'git://git.openstack.org/openstack/requirements',
+                     'branch': branch},
+                    {'name': 'neutron',
+                     'repository': 'git://git.openstack.org/openstack/neutron',
+                     'branch': branch},
+                ],
+                'directory': '/mnt/openstack-git',
+            }
+            neutron_api_config['openstack-origin-git'] = yaml.dump(openstack_origin_git)
         keystone_config = {'admin-password': 'openstack',
                            'admin-token': 'ubuntutesting'}
         nova_cc_config = {'network-manager': 'Quantum',

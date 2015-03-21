@@ -14,6 +14,7 @@ from charmhelpers.contrib.openstack.utils import (
     get_os_codename_install_source,
     git_install_requested,
     git_clone_and_install,
+    git_src_dir,
     configure_installation_source,
 )
 
@@ -286,16 +287,12 @@ def setup_ipv6():
         apt_install('haproxy/trusty-backports', fatal=True)
 
 
-def git_install(projects):
+def git_install(projects_yaml):
     """Perform setup, and install git repos specified in yaml parameter."""
     if git_install_requested():
         git_pre_install()
-        # NOTE(coreycb): charm-helpers needs support to take array of
-        # core_projects. That would allow all neutron* projects to be
-        # installed last.
-        core = ['neutron-fwaas', 'neutron-lbaas', 'neutron-vpnaas', 'neutron']
-        git_clone_and_install(yaml.load(projects), core_projects=core)
-        git_post_install()
+        git_clone_and_install(projects_yaml, core_project='neutron')
+        git_post_install(projects_yaml)
 
 
 def git_pre_install():
@@ -324,9 +321,9 @@ def git_pre_install():
         write_file(l, '', owner='neutron', group='neutron', perms=0600)
 
 
-def git_post_install():
+def git_post_install(projects_yaml):
     """Perform post-install setup."""
-    src_etc = os.path.join(charm_dir(), '/mnt/openstack-git/neutron-api.git/etc')
+    src_etc = os.path.join(git_src_dir(projects_yaml, 'neutron'), 'etc')
     configs = {
         'api-paste': {
             'src': os.path.join(src_etc, 'api-paste.ini'),
@@ -358,6 +355,7 @@ def git_post_install():
         'process_name': 'neutron-server',
     }
 
+    # NOTE(coreycb): Needs systemd support
     render('upstart/neutron-server.upstart', '/etc/init/neutron.conf',
            neutron_api_context, perms=0o644)
 
