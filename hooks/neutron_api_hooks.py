@@ -29,6 +29,7 @@ from charmhelpers.fetch import (
 )
 
 from charmhelpers.contrib.openstack.utils import (
+    config_value_changed,
     configure_installation_source,
     git_install_requested,
     openstack_upgrade_available,
@@ -106,8 +107,7 @@ def install():
     apt_install(determine_packages(config('openstack-origin')),
                 fatal=True)
 
-    # NOTE(coreycb): This is temporary for sstack proxy, unless we decide
-    # we need to code proxy support into the charms.
+    # NOTE(coreycb): This is temporary until bug #1431286 is fixed.
     os.environ["http_proxy"] = "http://squid.internal:3128"
     os.environ["https_proxy"] = "https://squid.internal:3128"
 
@@ -129,7 +129,10 @@ def config_changed():
                                           config('database-user'))
 
     global CONFIGS
-    if not git_install_requested():
+    if git_install_requested():
+        if config_value_changed('openstack-origin-git'):
+            git_install(config('openstack-origin-git'))
+    else:
         if openstack_upgrade_available('neutron-server'):
             do_openstack_upgrade(CONFIGS)
     configure_https()
