@@ -290,6 +290,13 @@ def neutron_plugin_api_relation_joined(rid=None):
             'enable-l3ha': get_l3ha(),
             'overlay-network-type': get_overlay_network_type(),
         }
+
+        # Provide this value to relations since it needs to be set in multiple
+        # places e.g. neutron.conf, nova.conf
+        net_dev_mtu = config('network-device-mtu')
+        if net_dev_mtu:
+            relation_data['network-device-mtu'] = net_dev_mtu
+
     relation_set(relation_id=rid, **relation_data)
 
 
@@ -392,7 +399,9 @@ def update_nrpe_config():
     hostname = nrpe.get_nagios_hostname()
     current_unit = nrpe.get_nagios_unit_name()
     nrpe_setup = nrpe.NRPE(hostname=hostname)
+    nrpe.copy_nrpe_checks()
     nrpe.add_init_service_checks(nrpe_setup, services(), current_unit)
+    nrpe.add_haproxy_checks(nrpe_setup, current_unit)
     nrpe_setup.write()
 
 
