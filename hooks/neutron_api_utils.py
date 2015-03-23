@@ -2,7 +2,6 @@ from collections import OrderedDict
 from copy import deepcopy
 import os
 from base64 import b64encode
-from neutronclient.v2_0 import client
 from charmhelpers.contrib.openstack import context, templating
 from charmhelpers.contrib.openstack.neutron import (
     neutron_plugin_attribute,
@@ -253,6 +252,8 @@ def dvr_router_present():
         return
 
     auth_url = '%(auth_protocol)s://%(auth_host)s:%(auth_port)s/v2.0' % env
+    # Late import to avoid install hook failures when pkg hasnt been installed
+    from neutronclient.v2_0 import client
     neutron_client = client.Client(username=env['admin_user'],
                                    password=env['admin_password'],
                                    tenant_name=env['admin_tenant_name'],
