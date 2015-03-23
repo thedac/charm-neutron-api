@@ -16,11 +16,13 @@
 
 import json
 import os
+import re
 import time
 from base64 import b64decode
 from subprocess import check_call
 
 import six
+import yaml
 
 from charmhelpers.fetch import (
     apt_install,
@@ -47,6 +49,8 @@ from charmhelpers.core.hookenv import (
 from charmhelpers.core.sysctl import create as sysctl_create
 
 from charmhelpers.core.host import (
+    list_nics,
+    get_nic_hwaddr,
     mkdir,
     write_file,
 )
@@ -64,12 +68,18 @@ from charmhelpers.contrib.hahelpers.apache import (
 from charmhelpers.contrib.openstack.neutron import (
     neutron_plugin_attribute,
 )
+from charmhelpers.contrib.openstack.ip import (
+    resolve_address,
+    INTERNAL,
+)
 from charmhelpers.contrib.network.ip import (
     get_address_in_network,
+    get_ipv4_addr,
     get_ipv6_addr,
     get_netmask_for_address,
     format_ipv6_addr,
     is_address_in_network,
+    is_bridge_member,
 )
 from charmhelpers.contrib.openstack.utils import get_host_ip
 
@@ -104,9 +114,41 @@ def context_complete(ctxt):
 def config_flags_parser(config_flags):
     """Parses config flags string into dict.
 
+    This parsing method supports a few different formats for the config
+    flag values to be parsed:
+
+      1. A string in the simple format of key=value pairs, with the possibility
+         of specifying multiple key value pairs within the same string. For
+         example, a string in the format of 'key1=value1, key2=value2' will
+         return a dict of:
+         {'key1': 'value1',
+          'key2': 'value2'}.
+
+      2. A string in the above format, but supporting a comma-delimited list
+         of values for the same key. For example, a string in the format of
+         'key1=value1, key2=value3,value4,value5' will return a dict of:
+         {'key1', 'value1',
+          'key2', 'value2,value3,value4'}
+
+      3. A string containing a colon character (:) prior to an equal
+         character (=) will be treated as yaml and parsed as such. This can be
+         used to specify more complex key value pairs. For example,
+         a string in the format of 'key1: subkey1=value1, subkey2=value2' will
+         return a dict of:
+         {'key1', 'subkey1=value1, subkey2=value2'}
+
     The provided config_flags string may be a list of comma-separated values
     which themselves may be comma-separated list of values.
     """
+    # If we find a colon before an equals sign then treat it as yaml.
+    # Note: limit it to finding the colon first since this indicates assignment
+    # for inline yaml.
+    colon = config_flags.find(':')
+    equals = config_flags.find('=')
+    if colon > 0:
+        if colon < equals or equals < 0:
+            return yaml.safe_load(config_flags)
+
     if config_flags.find('==') >= 0:
         log("config_flags is not in expected format (key=value)", level=ERROR)
         raise OSContextError
@@ -191,7 +233,7 @@ class SharedDBContext(OSContextGenerator):
                                         unit=local_unit())
             if set_hostname != access_hostname:
                 relation_set(relation_settings={hostname_key: access_hostname})
-                return ctxt  # Defer any further hook execution for now....
+                return None  # Defer any further hook execution for now....
 
         password_setting = 'password'
         if self.relation_prefix:
@@ -279,9 +321,25 @@ def db_ssl(rdata, ctxt, ssl_dir):
 class IdentityServiceContext(OSContextGenerator):
     interfaces = ['identity-service']
 
+    def __init__(self, service=None, service_user=None):
+        self.service = service
+        self.service_user = service_user
+
     def __call__(self):
         log('Generating template context for identity-service', level=DEBUG)
         ctxt = {}
+
+        if self.service and self.service_user:
+            # This is required for pki token signing if we don't want /tmp to
+            # be used.
+            cachedir = '/var/cache/%s' % (self.service)
+            if not os.path.isdir(cachedir):
+                log("Creating service cache dir %s" % (cachedir), level=DEBUG)
+                mkdir(path=cachedir, owner=self.service_user,
+                      group=self.service_user, perms=0o700)
+
+            ctxt['signing_dir'] = cachedir
+
         for rid in relation_ids('identity-service'):
             for unit in related_units(rid):
                 rdata = relation_get(rid=rid, unit=unit)
@@ -291,15 +349,16 @@ class IdentityServiceContext(OSContextGenerator):
                 auth_host = format_ipv6_addr(auth_host) or auth_host
                 svc_protocol = rdata.get('service_protocol') or 'http'
                 auth_protocol = rdata.get('auth_protocol') or 'http'
-                ctxt = {'service_port': rdata.get('service_port'),
-                        'service_host': serv_host,
-                        'auth_host': auth_host,
-                        'auth_port': rdata.get('auth_port'),
-                        'admin_tenant_name': rdata.get('service_tenant'),
-                        'admin_user': rdata.get('service_username'),
-                        'admin_password': rdata.get('service_password'),
-                        'service_protocol': svc_protocol,
-                        'auth_protocol': auth_protocol}
+                ctxt.update({'service_port': rdata.get('service_port'),
+                             'service_host': serv_host,
+                             'auth_host': auth_host,
+                             'auth_port': rdata.get('auth_port'),
+                             'admin_tenant_name': rdata.get('service_tenant'),
+                             'admin_user': rdata.get('service_username'),
+                             'admin_password': rdata.get('service_password'),
+                             'service_protocol': svc_protocol,
+                             'auth_protocol': auth_protocol})
+
                 if context_complete(ctxt):
                     # NOTE(jamespage) this is required for >= icehouse
                     # so a missing value just indicates keystone needs
@@ -677,7 +736,14 @@ class ApacheSSLContext(OSContextGenerator):
                 'endpoints': [],
                 'ext_ports': []}
 
-        for cn in self.canonical_names():
+        cns = self.canonical_names()
+        if cns:
+            for cn in cns:
+                self.configure_cert(cn)
+        else:
+            # Expect cert/key provided in config (currently assumed that ca
+            # uses ip for cn)
+            cn = resolve_address(endpoint_type=INTERNAL)
             self.configure_cert(cn)
 
         addresses = self.get_network_addresses()
@@ -831,6 +897,48 @@ class NeutronContext(OSContextGenerator):
 
         self._save_flag_file()
         return ctxt
+
+
+class NeutronPortContext(OSContextGenerator):
+    NIC_PREFIXES = ['eth', 'bond']
+
+    def resolve_ports(self, ports):
+        """Resolve NICs not yet bound to bridge(s)
+
+        If hwaddress provided then returns resolved hwaddress otherwise NIC.
+        """
+        if not ports:
+            return None
+
+        hwaddr_to_nic = {}
+        hwaddr_to_ip = {}
+        for nic in list_nics(self.NIC_PREFIXES):
+            hwaddr = get_nic_hwaddr(nic)
+            hwaddr_to_nic[hwaddr] = nic
+            addresses = get_ipv4_addr(nic, fatal=False)
+            addresses += get_ipv6_addr(iface=nic, fatal=False)
+            hwaddr_to_ip[hwaddr] = addresses
+
+        resolved = []
+        mac_regex = re.compile(r'([0-9A-F]{2}[:-]){5}([0-9A-F]{2})', re.I)
+        for entry in ports:
+            if re.match(mac_regex, entry):
+                # NIC is in known NICs and does NOT hace an IP address
+                if entry in hwaddr_to_nic and not hwaddr_to_ip[entry]:
+                    # If the nic is part of a bridge then don't use it
+                    if is_bridge_member(hwaddr_to_nic[entry]):
+                        continue
+
+                    # Entry is a MAC address for a valid interface that doesn't
+                    # have an IP address assigned yet.
+                    resolved.append(hwaddr_to_nic[entry])
+            else:
+                # If the passed entry is not a MAC address, assume it's a valid
+                # interface, and that the user put it there on purpose (we can
+                # trust it to be the real external network).
+                resolved.append(entry)
+
+        return resolved
 
 
 class OSConfigFlagContext(OSContextGenerator):
@@ -1021,6 +1129,8 @@ class ZeroMQContext(OSContextGenerator):
                     for unit in related_units(rid):
                         ctxt['zmq_nonce'] = relation_get('nonce', unit, rid)
                         ctxt['zmq_host'] = relation_get('host', unit, rid)
+                        ctxt['zmq_redis_address'] = relation_get(
+                            'zmq_redis_address', unit, rid)
 
         return ctxt
 
