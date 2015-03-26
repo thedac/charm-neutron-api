@@ -293,7 +293,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
                 'nova_admin_auth_url': nova_auth_url,
             },
             'keystone_authtoken': {
-                'signing_dir': '/var/lib/neutron/keystone-signing',
+                'signing_dir': '/var/cache/neutron',
                 'service_protocol': ks_rel['service_protocol'],
                 'service_host': ks_rel['service_host'],
                 'service_port': ks_rel['service_port'],
