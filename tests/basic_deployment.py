@@ -178,7 +178,6 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
             'auth_host': id_ip,
             'auth_port': "35357",
             'auth_protocol': 'http',
-            'https_keystone': "False",
             'private-address': id_ip,
             'service_host': id_ip,
         }
