@@ -48,6 +48,13 @@ options:
     type: string
     default: ext_net
     description: Name of the external network for floating IP addresses provided by Neutron.
+  network-device-mtu:
+    type: int
+    default:
+    description: |
+      The MTU size for interfaces managed by neutron. If unset or set to
+      0, no value will be applied. This value will be provided to
+      neutron-plugin-api relations.
   neutron-plugin:
     default: ovs
     type: string
@@ -66,6 +73,71 @@ options:
         gre
         vxlan 
       .
+  # Quota configuration settings
+  quota-security-group:
+    default: 10
+    type: int
+    description: |
+      Number of security groups allowed per tenant. A negative value means
+      unlimited.
+  quota-security-group-rule:
+    default: 100
+    type: int
+    description: |
+      Number of security group rules allowed per tenant. A negative value means
+      unlimited
+  quota-network:
+    default: 10
+    type: int
+    description: |
+      Number of networks allowed per tenant. A negative value means unlimited.
+  quota-subnet:
+    default: 10
+    type: int
+    description: |
+      Number of subnets allowed per tenant. A negative value means unlimited.
+  quota-port:
+    default: 50
+    type: int
+    description: |
+      Number of ports allowed per tenant. A negative value means unlimited.
+  quota-vip:
+    default: 10
+    type: int
+    description: |
+      Number of vips allowed per tenant. A negative value means unlimited.
+  quota-pool:
+    default: 10
+    type: int
+    description: |
+      Number of pools allowed per tenant. A negative value means unlimited.
+  quota-member:
+    default: -1
+    type: int
+    description: |
+      Number of pool members allowed per tenant. A negative value means unlimited.
+      The default is unlimited because a member is not a real resource consumer
+      on Openstack. However, on back-end, a member is a resource consumer
+      and that is the reason why quota is possible.
+  quota-health-monitors:
+    default: -1
+    type: int
+    description: |
+      Number of health monitors allowed per tenant. A negative value means
+      unlimited.
+      The default is unlimited because a health monitor is not a real resource
+      consumer on Openstack. However, on back-end, a member is a resource consumer
+      and that is the reason why quota is possible.
+  quota-router:
+    default: 10
+    type: int
+    description: |
+      Number of routers allowed per tenant. A negative value means unlimited.
+  quota-floatingip: 
+    default: 50
+    type: int
+    description: |
+      Number of floating IPs allowed per tenant. A negative value means unlimited.
   # HA configuration settings
   vip:
     type: string
