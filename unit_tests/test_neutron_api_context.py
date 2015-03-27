@@ -343,6 +343,17 @@ class NeutronCCContextTest(CharmTestCase):
             'overlay_network_type': 'gre',
             'max_l3_agents_per_router': 2,
             'min_l3_agents_per_router': 2,
+            'quota_floatingip': 50,
+            'quota_health_monitors': -1,
+            'quota_member': -1,
+            'quota_network': 10,
+            'quota_pool': 10,
+            'quota_port': 50,
+            'quota_router': 10,
+            'quota_security_group': 10,
+            'quota_security_group_rule': 100,
+            'quota_subnet': 10,
+            'quota_vip': 10,
         }
         napi_ctxt = context.NeutronCCContext()
         with patch.object(napi_ctxt, '_ensure_packages'):

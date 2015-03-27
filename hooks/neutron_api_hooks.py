@@ -2,7 +2,6 @@
 
 import sys
 import uuid
-
 from subprocess import check_call
 from charmhelpers.core.hookenv import (
     Hooks,
@@ -41,6 +40,7 @@ from neutron_api_utils import (
     determine_ports,
     do_openstack_upgrade,
     dvr_router_present,
+    l3ha_router_present,
     register_configs,
     restart_map,
     services,
@@ -113,6 +113,11 @@ def install():
 @hooks.hook('config-changed')
 @restart_on_change(restart_map(), stopstart=True)
 def config_changed():
+    if l3ha_router_present() and not get_l3ha():
+        e = ('Cannot disable Router HA while ha enabled routers exist. Please'
+             ' remove any ha routers')
+        log(e, level=ERROR)
+        raise Exception(e)
     if dvr_router_present() and not get_dvr():
         e = ('Cannot disable dvr while dvr enabled routers exist. Please'
              ' remove any distributed routers')
