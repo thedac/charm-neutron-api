@@ -33,6 +33,7 @@ TO_PATCH = [
     'determine_ports',
     'do_openstack_upgrade',
     'dvr_router_present',
+    'l3ha_router_present',
     'execd_preinstall',
     'filter_installed_packages',
     'get_dvr',
@@ -97,6 +98,7 @@ class NeutronAPIHooksTests(CharmTestCase):
     def test_config_changed(self, conf_https):
         self.openstack_upgrade_available.return_value = True
         self.dvr_router_present.return_value = False
+        self.l3ha_router_present.return_value = False
         self.relation_ids.side_effect = self._fake_relids
         _n_api_rel_joined = self.patch('neutron_api_relation_joined')
         _n_plugin_api_rel_joined =\
@@ -336,7 +338,11 @@ class NeutronAPIHooksTests(CharmTestCase):
             'l2-population': False,
             'overlay-network-type': 'vxlan',
             'network-device-mtu': 1500,
+            'enable-l3ha': True,
+            'enable-dvr': True,
         }
+        self.get_dvr.return_value = True
+        self.get_l3ha.return_value = True
         self.get_l2population.return_value = False
         self.get_overlay_network_type.return_value = 'vxlan'
         self._call_hook('neutron-plugin-api-relation-joined')
