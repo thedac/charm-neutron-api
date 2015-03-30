@@ -178,7 +178,6 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
             'auth_host': id_ip,
             'auth_port': "35357",
             'auth_protocol': 'http',
-            'https_keystone': "False",
             'private-address': id_ip,
             'service_host': id_ip,
         }
@@ -294,7 +293,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
                 'nova_admin_auth_url': nova_auth_url,
             },
             'keystone_authtoken': {
-                'signing_dir': '/var/lib/neutron/keystone-signing',
+                'signing_dir': '/var/cache/neutron',
                 'service_protocol': ks_rel['service_protocol'],
                 'service_host': ks_rel['service_host'],
                 'service_port': ks_rel['service_port'],

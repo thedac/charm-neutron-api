@@ -284,6 +284,13 @@ def neutron_plugin_api_relation_joined(rid=None):
             'l2-population': get_l2population(),
             'overlay-network-type': get_overlay_network_type(),
         }
+
+        # Provide this value to relations since it needs to be set in multiple
+        # places e.g. neutron.conf, nova.conf
+        net_dev_mtu = config('network-device-mtu')
+        if net_dev_mtu:
+            relation_data['network-device-mtu'] = net_dev_mtu
+
     relation_set(relation_id=rid, **relation_data)
 
 
