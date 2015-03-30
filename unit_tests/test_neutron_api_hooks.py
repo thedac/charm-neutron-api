@@ -40,7 +40,6 @@ TO_PATCH = [
     'log',
     'open_port',
     'openstack_upgrade_available',
-    'os_release',
     'os_requires_version',
     'relation_get',
     'relation_ids',
@@ -280,6 +279,22 @@ class NeutronAPIHooksTests(CharmTestCase):
             'neutron-security-groups': False,
             'l2-population': False,
             'overlay-network-type': 'vxlan',
+        }
+        self.get_l2population.return_value = False
+        self.get_overlay_network_type.return_value = 'vxlan'
+        self._call_hook('neutron-plugin-api-relation-joined')
+        self.relation_set.assert_called_with(
+            relation_id=None,
+            **_relation_data
+        )
+
+    def test_neutron_plugin_api_relation_joined_w_mtu(self):
+        self.test_config.set('network-device-mtu', 1500)
+        _relation_data = {
+            'neutron-security-groups': False,
+            'l2-population': False,
+            'overlay-network-type': 'vxlan',
+            'network-device-mtu': 1500,
         }
         self.get_l2population.return_value = False
         self.get_overlay_network_type.return_value = 'vxlan'
