@@ -223,10 +223,10 @@ options:
       If left empty, the nagios_context will be used as the servicegroup
   # Calico plugin configuration
   calico-origin:
-    default: default
+    default:
     type: string
     description: |
-      Repository from which to install Calico packages. May be one of the
-      following options: default, or ppa:somecustom/ppa. Note that this
+      Repository from which to install Calico packages. If set, must be
+      a PPA URL, of the form  ppa:somecustom/ppa. Note that this
       must be set before the 'install' hook runs.
   # End of Calico plugin configuration
