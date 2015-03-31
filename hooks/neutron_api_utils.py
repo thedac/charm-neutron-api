@@ -114,17 +114,15 @@ def additional_install_locations(plugin):
     package upgrade.
     '''
     if plugin == 'Calico':
-        if config('calico-origin') == 'default':
-            calico_source = 'ppa:project-calico/icehouse'
-        else:
+        calico_source = 'ppa:project-calico/icehouse'
+
+        if config('calico-origin'):
             calico_source = config('calico-origin')
 
         add_source(calico_source)
 
         apt_update()
         apt_upgrade()
-
-    return
 
 
 def determine_packages(source=None):
