@@ -55,7 +55,6 @@ from neutron_api_context import (
     get_l3ha,
     get_l2population,
     get_overlay_network_type,
-    IdentityServiceContext,
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
@@ -311,18 +310,6 @@ def neutron_plugin_api_relation_joined(rid=None):
         if net_dev_mtu:
             relation_data['network-device-mtu'] = net_dev_mtu
 
-    identity_ctxt = IdentityServiceContext()()
-    relation_data.update({
-        'auth_host': identity_ctxt.get('auth_host'),
-        'auth_port': identity_ctxt.get('auth_port'),
-        'service_protocol': identity_ctxt.get('service_protocol'),
-        'service_host': identity_ctxt.get('service_host'),
-        'service_port': identity_ctxt.get('service_port'),
-        'service_tenant': identity_ctxt.get('admin_tenant_name'),
-        'service_username': identity_ctxt.get('admin_user'),
-        'service_password': identity_ctxt.get('admin_password'),
-        'region': config('region'),
-    })
     relation_set(relation_id=rid, **relation_data)
 
 
