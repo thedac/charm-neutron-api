@@ -314,6 +314,9 @@ def neutron_plugin_api_relation_joined(rid=None):
             relation_data['network-device-mtu'] = net_dev_mtu
 
     identity_ctxt = IdentityServiceContext()()
+    if not identity_ctxt:
+        identity_ctxt = {}
+
     relation_data.update({
         'auth_host': identity_ctxt.get('auth_host'),
         'auth_port': identity_ctxt.get('auth_port'),
