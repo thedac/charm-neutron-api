@@ -32,8 +32,12 @@ TO_PATCH = [
     'determine_packages',
     'determine_ports',
     'do_openstack_upgrade',
+    'dvr_router_present',
+    'l3ha_router_present',
     'execd_preinstall',
     'filter_installed_packages',
+    'get_dvr',
+    'get_l3ha',
     'get_l2population',
     'get_overlay_network_type',
     'is_relation_made',
@@ -93,6 +97,8 @@ class NeutronAPIHooksTests(CharmTestCase):
     @patch.object(hooks, 'configure_https')
     def test_config_changed(self, conf_https):
         self.openstack_upgrade_available.return_value = True
+        self.dvr_router_present.return_value = False
+        self.l3ha_router_present.return_value = False
         self.relation_ids.side_effect = self._fake_relids
         _n_api_rel_joined = self.patch('neutron_api_relation_joined')
         _n_plugin_api_rel_joined =\
@@ -274,9 +280,49 @@ class NeutronAPIHooksTests(CharmTestCase):
     def test_neutron_plugin_api_relation_joined_nol2(self):
         _relation_data = {
             'neutron-security-groups': False,
+            'enable-dvr': False,
+            'enable-l3ha': False,
             'l2-population': False,
             'overlay-network-type': 'vxlan',
         }
+        self.get_dvr.return_value = False
+        self.get_l3ha.return_value = False
+        self.get_l2population.return_value = False
+        self.get_overlay_network_type.return_value = 'vxlan'
+        self._call_hook('neutron-plugin-api-relation-joined')
+        self.relation_set.assert_called_with(
+            relation_id=None,
+            **_relation_data
+        )
+
+    def test_neutron_plugin_api_relation_joined_dvr(self):
+        _relation_data = {
+            'neutron-security-groups': False,
+            'enable-dvr': True,
+            'enable-l3ha': False,
+            'l2-population': True,
+            'overlay-network-type': 'vxlan',
+        }
+        self.get_dvr.return_value = True
+        self.get_l3ha.return_value = False
+        self.get_l2population.return_value = True
+        self.get_overlay_network_type.return_value = 'vxlan'
+        self._call_hook('neutron-plugin-api-relation-joined')
+        self.relation_set.assert_called_with(
+            relation_id=None,
+            **_relation_data
+        )
+
+    def test_neutron_plugin_api_relation_joined_l3ha(self):
+        _relation_data = {
+            'neutron-security-groups': False,
+            'enable-dvr': False,
+            'enable-l3ha': True,
+            'l2-population': False,
+            'overlay-network-type': 'vxlan',
+        }
+        self.get_dvr.return_value = False
+        self.get_l3ha.return_value = True
         self.get_l2population.return_value = False
         self.get_overlay_network_type.return_value = 'vxlan'
         self._call_hook('neutron-plugin-api-relation-joined')
@@ -292,7 +338,11 @@ class NeutronAPIHooksTests(CharmTestCase):
             'l2-population': False,
             'overlay-network-type': 'vxlan',
             'network-device-mtu': 1500,
+            'enable-l3ha': True,
+            'enable-dvr': True,
         }
+        self.get_dvr.return_value = True
+        self.get_l3ha.return_value = True
         self.get_l2population.return_value = False
         self.get_overlay_network_type.return_value = 'vxlan'
         self._call_hook('neutron-plugin-api-relation-joined')
