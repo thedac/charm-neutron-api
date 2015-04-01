@@ -83,6 +83,8 @@ BASE_RESOURCE_MAP = OrderedDict([
                          service_user='neutron'),
                      neutron_api_context.NeutronCCContext(),
                      context.SyslogContext(),
+                     context.ZeroMQContext(),
+                     context.NotificationDriverContext(),
                      context.BindHostContext(),
                      context.WorkerConfigContext()],
     }),
@@ -229,6 +231,16 @@ def do_openstack_upgrade(configs):
 
     # set CONFIGS to load templates from new release
     configs.set_release(openstack_release=new_os_rel)
+
+
+def get_topics():
+    return ['q-l3-plugin',
+            'q-firewall-plugin',
+            'n-lbaas-plugin',
+            'ipsec_driver',
+            'q-metering-plugin',
+            'q-plugin',
+            'neutron']
 
 
 def setup_ipv6():
