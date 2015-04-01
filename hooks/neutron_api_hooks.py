@@ -34,6 +34,7 @@ from charmhelpers.fetch import (
 from charmhelpers.contrib.openstack.utils import (
     configure_installation_source,
     openstack_upgrade_available,
+    os_requires_version,
     sync_db_with_multi_ipv6_addresses
 )
 
@@ -48,7 +49,8 @@ from neutron_api_utils import (
     register_configs,
     restart_map,
     services,
-    setup_ipv6
+    setup_ipv6,
+    get_topics,
 )
 from neutron_api_context import (
     get_dvr,
@@ -154,6 +156,8 @@ def config_changed():
         amqp_joined(relation_id=r_id)
     for r_id in relation_ids('identity-service'):
         identity_joined(rid=r_id)
+    for rid in relation_ids('zeromq-configuration'):
+        zeromq_configuration_relation_joined(rid)
     [cluster_joined(rid) for rid in relation_ids('cluster')]
 
 
@@ -422,6 +426,20 @@ def ha_changed():
         identity_joined(rid=rid)
     for rid in relation_ids('neutron-api'):
         neutron_api_relation_joined(rid=rid)
+
+
+@hooks.hook('zeromq-configuration-relation-joined')
+@os_requires_version('kilo', 'neutron-server')
+def zeromq_configuration_relation_joined(relid=None):
+    relation_set(relation_id=relid,
+                 topics=" ".join(get_topics()),
+                 users="neutron")
+
+
+@hooks.hook('zeromq-configuration-relation-changed')
+@restart_on_change(restart_map(), stopstart=True)
+def zeromq_configuration_relation_changed():
+    CONFIGS.write_all()
 
 
 @hooks.hook('nrpe-external-master-relation-joined',
