@@ -320,6 +320,7 @@ def neutron_plugin_api_relation_joined(rid=None):
     relation_data.update({
         'auth_host': identity_ctxt.get('auth_host'),
         'auth_port': identity_ctxt.get('auth_port'),
+        'auth_protocol': identity_ctxt.get('auth_protocol'),
         'service_protocol': identity_ctxt.get('service_protocol'),
         'service_host': identity_ctxt.get('service_host'),
         'service_port': identity_ctxt.get('service_port'),
