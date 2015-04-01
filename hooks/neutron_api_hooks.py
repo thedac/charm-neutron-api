@@ -2,8 +2,10 @@
 
 import sys
 import uuid
+from subprocess import (
+    check_call,
+)
 
-from subprocess import check_call
 from charmhelpers.core.hookenv import (
     Hooks,
     UnregisteredHookError,
@@ -20,6 +22,7 @@ from charmhelpers.core.hookenv import (
 
 from charmhelpers.core.host import (
     restart_on_change,
+    service_reload,
 )
 
 from charmhelpers.fetch import (
@@ -40,14 +43,19 @@ from neutron_api_utils import (
     determine_packages,
     determine_ports,
     do_openstack_upgrade,
+    dvr_router_present,
+    l3ha_router_present,
     register_configs,
     restart_map,
     services,
     setup_ipv6
 )
 from neutron_api_context import (
+    get_dvr,
+    get_l3ha,
     get_l2population,
     get_overlay_network_type,
+    IdentityServiceContext,
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
@@ -92,6 +100,10 @@ def configure_https():
         cmd = ['a2dissite', 'openstack_https_frontend']
         check_call(cmd)
 
+    # TODO: improve this by checking if local CN certs are available
+    # first then checking reload status (see LP #1433114).
+    service_reload('apache2', restart_on_failure=True)
+
     for rid in relation_ids('identity-service'):
         identity_joined(rid=rid)
 
@@ -110,6 +122,16 @@ def install():
 @hooks.hook('config-changed')
 @restart_on_change(restart_map(), stopstart=True)
 def config_changed():
+    if l3ha_router_present() and not get_l3ha():
+        e = ('Cannot disable Router HA while ha enabled routers exist. Please'
+             ' remove any ha routers')
+        log(e, level=ERROR)
+        raise Exception(e)
+    if dvr_router_present() and not get_dvr():
+        e = ('Cannot disable dvr while dvr enabled routers exist. Please'
+             ' remove any distributed routers')
+        log(e, level=ERROR)
+        raise Exception(e)
     apt_install(filter_installed_packages(
                 determine_packages(config('openstack-origin'))),
                 fatal=True)
@@ -235,6 +257,8 @@ def identity_changed():
     CONFIGS.write(NEUTRON_CONF)
     for r_id in relation_ids('neutron-api'):
         neutron_api_relation_joined(rid=r_id)
+    for r_id in relation_ids('neutron-plugin-api'):
+        neutron_plugin_api_relation_joined(rid=r_id)
     configure_https()
 
 
@@ -278,6 +302,8 @@ def neutron_plugin_api_relation_joined(rid=None):
         relation_data = {
             'neutron-security-groups': config('neutron-security-groups'),
             'l2-population': get_l2population(),
+            'enable-dvr': get_dvr(),
+            'enable-l3ha': get_l3ha(),
             'overlay-network-type': get_overlay_network_type(),
         }
 
@@ -286,6 +312,23 @@ def neutron_plugin_api_relation_joined(rid=None):
         net_dev_mtu = config('network-device-mtu')
         if net_dev_mtu:
             relation_data['network-device-mtu'] = net_dev_mtu
+
+    identity_ctxt = IdentityServiceContext()()
+    if not identity_ctxt:
+        identity_ctxt = {}
+
+    relation_data.update({
+        'auth_host': identity_ctxt.get('auth_host'),
+        'auth_port': identity_ctxt.get('auth_port'),
+        'auth_protocol': identity_ctxt.get('auth_protocol'),
+        'service_protocol': identity_ctxt.get('service_protocol'),
+        'service_host': identity_ctxt.get('service_host'),
+        'service_port': identity_ctxt.get('service_port'),
+        'service_tenant': identity_ctxt.get('admin_tenant_name'),
+        'service_username': identity_ctxt.get('admin_user'),
+        'service_password': identity_ctxt.get('admin_password'),
+        'region': config('region'),
+    })
 
     relation_set(relation_id=rid, **relation_data)
 
