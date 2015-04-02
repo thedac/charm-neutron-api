@@ -44,6 +44,7 @@ TO_PATCH = [
     'log',
     'open_port',
     'openstack_upgrade_available',
+    'os_requires_version',
     'relation_get',
     'relation_ids',
     'relation_set',
@@ -117,12 +118,14 @@ class NeutronAPIHooksTests(CharmTestCase):
         _amqp_rel_joined = self.patch('amqp_joined')
         _id_rel_joined = self.patch('identity_joined')
         _id_cluster_joined = self.patch('cluster_joined')
+        _zmq_joined = self.patch('zeromq_configuration_relation_joined')
         self._call_hook('config-changed')
         self.assertTrue(_n_api_rel_joined.called)
         self.assertTrue(_n_plugin_api_rel_joined.called)
         self.assertTrue(_amqp_rel_joined.called)
         self.assertTrue(_id_rel_joined.called)
         self.assertTrue(_id_cluster_joined.called)
+        self.assertTrue(_zmq_joined.called)
         self.assertTrue(self.CONFIGS.write_all.called)
         self.assertTrue(self.do_openstack_upgrade.called)
         self.assertTrue(self.apt_install.called)
