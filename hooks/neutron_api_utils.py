@@ -1,6 +1,8 @@
 from collections import OrderedDict
 from copy import deepcopy
+from functools import partial
 import os
+import shutil
 from base64 import b64encode
 from charmhelpers.contrib.openstack import context, templating
 from charmhelpers.contrib.openstack.neutron import (
@@ -10,6 +12,9 @@ from charmhelpers.contrib.openstack.neutron import (
 from charmhelpers.contrib.openstack.utils import (
     os_release,
     get_os_codename_install_source,
+    git_install_requested,
+    git_clone_and_install,
+    git_src_dir,
     configure_installation_source,
 )
 
@@ -26,8 +31,16 @@ from charmhelpers.fetch import (
 )
 
 from charmhelpers.core.host import (
-    lsb_release
+    adduser,
+    add_group,
+    add_user_to_group,
+    mkdir,
+    lsb_release,
+    service_restart,
+    write_file,
 )
+
+from charmhelpers.core.templating import render
 
 import neutron_api_context
 
@@ -47,6 +60,29 @@ BASE_PACKAGES = [
 ]
 
 KILO_PACKAGES = [
+    'python-neutron-lbaas',
+    'python-neutron-fwaas',
+    'python-neutron-vpnaas',
+]
+
+BASE_GIT_PACKAGES = [
+    'libxml2-dev',
+    'libxslt1-dev',
+    'python-dev',
+    'python-pip',
+    'python-setuptools',
+    'zlib1g-dev',
+]
+
+# ubuntu packages that should not be installed when deploying from git
+GIT_PACKAGE_BLACKLIST = [
+    'neutron-server',
+    'neutron-plugin-ml2',
+    'python-keystoneclient',
+    'python-six',
+]
+
+GIT_PACKAGE_BLACKLIST_KILO = [
     'python-neutron-lbaas',
     'python-neutron-fwaas',
     'python-neutron-vpnaas',
@@ -82,6 +118,8 @@ BASE_RESOURCE_MAP = OrderedDict([
                          service_user='neutron'),
                      neutron_api_context.NeutronCCContext(),
                      context.SyslogContext(),
+                     context.ZeroMQContext(),
+                     context.NotificationDriverContext(),
                      context.BindHostContext(),
                      context.WorkerConfigContext()],
     }),
@@ -112,14 +150,27 @@ def api_port(service):
 def determine_packages(source=None):
     # currently all packages match service names
     packages = [] + BASE_PACKAGES
+
     for v in resource_map().values():
         packages.extend(v['services'])
         pkgs = neutron_plugin_attribute(config('neutron-plugin'),
                                         'server_packages',
                                         'neutron')
         packages.extend(pkgs)
+
     if get_os_codename_install_source(source) >= 'kilo':
         packages.extend(KILO_PACKAGES)
+
+    if git_install_requested():
+        packages.extend(BASE_GIT_PACKAGES)
+        # don't include packages that will be installed from git
+        packages = list(set(packages))
+        for p in GIT_PACKAGE_BLACKLIST:
+            packages.remove(p)
+        if get_os_codename_install_source(source) >= 'kilo':
+            for p in GIT_PACKAGE_BLACKLIST_KILO:
+                packages.remove(p)
+
     return list(set(packages))
 
 
@@ -230,6 +281,16 @@ def do_openstack_upgrade(configs):
     configs.set_release(openstack_release=new_os_rel)
 
 
+def get_topics():
+    return ['q-l3-plugin',
+            'q-firewall-plugin',
+            'n-lbaas-plugin',
+            'ipsec_driver',
+            'q-metering-plugin',
+            'q-plugin',
+            'neutron']
+
+
 def setup_ipv6():
     ubuntu_rel = lsb_release()['DISTRIB_CODENAME'].lower()
     if ubuntu_rel < "trusty":
@@ -244,3 +305,104 @@ def setup_ipv6():
                    ' main')
         apt_update()
         apt_install('haproxy/trusty-backports', fatal=True)
+
+
+def router_feature_present(feature):
+    ''' Check For dvr enabled routers '''
+    env = neutron_api_context.IdentityServiceContext()()
+    if not env:
+        log('Unable to check resources at this time')
+        return
+
+    auth_url = '%(auth_protocol)s://%(auth_host)s:%(auth_port)s/v2.0' % env
+    # Late import to avoid install hook failures when pkg hasnt been installed
+    from neutronclient.v2_0 import client
+    neutron_client = client.Client(username=env['admin_user'],
+                                   password=env['admin_password'],
+                                   tenant_name=env['admin_tenant_name'],
+                                   auth_url=auth_url,
+                                   region_name=env['region'])
+    for router in neutron_client.list_routers()['routers']:
+        if router.get(feature, False):
+            return True
+    return False
+
+l3ha_router_present = partial(router_feature_present, feature='ha')
+
+dvr_router_present = partial(router_feature_present, feature='distributed')
+
+
+def git_install(projects_yaml):
+    """Perform setup, and install git repos specified in yaml parameter."""
+    if git_install_requested():
+        git_pre_install()
+        git_clone_and_install(projects_yaml, core_project='neutron')
+        git_post_install(projects_yaml)
+
+
+def git_pre_install():
+    """Perform pre-install setup."""
+    dirs = [
+        '/etc/neutron',
+        '/etc/neutron/rootwrap.d',
+        '/etc/neutron/plugins',
+        '/etc/neutron/plugins/ml2',
+        '/var/lib/neutron',
+        '/var/lib/neutron/lock',
+        '/var/log/neutron',
+    ]
+
+    logs = [
+        '/var/log/neutron/server.log',
+    ]
+
+    adduser('neutron', shell='/bin/bash', system_user=True)
+    add_group('neutron', system_group=True)
+    add_user_to_group('neutron', 'neutron')
+
+    for d in dirs:
+        mkdir(d, owner='neutron', group='neutron', perms=0700, force=False)
+
+    for l in logs:
+        write_file(l, '', owner='neutron', group='neutron', perms=0600)
+
+
+def git_post_install(projects_yaml):
+    """Perform post-install setup."""
+    src_etc = os.path.join(git_src_dir(projects_yaml, 'neutron'), 'etc')
+    configs = {
+        'api-paste': {
+            'src': os.path.join(src_etc, 'api-paste.ini'),
+            'dest': '/etc/neutron/api-paste.ini',
+        },
+        'debug-filters': {
+            'src': os.path.join(src_etc, 'neutron/rootwrap.d/debug.filters'),
+            'dest': '/etc/neutron/rootwrap.d/debug.filters',
+        },
+        'policy': {
+            'src': os.path.join(src_etc, 'policy.json'),
+            'dest': '/etc/neutron/policy.json',
+        },
+        'rootwrap': {
+            'src': os.path.join(src_etc, 'rootwrap.conf'),
+            'dest': '/etc/neutron/rootwrap.conf',
+        },
+    }
+
+    for conf, files in configs.iteritems():
+        shutil.copyfile(files['src'], files['dest'])
+
+    render('neutron_sudoers', '/etc/sudoers.d/neutron_sudoers', {},
+           perms=0o440)
+
+    neutron_api_context = {
+        'service_description': 'Neutron API server',
+        'charm_name': 'neutron-api',
+        'process_name': 'neutron-server',
+    }
+
+    # NOTE(coreycb): Needs systemd support
+    render('upstart/neutron-server.upstart', '/etc/init/neutron-server.conf',
+           neutron_api_context, perms=0o644)
+
+    service_restart('neutron-server')

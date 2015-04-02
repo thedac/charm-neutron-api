@@ -1,4 +1,5 @@
 from mock import MagicMock, patch, call
+import yaml
 from test_utils import CharmTestCase
 
 
@@ -32,14 +33,20 @@ TO_PATCH = [
     'determine_packages',
     'determine_ports',
     'do_openstack_upgrade',
+    'dvr_router_present',
+    'l3ha_router_present',
     'execd_preinstall',
     'filter_installed_packages',
+    'get_dvr',
+    'get_l3ha',
     'get_l2population',
     'get_overlay_network_type',
+    'git_install',
     'is_relation_made',
     'log',
     'open_port',
     'openstack_upgrade_available',
+    'os_requires_version',
     'relation_get',
     'relation_ids',
     'relation_set',
@@ -48,12 +55,23 @@ TO_PATCH = [
     'get_netmask_for_address',
     'get_address_in_network',
     'update_nrpe_config',
+    'service_reload',
+    'IdentityServiceContext',
 ]
 NEUTRON_CONF_DIR = "/etc/neutron"
 
 NEUTRON_CONF = '%s/neutron.conf' % NEUTRON_CONF_DIR
 
 from random import randrange
+
+
+class DummyContext():
+
+    def __init__(self, return_value):
+        self.return_value = return_value
+
+    def __call__(self):
+        return self.return_value
 
 
 class NeutronAPIHooksTests(CharmTestCase):
@@ -73,7 +91,9 @@ class NeutronAPIHooksTests(CharmTestCase):
         hooks.hooks.execute([
             'hooks/{}'.format(hookname)])
 
-    def test_install_hook(self):
+    @patch.object(utils, 'git_install_requested')
+    def test_install_hook(self, git_requested):
+        git_requested.return_value = False
         _pkgs = ['foo', 'bar']
         _ports = [80, 81, 82]
         _port_calls = [call(port) for port in _ports]
@@ -90,9 +110,46 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.open_port.assert_has_calls(_port_calls)
         self.assertTrue(self.execd_preinstall.called)
 
+    @patch.object(utils, 'git_install_requested')
+    def test_install_hook_git(self, git_requested):
+        git_requested.return_value = True
+        _pkgs = ['foo', 'bar']
+        _ports = [80, 81, 82]
+        _port_calls = [call(port) for port in _ports]
+        self.determine_packages.return_value = _pkgs
+        self.determine_ports.return_value = _ports
+        repo = 'cloud:trusty-juno'
+        openstack_origin_git = {
+            'repositories': [
+                {'name': 'requirements',
+                 'repository': 'git://git.openstack.org/openstack/requirements',  # noqa
+                 'branch': 'stable/juno'},
+                {'name': 'neutron',
+                 'repository': 'git://git.openstack.org/openstack/neutron',
+                 'branch': 'stable/juno'}
+            ],
+            'directory': '/mnt/openstack-git',
+        }
+        projects_yaml = yaml.dump(openstack_origin_git)
+        self.test_config.set('openstack-origin', repo)
+        self.test_config.set('openstack-origin-git', projects_yaml)
+        self._call_hook('install')
+        self.assertTrue(self.execd_preinstall.called)
+        self.configure_installation_source.assert_called_with(repo)
+        self.apt_update.assert_called_with()
+        self.apt_install.assert_has_calls([
+            call(_pkgs, fatal=True),
+        ])
+        self.git_install.assert_called_with(projects_yaml)
+        self.open_port.assert_has_calls(_port_calls)
+
     @patch.object(hooks, 'configure_https')
-    def test_config_changed(self, conf_https):
+    @patch.object(hooks, 'git_install_requested')
+    def test_config_changed(self, git_requested, conf_https):
+        git_requested.return_value = False
         self.openstack_upgrade_available.return_value = True
+        self.dvr_router_present.return_value = False
+        self.l3ha_router_present.return_value = False
         self.relation_ids.side_effect = self._fake_relids
         _n_api_rel_joined = self.patch('neutron_api_relation_joined')
         _n_plugin_api_rel_joined =\
@@ -100,15 +157,63 @@ class NeutronAPIHooksTests(CharmTestCase):
         _amqp_rel_joined = self.patch('amqp_joined')
         _id_rel_joined = self.patch('identity_joined')
         _id_cluster_joined = self.patch('cluster_joined')
+        _zmq_joined = self.patch('zeromq_configuration_relation_joined')
         self._call_hook('config-changed')
         self.assertTrue(_n_api_rel_joined.called)
         self.assertTrue(_n_plugin_api_rel_joined.called)
         self.assertTrue(_amqp_rel_joined.called)
         self.assertTrue(_id_rel_joined.called)
         self.assertTrue(_id_cluster_joined.called)
+        self.assertTrue(_zmq_joined.called)
         self.assertTrue(self.CONFIGS.write_all.called)
         self.assertTrue(self.do_openstack_upgrade.called)
         self.assertTrue(self.apt_install.called)
+
+    @patch.object(hooks, 'configure_https')
+    @patch.object(hooks, 'git_install_requested')
+    @patch.object(hooks, 'config_value_changed')
+    def test_config_changed_git(self, config_val_changed, git_requested,
+                                configure_https):
+        git_requested.return_value = True
+        self.dvr_router_present.return_value = False
+        self.l3ha_router_present.return_value = False
+        self.relation_ids.side_effect = self._fake_relids
+        _n_api_rel_joined = self.patch('neutron_api_relation_joined')
+        _n_plugin_api_rel_joined =\
+            self.patch('neutron_plugin_api_relation_joined')
+        _amqp_rel_joined = self.patch('amqp_joined')
+        _id_rel_joined = self.patch('identity_joined')
+        _id_cluster_joined = self.patch('cluster_joined')
+        _zmq_joined = self.patch('zeromq_configuration_relation_joined')
+        repo = 'cloud:trusty-juno'
+        openstack_origin_git = {
+            'repositories': [
+                {'name': 'requirements',
+                 'repository':
+                 'git://git.openstack.org/openstack/requirements',
+                 'branch': 'stable/juno'},
+                {'name': 'neutron',
+                 'repository': 'git://git.openstack.org/openstack/neutron',
+                 'branch': 'stable/juno'}
+            ],
+            'directory': '/mnt/openstack-git',
+        }
+        projects_yaml = yaml.dump(openstack_origin_git)
+        self.test_config.set('openstack-origin', repo)
+        self.test_config.set('openstack-origin-git', projects_yaml)
+        self._call_hook('config-changed')
+        self.git_install.assert_called_with(projects_yaml)
+        self.assertFalse(self.do_openstack_upgrade.called)
+        self.assertTrue(self.apt_install.called)
+        self.assertTrue(configure_https.called)
+        self.assertTrue(self.update_nrpe_config.called)
+        self.assertTrue(self.CONFIGS.write_all.called)
+        self.assertTrue(_n_api_rel_joined.called)
+        self.assertTrue(_n_plugin_api_rel_joined.called)
+        self.assertTrue(_amqp_rel_joined.called)
+        self.assertTrue(_id_rel_joined.called)
+        self.assertTrue(_zmq_joined.called)
+        self.assertTrue(_id_cluster_joined.called)
 
     def test_amqp_joined(self):
         self._call_hook('amqp-relation-joined')
@@ -272,11 +377,87 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.assertTrue(self.CONFIGS.write.called_with(NEUTRON_CONF))
 
     def test_neutron_plugin_api_relation_joined_nol2(self):
+        self.IdentityServiceContext.return_value = \
+            DummyContext(return_value={})
         _relation_data = {
             'neutron-security-groups': False,
+            'enable-dvr': False,
+            'enable-l3ha': False,
             'l2-population': False,
             'overlay-network-type': 'vxlan',
+            'service_protocol': None,
+            'auth_protocol': None,
+            'service_tenant': None,
+            'service_port': None,
+            'region': 'RegionOne',
+            'service_password': None,
+            'auth_port': None,
+            'auth_host': None,
+            'service_username': None,
+            'service_host': None
         }
+        self.get_dvr.return_value = False
+        self.get_l3ha.return_value = False
+        self.get_l2population.return_value = False
+        self.get_overlay_network_type.return_value = 'vxlan'
+        self._call_hook('neutron-plugin-api-relation-joined')
+        self.relation_set.assert_called_with(
+            relation_id=None,
+            **_relation_data
+        )
+
+    def test_neutron_plugin_api_relation_joined_dvr(self):
+        self.IdentityServiceContext.return_value = \
+            DummyContext(return_value={})
+        _relation_data = {
+            'neutron-security-groups': False,
+            'enable-dvr': True,
+            'enable-l3ha': False,
+            'l2-population': True,
+            'overlay-network-type': 'vxlan',
+            'service_protocol': None,
+            'auth_protocol': None,
+            'service_tenant': None,
+            'service_port': None,
+            'region': 'RegionOne',
+            'service_password': None,
+            'auth_port': None,
+            'auth_host': None,
+            'service_username': None,
+            'service_host': None
+        }
+        self.get_dvr.return_value = True
+        self.get_l3ha.return_value = False
+        self.get_l2population.return_value = True
+        self.get_overlay_network_type.return_value = 'vxlan'
+        self._call_hook('neutron-plugin-api-relation-joined')
+        self.relation_set.assert_called_with(
+            relation_id=None,
+            **_relation_data
+        )
+
+    def test_neutron_plugin_api_relation_joined_l3ha(self):
+        self.IdentityServiceContext.return_value = \
+            DummyContext(return_value={})
+        _relation_data = {
+            'neutron-security-groups': False,
+            'enable-dvr': False,
+            'enable-l3ha': True,
+            'l2-population': False,
+            'overlay-network-type': 'vxlan',
+            'service_protocol': None,
+            'auth_protocol': None,
+            'service_tenant': None,
+            'service_port': None,
+            'region': 'RegionOne',
+            'service_password': None,
+            'auth_port': None,
+            'auth_host': None,
+            'service_username': None,
+            'service_host': None
+        }
+        self.get_dvr.return_value = False
+        self.get_l3ha.return_value = True
         self.get_l2population.return_value = False
         self.get_overlay_network_type.return_value = 'vxlan'
         self._call_hook('neutron-plugin-api-relation-joined')
@@ -286,13 +467,29 @@ class NeutronAPIHooksTests(CharmTestCase):
         )
 
     def test_neutron_plugin_api_relation_joined_w_mtu(self):
+        self.IdentityServiceContext.return_value = \
+            DummyContext(return_value={})
         self.test_config.set('network-device-mtu', 1500)
         _relation_data = {
             'neutron-security-groups': False,
             'l2-population': False,
             'overlay-network-type': 'vxlan',
             'network-device-mtu': 1500,
+            'enable-l3ha': True,
+            'enable-dvr': True,
+            'service_protocol': None,
+            'auth_protocol': None,
+            'service_tenant': None,
+            'service_port': None,
+            'region': 'RegionOne',
+            'service_password': None,
+            'auth_port': None,
+            'auth_host': None,
+            'service_username': None,
+            'service_host': None
         }
+        self.get_dvr.return_value = True
+        self.get_l3ha.return_value = True
         self.get_l2population.return_value = False
         self.get_overlay_network_type.return_value = 'vxlan'
         self._call_hook('neutron-plugin-api-relation-joined')
@@ -433,8 +630,9 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.relation_ids.side_effect = self._fake_relids
         _id_rel_joined = self.patch('identity_joined')
         hooks.configure_https()
-        self.check_call.assert_called_with(['a2ensite',
-                                           'openstack_https_frontend'])
+        calls = [call('a2dissite', 'openstack_https_frontend'),
+                 call('service', 'apache2', 'reload')]
+        self.check_call.assert_called_has_calls(calls)
         self.assertTrue(_id_rel_joined.called)
 
     def test_configure_https_nohttps(self):
@@ -442,6 +640,7 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.relation_ids.side_effect = self._fake_relids
         _id_rel_joined = self.patch('identity_joined')
         hooks.configure_https()
-        self.check_call.assert_called_with(['a2dissite',
-                                           'openstack_https_frontend'])
+        calls = [call('a2dissite', 'openstack_https_frontend'),
+                 call('service', 'apache2', 'reload')]
+        self.check_call.assert_called_has_calls(calls)
         self.assertTrue(_id_rel_joined.called)

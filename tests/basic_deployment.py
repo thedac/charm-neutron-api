@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import amulet
+import yaml
 
 from charmhelpers.contrib.openstack.amulet.deployment import (
     OpenStackAmuletDeployment
@@ -19,10 +20,12 @@ u = OpenStackAmuletUtils(ERROR)
 class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
     """Amulet tests on a basic neutron-api deployment."""
 
-    def __init__(self, series, openstack=None, source=None, stable=False):
+    def __init__(self, series, openstack=None, source=None, git=False,
+                 stable=False):
         """Deploy the entire test environment."""
         super(NeutronAPIBasicDeployment, self).__init__(series, openstack,
                                                         source, stable)
+        self.git = git
         self._add_services()
         self._add_relations()
         self._configure_services()
@@ -65,11 +68,29 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
 
     def _configure_services(self):
         """Configure all of the services."""
+        neutron_api_config = {}
+        if self.git:
+            branch = 'stable/' + self._get_openstack_release_string()
+            openstack_origin_git = {
+                'repositories': [
+                    {'name': 'requirements',
+                     'repository': 'git://git.openstack.org/openstack/requirements',
+                     'branch': branch},
+                    {'name': 'neutron',
+                     'repository': 'git://git.openstack.org/openstack/neutron',
+                     'branch': branch},
+                ],
+                'directory': '/mnt/openstack-git',
+                'http_proxy': 'http://squid.internal:3128',
+                'https_proxy': 'https://squid.internal:3128',
+            }
+            neutron_api_config['openstack-origin-git'] = yaml.dump(openstack_origin_git)
         keystone_config = {'admin-password': 'openstack',
                            'admin-token': 'ubuntutesting'}
         nova_cc_config = {'network-manager': 'Quantum',
                           'quantum-security-groups': 'yes'}
-        configs = {'keystone': keystone_config,
+        configs = {'neutron-api': neutron_api_config,
+                   'keystone': keystone_config,
                    'nova-cloud-controller': nova_cc_config}
         super(NeutronAPIBasicDeployment, self)._configure_services(configs)
 
@@ -178,7 +199,6 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
             'auth_host': id_ip,
             'auth_port': "35357",
             'auth_protocol': 'http',
-            'https_keystone': "False",
             'private-address': id_ip,
             'service_host': id_ip,
         }
@@ -294,7 +314,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
                 'nova_admin_auth_url': nova_auth_url,
             },
             'keystone_authtoken': {
-                'signing_dir': '/var/lib/neutron/keystone-signing',
+                'signing_dir': '/var/cache/neutron',
                 'service_protocol': ks_rel['service_protocol'],
                 'service_host': ks_rel['service_host'],
                 'service_port': ks_rel['service_port'],
@@ -355,6 +375,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
     def test_services(self):
         """Verify the expected services are running on the corresponding
            service units."""
+        neutron_api_services = ['status neutron-server']
         neutron_services = ['status neutron-dhcp-agent',
                             'status neutron-lbaas-agent',
                             'status neutron-metadata-agent',
@@ -374,7 +395,8 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
             self.mysql_sentry: ['status mysql'],
             self.keystone_sentry: ['status keystone'],
             self.nova_cc_sentry: nova_cc_services,
-            self.quantum_gateway_sentry: neutron_services
+            self.quantum_gateway_sentry: neutron_services,
+            self.neutron_api_sentry: neutron_api_services,
         }
 
         ret = u.validate_services(commands)
