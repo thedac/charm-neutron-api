@@ -28,6 +28,7 @@ TO_PATCH = [
     'config',
     'CONFIGS',
     'check_call',
+    'add_source',
     'configure_installation_source',
     'determine_packages',
     'determine_ports',
@@ -48,6 +49,8 @@ TO_PATCH = [
     'get_netmask_for_address',
     'get_address_in_network',
     'update_nrpe_config',
+    'save_vsd_address_to_config',
+    'update_config_file',
 ]
 NEUTRON_CONF_DIR = "/etc/neutron"
 
@@ -86,6 +89,30 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.apt_update.assert_called_with()
         self.apt_install.assert_has_calls([
             call(_pkgs, fatal=True),
+        ])
+        self.open_port.assert_has_calls(_port_calls)
+        self.assertTrue(self.execd_preinstall.called)
+
+    def test_nuage_install_hook(self):
+        vsp_packages = "python-nuagenetlib"
+        self.test_config.set('neutron-plugin', 'vsp')
+        self.test_config.set('vsp-packages', vsp_packages)
+        self.test_config.set('neutron-plugin-repository-url',
+                              "deb http://10.14.4.1/nuage trusty main")
+        _pkgs = ['foo', 'bar']
+        _expected_pkgs = list(_pkgs)
+        _expected_pkgs.append(vsp_packages)
+        _ports = [80, 81, 82]
+        _port_calls = [call(port) for port in _ports]
+        self.determine_packages.return_value = _pkgs
+        self.determine_ports.return_value = _ports
+        self._call_hook('install')
+        self.configure_installation_source.assert_called_with(
+            'distro'
+        )
+        self.apt_update.assert_called_with()
+        self.apt_install.assert_has_calls([
+            call(_expected_pkgs, fatal=True),
         ])
         self.open_port.assert_has_calls(_port_calls)
         self.assertTrue(self.execd_preinstall.called)
@@ -260,6 +287,17 @@ class NeutronAPIHooksTests(CharmTestCase):
             relation_id=None,
             **_relation_data
         )
+
+    def test_vsd_api_relation_changed(self):
+        #self.test_config.set('vsd-config-file', './vsd_config_test.ini')
+        self.test_config.set('neutron-plugin', 'vsp')
+        self.test_relation.set({
+            'vsd-ip-address': '10.11.12.13',
+        })
+        self._call_hook('vsd-rest-api-relation-changed')
+        self.assertTrue(self.update_config_file.called)
+        self.save_vsd_address_to_config.assert_called_with('10.11.12.13:8443')
+
 
     def test_neutron_api_relation_changed(self):
         self.CONFIGS.complete_contexts.return_value = ['shared-db']
