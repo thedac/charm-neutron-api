@@ -25,7 +25,9 @@ from charmhelpers.core.host import (
 )
 
 from charmhelpers.fetch import (
-    apt_install, apt_update, add_source,
+    apt_install,
+    add_source,
+    apt_update,
     filter_installed_packages,
 )
 
@@ -112,12 +114,8 @@ def install():
                 key = config('neutron-plugin-ppa-key')
             add_source(config('neutron-plugin-repository-url'), key)
             packages += config('vsp-packages').split()
-        _config = config()
         if config('vsd-server'):
-            _config['vsd-address'] = config('vsd-server')
-        else:
-            _config['vsd-address'] = '1.1.1.1:8443'
-        _config.save()
+            save_vsd_address_to_config(config('vsd-server'))
 
     apt_update()
     apt_install(packages, fatal=True)
@@ -156,21 +154,17 @@ def vsd_changed(relation_id=None, remote_unit=None):
         vsd_ip_address = relation_get('vsd-ip-address')
         if not vsd_ip_address:
             return
-        _config = config()
         vsd_address = '{}:8443'.format(vsd_ip_address)
-        _config['vsd-address'] = vsd_address
-        _config.save()
+        save_vsd_address_to_config(vsd_address)
         log('vsd-rest-api-relation-changed: ip address:{}'.format(vsd_address))
         vsd_config_file = config('vsd-config-file')
-        with open(vsd_config_file, "r") as vsp:
-            contents = vsp.read()
-            log('vsd-rest-api-relation-changed: '
-                'vsd config file before:{}'.format(contents))
         update_config_file(vsd_config_file, 'server', vsd_address)
-        with open(vsd_config_file, "r") as vsp:
-            contents = vsp.read()
-            log('vsd-rest-api-relation-changed: '
-                'vsd config file: after: {}'.format(contents))
+
+
+def save_vsd_address_to_config(vsd_address):
+    _config = config()
+    _config['vsd-address'] = vsd_address
+    _config.save()
 
 
 @hooks.hook('upgrade-charm')
@@ -200,16 +194,6 @@ def config_changed():
     for r_id in relation_ids('identity-service'):
         identity_joined(rid=r_id)
     [cluster_joined(rid) for rid in relation_ids('cluster')]
-    if config('neutron-plugin') == 'vsp':
-        vsd_config_file = config('vsd-config-file')
-        _config = config()
-        vsd_address = _config['vsd-address']
-        log('vsd address: {}'.format(vsd_address))
-
-        #update_config_file(vsd_config_file, 'server', vsd_address)
-        with open(vsd_config_file, "r") as vsp:
-            contents = vsp.read()
-            log('config-changed: contents after: {}'.format(contents))
 
 
 @hooks.hook('amqp-relation-joined')

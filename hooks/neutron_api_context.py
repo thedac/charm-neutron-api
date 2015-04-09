@@ -98,7 +98,10 @@ class NeutronCCContext(context.NeutronContext):
             for k, v in _config.iteritems():
                 if k.startswith('vsd'):
                     ctxt[k.replace('-', '_')] = v
-            ctxt['vsd_server'] = _config['vsd-address']
+            if 'vsd-address' in _config:
+                ctxt['vsd_server'] = _config['vsd-address']
+            elif 'vsd_server' not in ctxt:
+                ctxt['vsd_server'] = '1.1.1.1:8443'
 
         ctxt['verbose'] = config('verbose')
         ctxt['debug'] = config('debug')
