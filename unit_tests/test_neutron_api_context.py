@@ -419,7 +419,6 @@ class NeutronCCContextTest(CharmTestCase):
         for key in expect.iterkeys():
             self.assertEquals(napi_ctxt[key], expect[key])
 
-
     @patch.object(context.NeutronCCContext, 'network_manager')
     @patch.object(context.NeutronCCContext, 'plugin')
     @patch('__builtin__.__import__')
