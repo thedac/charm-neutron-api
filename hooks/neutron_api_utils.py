@@ -1,5 +1,6 @@
 from collections import OrderedDict
 from copy import deepcopy
+from functools import partial
 import os
 from base64 import b64encode
 from charmhelpers.contrib.openstack import context, templating
@@ -77,9 +78,13 @@ BASE_RESOURCE_MAP = OrderedDict([
                          database=config('database'),
                          ssl_dir=NEUTRON_CONF_DIR),
                      context.PostgresqlDBContext(database=config('database')),
-                     neutron_api_context.IdentityServiceContext(),
+                     neutron_api_context.IdentityServiceContext(
+                         service='neutron',
+                         service_user='neutron'),
                      neutron_api_context.NeutronCCContext(),
                      context.SyslogContext(),
+                     context.ZeroMQContext(),
+                     context.NotificationDriverContext(),
                      context.BindHostContext(),
                      context.WorkerConfigContext()],
     }),
@@ -228,6 +233,16 @@ def do_openstack_upgrade(configs):
     configs.set_release(openstack_release=new_os_rel)
 
 
+def get_topics():
+    return ['q-l3-plugin',
+            'q-firewall-plugin',
+            'n-lbaas-plugin',
+            'ipsec_driver',
+            'q-metering-plugin',
+            'q-plugin',
+            'neutron']
+
+
 def setup_ipv6():
     ubuntu_rel = lsb_release()['DISTRIB_CODENAME'].lower()
     if ubuntu_rel < "trusty":
@@ -242,3 +257,28 @@ def setup_ipv6():
                    ' main')
         apt_update()
         apt_install('haproxy/trusty-backports', fatal=True)
+
+
+def router_feature_present(feature):
+    ''' Check For dvr enabled routers '''
+    env = neutron_api_context.IdentityServiceContext()()
+    if not env:
+        log('Unable to check resources at this time')
+        return
+
+    auth_url = '%(auth_protocol)s://%(auth_host)s:%(auth_port)s/v2.0' % env
+    # Late import to avoid install hook failures when pkg hasnt been installed
+    from neutronclient.v2_0 import client
+    neutron_client = client.Client(username=env['admin_user'],
+                                   password=env['admin_password'],
+                                   tenant_name=env['admin_tenant_name'],
+                                   auth_url=auth_url,
+                                   region_name=env['region'])
+    for router in neutron_client.list_routers()['routers']:
+        if router.get(feature, False):
+            return True
+    return False
+
+l3ha_router_present = partial(router_feature_present, feature='ha')
+
+dvr_router_present = partial(router_feature_present, feature='distributed')

@@ -5,7 +5,11 @@ import uuid
 import os
 import mmap
 import re
-from subprocess import check_call, check_output
+from subprocess import (
+    check_call,
+    check_output,
+)
+
 from charmhelpers.core.hookenv import (
     Hooks,
     UnregisteredHookError,
@@ -22,6 +26,7 @@ from charmhelpers.core.hookenv import (
 
 from charmhelpers.core.host import (
     restart_on_change,
+    service_reload,
 )
 
 from charmhelpers.fetch import (
@@ -34,6 +39,7 @@ from charmhelpers.fetch import (
 from charmhelpers.contrib.openstack.utils import (
     configure_installation_source,
     openstack_upgrade_available,
+    os_requires_version,
     sync_db_with_multi_ipv6_addresses
 )
 
@@ -43,14 +49,20 @@ from neutron_api_utils import (
     determine_packages,
     determine_ports,
     do_openstack_upgrade,
+    dvr_router_present,
+    l3ha_router_present,
     register_configs,
     restart_map,
     services,
-    setup_ipv6
+    setup_ipv6,
+    get_topics,
 )
 from neutron_api_context import (
+    get_dvr,
+    get_l3ha,
     get_l2population,
     get_overlay_network_type,
+    IdentityServiceContext,
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
@@ -95,6 +107,10 @@ def configure_https():
     else:
         cmd = ['a2dissite', 'openstack_https_frontend']
         check_call(cmd)
+
+    # TODO: improve this by checking if local CN certs are available
+    # first then checking reload status (see LP #1433114).
+    service_reload('apache2', restart_on_failure=True)
 
     for rid in relation_ids('identity-service'):
         identity_joined(rid=rid)
@@ -171,6 +187,16 @@ def save_vsd_address_to_config(vsd_address):
 @hooks.hook('config-changed')
 @restart_on_change(restart_map(), stopstart=True)
 def config_changed():
+    if l3ha_router_present() and not get_l3ha():
+        e = ('Cannot disable Router HA while ha enabled routers exist. Please'
+             ' remove any ha routers')
+        log(e, level=ERROR)
+        raise Exception(e)
+    if dvr_router_present() and not get_dvr():
+        e = ('Cannot disable dvr while dvr enabled routers exist. Please'
+             ' remove any distributed routers')
+        log(e, level=ERROR)
+        raise Exception(e)
     apt_install(filter_installed_packages(
                 determine_packages(config('openstack-origin'))),
                 fatal=True)
@@ -193,6 +219,8 @@ def config_changed():
         amqp_joined(relation_id=r_id)
     for r_id in relation_ids('identity-service'):
         identity_joined(rid=r_id)
+    for rid in relation_ids('zeromq-configuration'):
+        zeromq_configuration_relation_joined(rid)
     [cluster_joined(rid) for rid in relation_ids('cluster')]
 
 
@@ -296,6 +324,8 @@ def identity_changed():
     CONFIGS.write(NEUTRON_CONF)
     for r_id in relation_ids('neutron-api'):
         neutron_api_relation_joined(rid=r_id)
+    for r_id in relation_ids('neutron-plugin-api'):
+        neutron_plugin_api_relation_joined(rid=r_id)
     configure_https()
 
 
@@ -339,8 +369,34 @@ def neutron_plugin_api_relation_joined(rid=None):
         relation_data = {
             'neutron-security-groups': config('neutron-security-groups'),
             'l2-population': get_l2population(),
+            'enable-dvr': get_dvr(),
+            'enable-l3ha': get_l3ha(),
             'overlay-network-type': get_overlay_network_type(),
         }
+
+        # Provide this value to relations since it needs to be set in multiple
+        # places e.g. neutron.conf, nova.conf
+        net_dev_mtu = config('network-device-mtu')
+        if net_dev_mtu:
+            relation_data['network-device-mtu'] = net_dev_mtu
+
+    identity_ctxt = IdentityServiceContext()()
+    if not identity_ctxt:
+        identity_ctxt = {}
+
+    relation_data.update({
+        'auth_host': identity_ctxt.get('auth_host'),
+        'auth_port': identity_ctxt.get('auth_port'),
+        'auth_protocol': identity_ctxt.get('auth_protocol'),
+        'service_protocol': identity_ctxt.get('service_protocol'),
+        'service_host': identity_ctxt.get('service_host'),
+        'service_port': identity_ctxt.get('service_port'),
+        'service_tenant': identity_ctxt.get('admin_tenant_name'),
+        'service_username': identity_ctxt.get('admin_user'),
+        'service_password': identity_ctxt.get('admin_password'),
+        'region': config('region'),
+    })
+
     relation_set(relation_id=rid, **relation_data)
 
 
@@ -465,6 +521,20 @@ def update_config_file(config_file, key, value):
             mm.resize(origFileSize + len(insert_config) + 1)
             mm.write("\n" + insert_config)
         mm.close()
+
+
+@hooks.hook('zeromq-configuration-relation-joined')
+@os_requires_version('kilo', 'neutron-server')
+def zeromq_configuration_relation_joined(relid=None):
+    relation_set(relation_id=relid,
+                 topics=" ".join(get_topics()),
+                 users="neutron")
+
+
+@hooks.hook('zeromq-configuration-relation-changed')
+@restart_on_change(restart_map(), stopstart=True)
+def zeromq_configuration_relation_changed():
+    CONFIGS.write_all()
 
 
 @hooks.hook('nrpe-external-master-relation-joined',

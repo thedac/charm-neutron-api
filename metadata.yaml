@@ -37,6 +37,9 @@ requires:
   vsd-rest-api:
     interface: http
     scope: global
+  zeromq-configuration:
+    interface: zeromq-configuration
+    scope: container
 peers:
   cluster:
     interface: neutron-api-ha

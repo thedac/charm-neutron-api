@@ -3,11 +3,15 @@ from charmhelpers.core.hookenv import (
     relation_ids,
     related_units,
     relation_get,
+    log,
 )
 from charmhelpers.contrib.openstack import context
 from charmhelpers.contrib.hahelpers.cluster import (
     determine_api_port,
     determine_apache_port,
+)
+from charmhelpers.contrib.openstack.utils import (
+    os_release,
 )
 
 
@@ -21,6 +25,43 @@ def get_overlay_network_type():
     if overlay_net not in ['vxlan', 'gre']:
         raise Exception('Unsupported overlay-network-type')
     return overlay_net
+
+
+def get_l3ha():
+    if config('enable-l3ha'):
+        if os_release('neutron-server') < 'juno':
+            log('Disabling L3 HA, enable-l3ha is not valid before Juno')
+            return False
+        if config('overlay-network-type') not in ['vlan', 'gre', 'vxlan']:
+            log('Disabling L3 HA, enable-l3ha requires the use of the vxlan, '
+                'vlan or gre overlay network')
+            return False
+        if get_l2population():
+            log('Disabling L3 HA, l2-population must be disabled with L3 HA')
+            return False
+        return True
+    else:
+        return False
+
+
+def get_dvr():
+    if config('enable-dvr'):
+        if os_release('neutron-server') < 'juno':
+            log('Disabling DVR, enable-dvr is not valid before Juno')
+            return False
+        if config('overlay-network-type') != 'vxlan':
+            log('Disabling DVR, enable-dvr requires the use of the vxlan '
+                'overlay network')
+            return False
+        if get_l3ha():
+            log('Disabling DVR, enable-l3ha must be disabled with dvr')
+            return False
+        if not get_l2population():
+            log('Disabling DVR, l2-population must be enabled to use dvr')
+            return False
+        return True
+    else:
+        return False
 
 
 class ApacheSSLContext(context.ApacheSSLContext):
@@ -69,6 +110,14 @@ class NeutronCCContext(context.NeutronContext):
     def neutron_overlay_network_type(self):
         return get_overlay_network_type()
 
+    @property
+    def neutron_dvr(self):
+        return get_dvr()
+
+    @property
+    def neutron_l3ha(self):
+        return get_l3ha()
+
     # Do not need the plugin agent installed on the api server
     def _ensure_packages(self):
         pass
@@ -91,6 +140,13 @@ class NeutronCCContext(context.NeutronContext):
                 ctxt['nsx_controllers_list'] = \
                     config('nsx-controllers').split()
         ctxt['l2_population'] = self.neutron_l2_population
+        ctxt['enable_dvr'] = self.neutron_dvr
+        ctxt['l3_ha'] = self.neutron_l3ha
+        if self.neutron_l3ha:
+            ctxt['max_l3_agents_per_router'] = \
+                config('max-l3-agents-per-router')
+            ctxt['min_l3_agents_per_router'] = \
+                config('min-l3-agents-per-router')
         ctxt['overlay_network_type'] = self.neutron_overlay_network_type
         ctxt['external_network'] = config('neutron-external-network')
         if config('neutron-plugin') in ['vsp']:
@@ -108,6 +164,19 @@ class NeutronCCContext(context.NeutronContext):
         ctxt['neutron_bind_port'] = \
             determine_api_port(api_port('neutron-server'),
                                singlenode_mode=True)
+        ctxt['quota_security_group'] = config('quota-security-group')
+        ctxt['quota_security_group_rule'] = \
+            config('quota-security-group-rule')
+        ctxt['quota_network'] = config('quota-network')
+        ctxt['quota_subnet'] = config('quota-subnet')
+        ctxt['quota_port'] = config('quota-port')
+        ctxt['quota_vip'] = config('quota-vip')
+        ctxt['quota_pool'] = config('quota-pool')
+        ctxt['quota_member'] = config('quota-member')
+        ctxt['quota_health_monitors'] = config('quota-health-monitors')
+        ctxt['quota_router'] = config('quota-router')
+        ctxt['quota_floatingip'] = config('quota-floatingip')
+
         for rid in relation_ids('neutron-api'):
             for unit in related_units(rid):
                 rdata = relation_get(rid=rid, unit=unit)
