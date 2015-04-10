@@ -13,6 +13,9 @@ from charmhelpers.contrib.hahelpers.cluster import (
 from charmhelpers.contrib.openstack.utils import (
     os_release,
 )
+from charmhelpers.contrib.openstack.neutron import (
+    parse_vlan_range_mappings,
+)
 
 
 def get_l2population():
@@ -180,6 +183,14 @@ class NeutronCCContext(context.NeutronContext):
                     continue
                 if ctxt['nova_url']:
                     return ctxt
+
+        vlan_ranges = config('vlan-ranges')
+        vlan_range_mappings = parse_vlan_range_mappings(vlan_ranges)
+        if vlan_range_mappings:
+            providers = sorted(vlan_range_mappings.keys())
+            ctxt['network_providers'] = ','.join(providers)
+            ctxt['vlan_ranges'] = ','.join(vlan_ranges.split())
+
         return ctxt
 
 
