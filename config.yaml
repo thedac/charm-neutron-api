@@ -73,6 +73,11 @@ options:
         gre
         vxlan 
       .
+  vlan-ranges:
+    type: string
+    default: "physnet1:1000:2000"
+    description: |
+      Space-delimited list of network provider vlan id ranges.
   # Quota configuration settings
   quota-security-group:
     default: 10
