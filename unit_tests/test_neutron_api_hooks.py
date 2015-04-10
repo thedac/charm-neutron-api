@@ -114,7 +114,7 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.test_config.set('neutron-plugin', 'vsp')
         self.test_config.set('vsp-packages', vsp_packages)
         self.test_config.set('neutron-plugin-repository-url',
-                              "deb http://10.14.4.1/nuage trusty main")
+                             "deb http://10.14.4.1/nuage trusty main")
         _pkgs = ['foo', 'bar']
         _expected_pkgs = list(_pkgs)
         _expected_pkgs.append(vsp_packages)
@@ -309,7 +309,6 @@ class NeutronAPIHooksTests(CharmTestCase):
         )
 
     def test_vsd_api_relation_changed(self):
-        #self.test_config.set('vsd-config-file', './vsd_config_test.ini')
         self.test_config.set('neutron-plugin', 'vsp')
         self.test_relation.set({
             'vsd-ip-address': '10.11.12.13',
@@ -317,7 +316,6 @@ class NeutronAPIHooksTests(CharmTestCase):
         self._call_hook('vsd-rest-api-relation-changed')
         self.assertTrue(self.update_config_file.called)
         self.save_vsd_address_to_config.assert_called_with('10.11.12.13:8443')
-
 
     def test_neutron_api_relation_changed(self):
         self.CONFIGS.complete_contexts.return_value = ['shared-db']
