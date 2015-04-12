@@ -130,8 +130,6 @@ def install():
                 key = config('neutron-plugin-ppa-key')
             add_source(config('neutron-plugin-repository-url'), key)
             packages += config('vsp-packages').split()
-        if config('vsd-server'):
-            save_vsd_address_to_config(config('vsd-server'))
 
     apt_update()
     apt_install(packages, fatal=True)
@@ -171,16 +169,9 @@ def vsd_changed(relation_id=None, remote_unit=None):
         if not vsd_ip_address:
             return
         vsd_address = '{}:8443'.format(vsd_ip_address)
-        save_vsd_address_to_config(vsd_address)
         log('vsd-rest-api-relation-changed: ip address:{}'.format(vsd_address))
         vsd_config_file = config('vsd-config-file')
         update_config_file(vsd_config_file, 'server', vsd_address)
-
-
-def save_vsd_address_to_config(vsd_address):
-    _config = config()
-    _config['vsd-address'] = vsd_address
-    _config.save()
 
 
 @hooks.hook('upgrade-charm')
