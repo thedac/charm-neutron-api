@@ -56,7 +56,6 @@ TO_PATCH = [
     'update_nrpe_config',
     'service_reload',
     'IdentityServiceContext',
-    'save_vsd_address_to_config',
     'update_config_file',
 ]
 NEUTRON_CONF_DIR = "/etc/neutron"

@@ -154,9 +154,14 @@ class NeutronCCContext(context.NeutronContext):
             for k, v in _config.iteritems():
                 if k.startswith('vsd'):
                     ctxt[k.replace('-', '_')] = v
-            if 'vsd-address' in _config:
-                ctxt['vsd_server'] = _config['vsd-address']
-            elif 'vsd_server' not in ctxt:
+            for rid in relation_ids('vsd-rest-api'):
+                for unit in related_units(rid):
+                    rdata = relation_get(rid=rid, unit=unit)
+                    vsd_ip = rdata.get('vsd-ip-address')
+                    log('relation data:vsd-ip-address: {}'.format(vsd_ip))
+                    if vsd_ip is not None:
+                        ctxt['vsd_server'] = '{}:8443'.format(vsd_ip)
+            if 'vsd_server' not in ctxt:
                 ctxt['vsd_server'] = '1.1.1.1:8443'
 
         ctxt['verbose'] = config('verbose')
