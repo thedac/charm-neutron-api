@@ -426,7 +426,6 @@ class NeutronCCContextTest(CharmTestCase):
         plugin.return_value = 'vsp'
         self.related_units.return_value = ['vsdunit1']
         self.relation_ids.return_value = ['vsdrid2']
-        self.test_relation.set({'vsd-ip-address': '1.1.1.1'})
         self.test_config.set('neutron-plugin', 'vsp')
         napi_ctxt = context.NeutronCCContext()()
         expect = {
