@@ -286,6 +286,8 @@ class NeutronCCContextTest(CharmTestCase):
             'quota_security_group_rule': 100,
             'quota_subnet': 10,
             'quota_vip': 10,
+            'vlan_ranges': 'physnet1:1000:2000',
+            'network_providers': 'physnet1',
         }
         napi_ctxt = context.NeutronCCContext()
         with patch.object(napi_ctxt, '_ensure_packages'):
@@ -317,6 +319,8 @@ class NeutronCCContextTest(CharmTestCase):
             'quota_security_group_rule': 100,
             'quota_subnet': 10,
             'quota_vip': 10,
+            'vlan_ranges': 'physnet1:1000:2000',
+            'network_providers': 'physnet1',
         }
         napi_ctxt = context.NeutronCCContext()
         with patch.object(napi_ctxt, '_ensure_packages'):
@@ -354,6 +358,8 @@ class NeutronCCContextTest(CharmTestCase):
             'quota_security_group_rule': 100,
             'quota_subnet': 10,
             'quota_vip': 10,
+            'vlan_ranges': 'physnet1:1000:2000',
+            'network_providers': 'physnet1',
         }
         napi_ctxt = context.NeutronCCContext()
         with patch.object(napi_ctxt, '_ensure_packages'):
