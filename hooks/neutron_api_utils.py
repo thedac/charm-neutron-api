@@ -392,7 +392,7 @@ def git_post_install(projects_yaml):
     for conf, files in configs.iteritems():
         shutil.copyfile(files['src'], files['dest'])
 
-    render('neutron_sudoers', '/etc/sudoers.d/neutron_sudoers', {},
+    render('git/neutron_sudoers', '/etc/sudoers.d/neutron_sudoers', {},
            perms=0o440)
 
     neutron_api_context = {
@@ -402,7 +402,8 @@ def git_post_install(projects_yaml):
     }
 
     # NOTE(coreycb): Needs systemd support
-    render('upstart/neutron-server.upstart', '/etc/init/neutron-server.conf',
+    render('git/upstart/neutron-server.upstart',
+           '/etc/init/neutron-server.conf',
            neutron_api_context, perms=0o644)
 
     service_restart('neutron-server')
