@@ -272,9 +272,9 @@ class TestNeutronAPIUtils(CharmTestCase):
             'process_name': 'neutron-server',
         }
         expected = [
-            call('neutron_sudoers', '/etc/sudoers.d/neutron_sudoers', {},
+            call('git/neutron_sudoers', '/etc/sudoers.d/neutron_sudoers', {},
                  perms=0o440),
-            call('upstart/neutron-server.upstart',
+            call('git/upstart/neutron-server.upstart',
                  '/etc/init/neutron-server.conf',
                  neutron_api_context, perms=0o644),
         ]
