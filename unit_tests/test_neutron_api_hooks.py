@@ -315,7 +315,8 @@ class NeutronAPIHooksTests(CharmTestCase):
         self._call_hook('vsd-rest-api-relation-changed')
         self.assertTrue(self.update_config_file.called)
         config_file = self.test_config.get('vsd-config-file')
-        self.update_config_file.assert_called_with(config_file, 'server', '10.11.12.13:8443')
+        self.update_config_file.assert_called_with(config_file, 'server',
+                                                   '10.11.12.13:8443')
 
     def test_neutron_api_relation_changed(self):
         self.CONFIGS.complete_contexts.return_value = ['shared-db']
