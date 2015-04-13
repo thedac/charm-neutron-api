@@ -343,10 +343,6 @@ def git_install(projects_yaml):
 def git_pre_install():
     """Perform pre-install setup."""
     dirs = [
-        '/etc/neutron',
-        '/etc/neutron/rootwrap.d',
-        '/etc/neutron/plugins',
-        '/etc/neutron/plugins/ml2',
         '/var/lib/neutron',
         '/var/lib/neutron/lock',
         '/var/log/neutron',
@@ -370,27 +366,19 @@ def git_pre_install():
 def git_post_install(projects_yaml):
     """Perform post-install setup."""
     src_etc = os.path.join(git_src_dir(projects_yaml, 'neutron'), 'etc')
-    configs = {
-        'api-paste': {
-            'src': os.path.join(src_etc, 'api-paste.ini'),
-            'dest': '/etc/neutron/api-paste.ini',
-        },
-        'debug-filters': {
-            'src': os.path.join(src_etc, 'neutron/rootwrap.d/debug.filters'),
-            'dest': '/etc/neutron/rootwrap.d/debug.filters',
-        },
-        'policy': {
-            'src': os.path.join(src_etc, 'policy.json'),
-            'dest': '/etc/neutron/policy.json',
-        },
-        'rootwrap': {
-            'src': os.path.join(src_etc, 'rootwrap.conf'),
-            'dest': '/etc/neutron/rootwrap.conf',
-        },
-    }
+    configs = [
+        {'src': src_etc,
+         'dest': '/etc/neutron'},
+        {'src': os.path.join(src_etc, 'neutron/plugins'),
+         'dest': '/etc/neutron/plugins'},
+        {'src': os.path.join(src_etc, 'neutron/rootwrap.d'),
+         'dest': '/etc/neutron/rootwrap.d'},
+    ]
 
-    for conf, files in configs.iteritems():
-        shutil.copyfile(files['src'], files['dest'])
+    for c in configs:
+        if os.path.exists(c['dest']):
+            shutil.rmtree(c['dest'])
+        shutil.copytree(c['src'], c['dest'])
 
     render('git/neutron_sudoers', '/etc/sudoers.d/neutron_sudoers', {},
            perms=0o440)
