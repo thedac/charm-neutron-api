@@ -287,7 +287,6 @@ class NeutronCCContextTest(CharmTestCase):
             'quota_subnet': 10,
             'quota_vip': 10,
             'vlan_ranges': 'physnet1:1000:2000',
-            'network_providers': 'physnet1',
         }
         napi_ctxt = context.NeutronCCContext()
         with patch.object(napi_ctxt, '_ensure_packages'):
@@ -298,6 +297,7 @@ class NeutronCCContextTest(CharmTestCase):
     @patch('__builtin__.__import__')
     def test_neutroncc_context_vxlan(self, _import, plugin, nm):
         plugin.return_value = None
+        self.test_config.set('flat-network-providers', 'physnet2 physnet3')
         self.test_config.set('overlay-network-type', 'vxlan')
         ctxt_data = {
             'debug': True,
@@ -320,7 +320,7 @@ class NeutronCCContextTest(CharmTestCase):
             'quota_subnet': 10,
             'quota_vip': 10,
             'vlan_ranges': 'physnet1:1000:2000',
-            'network_providers': 'physnet1',
+            'network_providers': 'physnet2,physnet3',
         }
         napi_ctxt = context.NeutronCCContext()
         with patch.object(napi_ctxt, '_ensure_packages'):
@@ -359,7 +359,6 @@ class NeutronCCContextTest(CharmTestCase):
             'quota_subnet': 10,
             'quota_vip': 10,
             'vlan_ranges': 'physnet1:1000:2000',
-            'network_providers': 'physnet1',
         }
         napi_ctxt = context.NeutronCCContext()
         with patch.object(napi_ctxt, '_ensure_packages'):

@@ -73,11 +73,17 @@ options:
         gre
         vxlan 
       .
+  flat-network-providers:
+    type: string
+    default:
+    description: |
+      Space-delimited list of Neutron flat network providers.
   vlan-ranges:
     type: string
     default: "physnet1:1000:2000"
     description: |
-      Space-delimited list of network provider vlan id ranges.
+      Space-delimited list of Neutron network-provider & vlan-id-ranges using
+      the following format (<provider>:<start>:<end>).
   # Quota configuration settings
   quota-security-group:
     default: 10
