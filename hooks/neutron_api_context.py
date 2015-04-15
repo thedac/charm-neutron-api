@@ -13,6 +13,9 @@ from charmhelpers.contrib.hahelpers.cluster import (
 from charmhelpers.contrib.openstack.utils import (
     os_release,
 )
+from charmhelpers.contrib.openstack.neutron import (
+    parse_vlan_range_mappings,
+)
 
 
 def get_l2population():
@@ -126,6 +129,25 @@ class NeutronCCContext(context.NeutronContext):
     def _save_flag_file(self):
         pass
 
+    def get_neutron_api_rel_settings(self):
+        settings = {}
+        for rid in relation_ids('neutron-api'):
+            for unit in related_units(rid):
+                rdata = relation_get(rid=rid, unit=unit)
+                cell_type = rdata.get('cell_type')
+                settings['nova_url'] = rdata.get('nova_url')
+                settings['restart_trigger'] = rdata.get('restart_trigger')
+                # If there are multiple nova-cloud-controllers joined to this
+                # service in a cell deployment then ignore the non-api cell
+                # ones
+                if cell_type and not cell_type == "api":
+                    continue
+
+                if settings['nova_url']:
+                    return settings
+
+        return settings
+
     def __call__(self):
         from neutron_api_utils import api_port
         ctxt = super(NeutronCCContext, self).__call__()
@@ -167,19 +189,17 @@ class NeutronCCContext(context.NeutronContext):
         ctxt['quota_router'] = config('quota-router')
         ctxt['quota_floatingip'] = config('quota-floatingip')
 
-        for rid in relation_ids('neutron-api'):
-            for unit in related_units(rid):
-                rdata = relation_get(rid=rid, unit=unit)
-                cell_type = rdata.get('cell_type')
-                ctxt['nova_url'] = rdata.get('nova_url')
-                ctxt['restart_trigger'] = rdata.get('restart_trigger')
-                # If there are multiple nova-cloud-controllers joined to this
-                # service in a cell deployment then ignore the non-api cell
-                # ones
-                if cell_type and not cell_type == "api":
-                    continue
-                if ctxt['nova_url']:
-                    return ctxt
+        n_api_settings = self.get_neutron_api_rel_settings()
+        if n_api_settings:
+            ctxt.update(n_api_settings)
+
+        vlan_ranges = config('vlan-ranges')
+        vlan_range_mappings = parse_vlan_range_mappings(vlan_ranges)
+        if vlan_range_mappings:
+            providers = sorted(vlan_range_mappings.keys())
+            ctxt['network_providers'] = ','.join(providers)
+            ctxt['vlan_ranges'] = ','.join(vlan_ranges.split())
+
         return ctxt
 
 
