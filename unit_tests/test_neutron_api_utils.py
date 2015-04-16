@@ -1,5 +1,5 @@
 
-from mock import MagicMock, patch
+from mock import MagicMock, patch, call
 from collections import OrderedDict
 from copy import deepcopy
 import charmhelpers.contrib.openstack.templating as templating
@@ -30,6 +30,15 @@ TO_PATCH = [
     'neutron_plugin_attribute',
     'os_release',
 ]
+
+openstack_origin_git = \
+    """repositories:
+         - {name: requirements,
+            repository: 'git://git.openstack.org/openstack/requirements',
+            branch: stable/juno}
+         - {name: neutron,
+            repository: 'git://git.openstack.org/openstack/neutron',
+            branch: stable/juno}"""
 
 
 def _mock_npa(plugin, attr, net_manager=None):
@@ -64,13 +73,17 @@ class TestNeutronAPIUtils(CharmTestCase):
         port = nutils.api_port('neutron-server')
         self.assertEqual(port, nutils.API_PORTS['neutron-server'])
 
-    def test_determine_packages(self):
+    @patch.object(nutils, 'git_install_requested')
+    def test_determine_packages(self, git_requested):
+        git_requested.return_value = False
         pkg_list = nutils.determine_packages()
         expect = deepcopy(nutils.BASE_PACKAGES)
         expect.extend(['neutron-server', 'neutron-plugin-ml2'])
         self.assertItemsEqual(pkg_list, expect)
 
-    def test_determine_packages_kilo(self):
+    @patch.object(nutils, 'git_install_requested')
+    def test_determine_packages_kilo(self, git_requested):
+        git_requested.return_value = False
         self.get_os_codename_install_source.return_value = 'kilo'
         pkg_list = nutils.determine_packages()
         expect = deepcopy(nutils.BASE_PACKAGES)
@@ -159,7 +172,9 @@ class TestNeutronAPIUtils(CharmTestCase):
             nutils.keystone_ca_cert_b64()
             self.assertTrue(self.b64encode.called)
 
-    def test_do_openstack_upgrade(self):
+    @patch.object(nutils, 'git_install_requested')
+    def test_do_openstack_upgrade(self, git_requested):
+        git_requested.return_value = False
         self.config.side_effect = self.test_config.get
         self.test_config.set('openstack-origin', 'cloud:trusty-juno')
         self.os_release.side_effect = 'icehouse'
@@ -184,3 +199,80 @@ class TestNeutronAPIUtils(CharmTestCase):
                                             options=dpkg_opts,
                                             fatal=True)
         configs.set_release.assert_called_with(openstack_release='juno')
+
+    @patch.object(nutils, 'git_install_requested')
+    @patch.object(nutils, 'git_clone_and_install')
+    @patch.object(nutils, 'git_post_install')
+    @patch.object(nutils, 'git_pre_install')
+    def test_git_install(self, git_pre, git_post, git_clone_and_install,
+                         git_requested):
+        projects_yaml = openstack_origin_git
+        git_requested.return_value = True
+        nutils.git_install(projects_yaml)
+        self.assertTrue(git_pre.called)
+        git_clone_and_install.assert_called_with(openstack_origin_git,
+                                                 core_project='neutron')
+        self.assertTrue(git_post.called)
+
+    @patch.object(nutils, 'mkdir')
+    @patch.object(nutils, 'write_file')
+    @patch.object(nutils, 'add_user_to_group')
+    @patch.object(nutils, 'add_group')
+    @patch.object(nutils, 'adduser')
+    def test_git_pre_install(self, adduser, add_group, add_user_to_group,
+                             write_file, mkdir):
+        nutils.git_pre_install()
+        adduser.assert_called_with('neutron', shell='/bin/bash',
+                                   system_user=True)
+        add_group.assert_called_with('neutron', system_group=True)
+        add_user_to_group.assert_called_with('neutron', 'neutron')
+        expected = [
+            call('/var/lib/neutron', owner='neutron',
+                 group='neutron', perms=0700, force=False),
+            call('/var/lib/neutron/lock', owner='neutron',
+                 group='neutron', perms=0700, force=False),
+            call('/var/log/neutron', owner='neutron',
+                 group='neutron', perms=0700, force=False),
+        ]
+        self.assertEquals(mkdir.call_args_list, expected)
+        expected = [
+            call('/var/log/neutron/server.log', '', owner='neutron',
+                 group='neutron', perms=0600),
+        ]
+        self.assertEquals(write_file.call_args_list, expected)
+
+    @patch.object(nutils, 'git_src_dir')
+    @patch.object(nutils, 'service_restart')
+    @patch.object(nutils, 'render')
+    @patch('os.path.join')
+    @patch('os.path.exists')
+    @patch('shutil.copytree')
+    @patch('shutil.rmtree')
+    def test_git_post_install(self, rmtree, copytree, exists, join, render,
+                              service_restart, git_src_dir):
+        projects_yaml = openstack_origin_git
+        join.return_value = 'joined-string'
+        nutils.git_post_install(projects_yaml)
+        expected = [
+            call('joined-string', '/etc/neutron'),
+            call('joined-string', '/etc/neutron/plugins'),
+            call('joined-string', '/etc/neutron/rootwrap.d'),
+        ]
+        copytree.assert_has_calls(expected)
+        neutron_api_context = {
+            'service_description': 'Neutron API server',
+            'charm_name': 'neutron-api',
+            'process_name': 'neutron-server',
+        }
+        expected = [
+            call('git/neutron_sudoers', '/etc/sudoers.d/neutron_sudoers', {},
+                 perms=0o440),
+            call('git/upstart/neutron-server.upstart',
+                 '/etc/init/neutron-server.conf',
+                 neutron_api_context, perms=0o644),
+        ]
+        self.assertEquals(render.call_args_list, expected)
+        expected = [
+            call('neutron-server'),
+        ]
+        self.assertEquals(service_restart.call_args_list, expected)

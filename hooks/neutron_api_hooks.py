@@ -32,7 +32,9 @@ from charmhelpers.fetch import (
 )
 
 from charmhelpers.contrib.openstack.utils import (
+    config_value_changed,
     configure_installation_source,
+    git_install_requested,
     openstack_upgrade_available,
     os_requires_version,
     sync_db_with_multi_ipv6_addresses
@@ -44,6 +46,7 @@ from neutron_api_utils import (
     determine_packages,
     determine_ports,
     do_openstack_upgrade,
+    git_install,
     dvr_router_present,
     l3ha_router_present,
     register_configs,
@@ -114,9 +117,13 @@ def configure_https():
 def install():
     execd_preinstall()
     configure_installation_source(config('openstack-origin'))
+
     apt_update()
     apt_install(determine_packages(config('openstack-origin')),
                 fatal=True)
+
+    git_install(config('openstack-origin-git'))
+
     [open_port(port) for port in determine_ports()]
 
 
@@ -143,8 +150,12 @@ def config_changed():
                                           config('database-user'))
 
     global CONFIGS
-    if openstack_upgrade_available('neutron-server'):
-        do_openstack_upgrade(CONFIGS)
+    if git_install_requested():
+        if config_value_changed('openstack-origin-git'):
+            git_install(config('openstack-origin-git'))
+    else:
+        if openstack_upgrade_available('neutron-server'):
+            do_openstack_upgrade(CONFIGS)
     configure_https()
     update_nrpe_config()
     CONFIGS.write_all()
