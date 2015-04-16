@@ -1,6 +1,8 @@
 from collections import OrderedDict
 from copy import deepcopy
 import os
+import shutil
+import glob
 from base64 import b64encode
 from charmhelpers.contrib.openstack import context, templating
 from charmhelpers.contrib.openstack.neutron import (
@@ -26,7 +28,9 @@ from charmhelpers.fetch import (
 )
 
 from charmhelpers.core.host import (
-    lsb_release
+    lsb_release,
+    service_stop,
+    service_start,
 )
 
 import neutron_api_context
@@ -123,6 +127,18 @@ def additional_install_locations(plugin):
 
         apt_update()
         apt_upgrade()
+
+
+def force_etcd_restart():
+    '''
+    If etcd has been reconfigured we need to force it to fully restart.
+    This is necessary because etcd has some config flags that it ignores
+    after the first time it starts, so we need to make it forget them.
+    '''
+    service_stop('etcd')
+    for directory in glob.glob('/var/lib/etcd/*'):
+        shutil.rmtree(directory)
+    service_start('etcd')
 
 
 def determine_packages(source=None):

@@ -44,11 +44,13 @@ from neutron_api_utils import (
     restart_map,
     services,
     setup_ipv6,
-    additional_install_locations
+    additional_install_locations,
+    force_etcd_restart,
 )
 from neutron_api_context import (
     get_l2population,
     get_overlay_network_type,
+    EtcdContext,
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
@@ -401,6 +403,18 @@ def calico_network_api_joined(rid=None):
         'plugin_addr': unit_get('private-address')
     }
     relation_set(relation_id=rid, **relation_data)
+
+
+@hooks.hook('etcd-peer-relation-joined')
+@hooks.hook('etcd-peer-relation-changed')
+def etcd_peer_force_restart(relation_id=None):
+    # note(cory.benfield): Mostly etcd does not require active management,
+    # but occasionally it does require a full config nuking. This does not
+    # play well with the standard neutron-api config management, so we
+    # treat etcd like the special snowflake it insists on being.
+    CONFIGS.register('/etc/init/etcd.conf', [EtcdContext()])
+    CONFIGS.write('/etc/init/etcd.conf')
+    force_etcd_restart()
 
 
 def main():
