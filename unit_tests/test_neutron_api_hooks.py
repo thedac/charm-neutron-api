@@ -48,6 +48,7 @@ TO_PATCH = [
     'get_netmask_for_address',
     'get_address_in_network',
     'update_nrpe_config',
+    'force_etcd_restart',
 ]
 NEUTRON_CONF_DIR = "/etc/neutron"
 
@@ -431,3 +432,9 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.check_call.assert_called_with(['a2dissite',
                                            'openstack_https_frontend'])
         self.assertTrue(_id_rel_joined.called)
+
+    def test_etcd_peer_joined(self):
+        self._call_hook('etcd-peer-relation-joined')
+        self.assertTrue(self.CONFIGS.register.called)
+        self.CONFIGS.write.assert_called_with('/etc/init/etcd.conf')
+        self.force_etcd_restart.assert_called_once_with()
