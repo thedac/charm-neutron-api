@@ -138,8 +138,6 @@ def config_changed():
         amqp_joined(relation_id=r_id)
     for r_id in relation_ids('identity-service'):
         identity_joined(rid=r_id)
-    for r_id in relation_ids('calico-network-api'):
-        calico_network_api_joined(rid=r_id)
     [cluster_joined(rid) for rid in relation_ids('cluster')]
 
 
@@ -395,14 +393,6 @@ def update_nrpe_config():
     nrpe.add_init_service_checks(nrpe_setup, services(), current_unit)
     nrpe.add_haproxy_checks(nrpe_setup, current_unit)
     nrpe_setup.write()
-
-
-@hooks.hook('calico-network-api-relation-joined')
-def calico_network_api_joined(rid=None):
-    relation_data = {
-        'plugin_addr': unit_get('private-address')
-    }
-    relation_set(relation_id=rid, **relation_data)
 
 
 @hooks.hook('etcd-peer-relation-joined')
