@@ -123,6 +123,9 @@ def determine_packages(source=None):
         packages.extend(pkgs)
     if get_os_codename_install_source(source) >= 'kilo':
         packages.extend(KILO_PACKAGES)
+    if config('neutron-plugin') == 'vsp':
+        packages.append('python-nuagenetlib')
+
     return list(set(packages))
 
 

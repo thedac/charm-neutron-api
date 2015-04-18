@@ -76,6 +76,10 @@ from charmhelpers.contrib.openstack.ip import (
     PUBLIC, INTERNAL, ADMIN
 )
 
+from charmhelpers.contrib.openstack.neutron import (
+    neutron_plugin_attribute,
+)
+
 from charmhelpers.contrib.network.ip import (
     get_iface_for_address,
     get_netmask_for_address,
@@ -129,7 +133,6 @@ def install():
             if config('neutron-plugin-ppa-key') is not None:
                 key = config('neutron-plugin-ppa-key')
             add_source(config('neutron-plugin-repository-url'), key)
-            packages += config('vsp-packages').split()
 
     apt_update()
     apt_install(packages, fatal=True)
@@ -139,7 +142,6 @@ def install():
         if source is not None:
             try:
                 handler = ArchiveUrlFetchHandler()
-                #packages = config('vsp-packages').split()
                 packages = ['nuage-neutron']
                 path = handler.install(source)
                 for package in packages:
@@ -169,9 +171,11 @@ def vsd_changed(relation_id=None, remote_unit=None):
         if not vsd_ip_address:
             return
         vsd_address = '{}:8443'.format(vsd_ip_address)
+        nuage_config_file = neutron_plugin_attribute(config('neutron-plugin'),
+                                                     'config', 'neutron')
         log('vsd-rest-api-relation-changed: ip address:{}'.format(vsd_address))
-        vsd_config_file = config('vsd-config-file')
-        update_config_file(vsd_config_file, 'server', vsd_address)
+        log('vsd-rest-api-relation-changed:{}'.format(nuage_config_file))
+        CONFIGS.write(nuage_config_file)
 
 
 @hooks.hook('upgrade-charm')
@@ -480,38 +484,6 @@ def ha_changed():
         identity_joined(rid=rid)
     for rid in relation_ids('neutron-api'):
         neutron_api_relation_joined(rid=rid)
-
-
-def update_config_file(config_file, key, value):
-    """Updates or append configuration as key value pairs """
-    insert_config = key + " = " + str(value)
-    with open(config_file, "r+") as vrs_file:
-        mm = mmap.mmap(vrs_file.fileno(), 0)
-        origFileSize = mm.size()
-        newSize = len(insert_config)
-        search_str = '^\s*' + key
-        match = re.search(search_str, mm, re.MULTILINE)
-        if match is not None:
-            start_index = match.start()
-            end_index = mm.find("\n", match.end())
-            if end_index != -1:
-                origSize = end_index - start_index
-                if newSize > origSize:
-                    newFileSize = origFileSize + len(insert_config) - origSize
-                    mm.resize(newFileSize)
-                    mm[start_index + newSize:] = mm[end_index:origFileSize]
-                elif newSize < origSize:
-                    insert_config += (" " * (int(origSize) - int(newSize)))
-                    newSize = origSize
-                mm[start_index:start_index+newSize] = insert_config
-            else:
-                mm.resize(start_index + len(insert_config))
-                mm[start_index:start_index+newSize] = insert_config
-        else:
-            mm.seek(0, os.SEEK_END)
-            mm.resize(origFileSize + len(insert_config) + 1)
-            mm.write("\n" + insert_config)
-        mm.close()
 
 
 @hooks.hook('zeromq-configuration-relation-joined')
