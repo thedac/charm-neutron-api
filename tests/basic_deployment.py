@@ -383,11 +383,14 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
                             'status neutron-lbaas-agent',
                             'status neutron-metadata-agent',
                             'status neutron-plugin-openvswitch-agent',
-                            'status neutron-metering-agent',
                             'status neutron-ovs-cleanup']
 
         if self._get_openstack_release() <= self.trusty_juno:
             neutron_services.append('status neutron-vpn-agent')
+
+        if (self._get_openstack_release() != self.trusty_kilo and
+            self._get_openstack_release() != self.vivid_kilo):
+            neutron_services.append('status neutron-metering-agent')
 
         nova_cc_services = ['status nova-api-ec2',
                             'status nova-api-os-compute',
