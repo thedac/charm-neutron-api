@@ -106,6 +106,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
         self.quantum_gateway_sentry = self.d.sentry.unit['quantum-gateway/0']
         self.neutron_api_sentry = self.d.sentry.unit['neutron-api/0']
         self.nova_compute_sentry = self.d.sentry.unit['nova-compute/0']
+        u.log.debug('openstack rel: {}'.format(self._get_openstack_release()))
 
     def test_neutron_api_shared_db_relation(self):
         """Verify the neutron-api to mysql shared-db relation data"""
@@ -382,9 +383,11 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
                             'status neutron-lbaas-agent',
                             'status neutron-metadata-agent',
                             'status neutron-plugin-openvswitch-agent',
-                            'status neutron-vpn-agent',
                             'status neutron-metering-agent',
                             'status neutron-ovs-cleanup']
+
+        if self._get_openstack_release() <= self.trusty_juno:
+            neutron_services.append('status neutron-vpn-agent')
 
         nova_cc_services = ['status nova-api-ec2',
                             'status nova-api-os-compute',
