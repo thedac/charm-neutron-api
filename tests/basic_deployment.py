@@ -106,7 +106,10 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
         self.quantum_gateway_sentry = self.d.sentry.unit['quantum-gateway/0']
         self.neutron_api_sentry = self.d.sentry.unit['neutron-api/0']
         self.nova_compute_sentry = self.d.sentry.unit['nova-compute/0']
-        u.log.debug('openstack rel: {}'.format(self._get_openstack_release()))
+        u.log.debug('openstack release val: {}'.format(
+            self._get_openstack_release()))
+        u.log.debug('openstack release str: {}'.format(
+            self._get_openstack_release_string()))
 
     def test_neutron_api_shared_db_relation(self):
         """Verify the neutron-api to mysql shared-db relation data"""
