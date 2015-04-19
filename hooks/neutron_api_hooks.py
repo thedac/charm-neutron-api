@@ -3,8 +3,6 @@
 import sys
 import uuid
 import os
-import mmap
-import re
 from subprocess import (
     check_call,
     check_output,

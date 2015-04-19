@@ -44,6 +44,16 @@ def _mock_npa(plugin, attr, net_manager=None):
                                 'neutron-plugin-ml2'],
             'server_services': ['neutron-server']
         },
+        'vsp': {
+            'config': '/etc/neutron/plugins/nuage/nuage_plugin.ini',
+            'driver': 'neutron.plugins.nuage.plugin.NuagePlugin',
+            'contexts': [],
+            'services': [],
+            'packages': [],
+            'server_packages': ['neutron-server',
+                                'python-neutron-plugin-nuage'],
+            'server_services': ['neutron-server']
+        },
     }
     return plugins[plugin][attr]
 
@@ -68,6 +78,15 @@ class TestNeutronAPIUtils(CharmTestCase):
         pkg_list = nutils.determine_packages()
         expect = deepcopy(nutils.BASE_PACKAGES)
         expect.extend(['neutron-server', 'neutron-plugin-ml2'])
+        self.assertItemsEqual(pkg_list, expect)
+
+    def test_determine_vsp_packages(self):
+        self.test_config.set('neutron-plugin', 'vsp')
+        self.get_os_codename_install_source.return_value = 'juno'
+        pkg_list = nutils.determine_packages()
+        expect = deepcopy(nutils.BASE_PACKAGES)
+        expect.extend(['neutron-server', 'python-neutron-plugin-nuage',
+                       'python-nuagenetlib'])
         self.assertItemsEqual(pkg_list, expect)
 
     def test_determine_packages_kilo(self):
