@@ -53,8 +53,9 @@ class OpenStackAmuletDeployment(AmuletDeployment):
         else:
             for svc in other_services:
                 if svc['name'] in base_charms:
-                    temp = 'lp:charms/{}'
-                    svc['location'] = temp.format(svc['name'])
+                    temp = 'lp:charms/{}/{}'
+                    svc['location'] = temp.format(self.current_next,
+                                                  svc['name'])
                 else:
                     temp = 'lp:~openstack-charmers/charms/{}/{}/next'
                     svc['location'] = temp.format(self.current_next,
