@@ -132,10 +132,18 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
         unit = self.mysql_sentry
         relation = ['shared-db', 'neutron-api:shared-db']
         expected = {
-            'allowed_units': 'nova-cloud-controller/0 neutron-api/0',
             'db_host': u.valid_ip,
             'private-address': u.valid_ip,
         }
+
+        if (self._get_openstack_release() == self.trusty_kilo or
+            self._get_openstack_release() == self.vivid_kilo):
+            # Kilo
+            expected.update({'allowed_units': 'neutron-api/0'})
+        else:
+            # Not Kilo
+            expected.update({'allowed_units': 'nova-cloud-controller/0 neutron-api/0'})
+
         ret = u.validate_relation_data(unit, relation, expected)
         rel_data = unit.relation('shared-db', 'neutron-api:shared-db')
         if ret or 'password' not in rel_data:
@@ -307,10 +315,6 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
             'DEFAULT': {
                 'verbose': 'False',
                 'debug': 'False',
-                'rabbit_userid': 'neutron',
-                'rabbit_virtual_host': 'openstack',
-                'rabbit_password': rabbitmq_relation['password'],
-                'rabbit_host': rabbitmq_relation['hostname'],
                 'bind_port': '9686',
                 'nova_url': cc_relation['nova_url'],
                 'nova_region_name': 'RegionOne',
@@ -321,12 +325,6 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
             },
             'keystone_authtoken': {
                 'signing_dir': '/var/cache/neutron',
-                'service_protocol': ks_rel['service_protocol'],
-                'service_host': ks_rel['service_host'],
-                'service_port': ks_rel['service_port'],
-                'auth_host': ks_rel['auth_host'],
-                'auth_port': ks_rel['auth_port'],
-                'auth_protocol':  ks_rel['auth_protocol'],
                 'admin_tenant_name': 'services',
                 'admin_user': 'quantum',
                 'admin_password': ks_rel['service_password'],
@@ -335,6 +333,40 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
                 'connection': db_conn,
             },
         }
+
+        if (self._get_openstack_release() == self.trusty_kilo or
+            self._get_openstack_release() == self.vivid_kilo):
+            # Kilo
+            expected.update(
+                {
+                    'oslo_messaging_rabbit': {
+                        'rabbit_userid': 'neutron',
+                        'rabbit_virtual_host': 'openstack',
+                        'rabbit_password': rabbitmq_relation['password'],
+                        'rabbit_host': rabbitmq_relation['hostname']
+                    }
+                }
+            )
+        else:
+            # Not Kilo
+            expected['DEFAULT'].update(
+                {
+                    'rabbit_userid': 'neutron',
+                    'rabbit_virtual_host': 'openstack',
+                    'rabbit_password': rabbitmq_relation['password'],
+                    'rabbit_host': rabbitmq_relation['hostname']
+                }
+            )
+            expected['keystone_authtoken'].update(
+                {
+                    'service_protocol': ks_rel['service_protocol'],
+                    'service_host': ks_rel['service_host'],
+                    'service_port': ks_rel['service_port'],
+                    'auth_host': ks_rel['auth_host'],
+                    'auth_port': ks_rel['auth_port'],
+                    'auth_protocol':  ks_rel['auth_protocol']
+                }
+            )
 
         for section, pairs in expected.iteritems():
             ret = u.validate_config_data(unit, conf, section, pairs)
@@ -348,12 +380,25 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
         unit = self.neutron_api_sentry
         conf = '/etc/neutron/plugins/ml2/ml2_conf.ini'
         neutron_api_relation = unit.relation('shared-db', 'mysql:shared-db')
-        expected = {
-            'ml2': {
+
+        if (self._get_openstack_release() == self.trusty_kilo or
+            self._get_openstack_release() == self.vivid_kilo):
+            # Kilo
+            ml2_expected = {
                 'type_drivers': 'gre,vxlan,vlan,flat',
                 'tenant_network_types': 'gre,vxlan,vlan,flat',
-                'mechanism_drivers': 'openvswitch,hyperv,l2population',
-            },
+                'mechanism_drivers': 'openvswitch,l2population'
+            }
+        else:
+            # Not Kilo
+            ml2_expected = {
+                'type_drivers': 'gre,vxlan,vlan,flat',
+                'tenant_network_types': 'gre,vxlan,vlan,flat',
+                'mechanism_drivers': 'openvswitch,hyperv,l2population'
+            }
+
+        expected = {
+            'ml2': ml2_expected,
             'ml2_type_gre': {
                 'tunnel_id_ranges': '1:1000'
             },
