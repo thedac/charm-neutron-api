@@ -132,17 +132,10 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
         unit = self.mysql_sentry
         relation = ['shared-db', 'neutron-api:shared-db']
         expected = {
+            'allowed_units': 'neutron-api/0',
             'db_host': u.valid_ip,
             'private-address': u.valid_ip,
         }
-
-#        if (self._get_openstack_release() == self.trusty_kilo or
-#            self._get_openstack_release() == self.vivid_kilo):
-#            # Kilo
-        expected.update({'allowed_units': 'neutron-api/0'})
-#        else:
-##           # Not Kilo
-#            expected.update({'allowed_units': 'nova-cloud-controller/0 neutron-api/0'})
 
         ret = u.validate_relation_data(unit, relation, expected)
         rel_data = unit.relation('shared-db', 'neutron-api:shared-db')
