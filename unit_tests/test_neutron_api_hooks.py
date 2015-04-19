@@ -55,14 +55,30 @@ TO_PATCH = [
     'get_address_in_network',
     'update_nrpe_config',
     'service_reload',
+    'neutron_plugin_attribute',
     'IdentityServiceContext',
-    'update_config_file',
 ]
 NEUTRON_CONF_DIR = "/etc/neutron"
 
 NEUTRON_CONF = '%s/neutron.conf' % NEUTRON_CONF_DIR
 
 from random import randrange
+
+
+def _mock_nuage_npa(plugin, attr, net_manager=None):
+    plugins = {
+        'vsp': {
+            'config': '/etc/neutron/plugins/nuage/nuage_plugin.ini',
+            'driver': 'neutron.plugins.nuage.plugin.NuagePlugin',
+            'contexts': [],
+            'services': [],
+            'packages': [],
+            'server_packages': ['neutron-server',
+                                'python-neutron-plugin-nuage'],
+            'server_services': ['neutron-server']
+        },
+    }
+    return plugins[plugin][attr]
 
 
 class DummyContext():
@@ -83,6 +99,7 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.relation_get.side_effect = self.test_relation.get
         self.test_config.set('openstack-origin', 'distro')
         self.test_config.set('neutron-plugin', 'ovs')
+        self.neutron_plugin_attribute.side_effect = _mock_nuage_npa
 
     def _fake_relids(self, rel_name):
         return [randrange(100) for _count in range(2)]
@@ -109,14 +126,11 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.assertTrue(self.execd_preinstall.called)
 
     def test_nuage_install_hook(self):
-        vsp_packages = "python-nuagenetlib"
         self.test_config.set('neutron-plugin', 'vsp')
-        self.test_config.set('vsp-packages', vsp_packages)
         self.test_config.set('neutron-plugin-repository-url',
                              "deb http://10.14.4.1/nuage trusty main")
-        _pkgs = ['foo', 'bar']
+        _pkgs = ['foo', 'bar', 'python-nuagenetlib']
         _expected_pkgs = list(_pkgs)
-        _expected_pkgs.append(vsp_packages)
         _ports = [80, 81, 82]
         _port_calls = [call(port) for port in _ports]
         self.determine_packages.return_value = _pkgs
@@ -313,10 +327,9 @@ class NeutronAPIHooksTests(CharmTestCase):
             'vsd-ip-address': '10.11.12.13',
         })
         self._call_hook('vsd-rest-api-relation-changed')
-        self.assertTrue(self.update_config_file.called)
-        config_file = self.test_config.get('vsd-config-file')
-        self.update_config_file.assert_called_with(config_file, 'server',
-                                                   '10.11.12.13:8443')
+
+        config_file = '/etc/neutron/plugins/nuage/nuage_plugin.ini'
+        self.assertTrue(self.CONFIGS.write.called_with(config_file))
 
     def test_neutron_api_relation_changed(self):
         self.CONFIGS.complete_contexts.return_value = ['shared-db']
