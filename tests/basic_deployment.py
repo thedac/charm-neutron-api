@@ -333,9 +333,8 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
             },
         }
 
-        if self._get_openstack_release() in [self.trusty_kilo,
-                                             self.vivid_kilo]:
-            # Kilo
+        if self._get_openstack_release() >= self.trusty_kilo:
+            # Kilo or later
             expected.update(
                 {
                     'oslo_messaging_rabbit': {
@@ -347,7 +346,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
                 }
             )
         else:
-            # Not Kilo
+            # Juno or earlier
             expected['DEFAULT'].update(
                 {
                     'rabbit_userid': 'neutron',
@@ -403,16 +402,15 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
             }
         }
 
-        if self._get_openstack_release() in [self.trusty_kilo,
-                                             self.vivid_kilo]:
-            # Kilo
+        if self._get_openstack_release() >= self.trusty_kilo:
+            # Kilo or later
             expected['ml2'].update(
                 {
                     'mechanism_drivers': 'openvswitch,l2population'
                 }
             )
         else:
-            # Not Kilo
+            # Juno or earlier
             expected['ml2'].update(
                 {
                     'mechanism_drivers': 'openvswitch,hyperv,l2population'
@@ -438,8 +436,8 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
         if self._get_openstack_release() <= self.trusty_juno:
             neutron_services.append('status neutron-vpn-agent')
 
-        if self._get_openstack_release() not in [self.trusty_kilo,
-                                                 self.vivid_kilo]:
+        if self._get_openstack_release() < self.trusty_kilo:
+            # Juno or earlier
             neutron_services.append('status neutron-metering-agent')
 
         nova_cc_services = ['status nova-api-ec2',
