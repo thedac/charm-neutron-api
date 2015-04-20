@@ -141,9 +141,6 @@ def config_changed():
              ' remove any distributed routers')
         log(e, level=ERROR)
         raise Exception(e)
-    apt_install(filter_installed_packages(
-                determine_packages(config('openstack-origin'))),
-                fatal=True)
     if config('prefer-ipv6'):
         setup_ipv6()
         sync_db_with_multi_ipv6_addresses(config('database'),
@@ -156,6 +153,10 @@ def config_changed():
     else:
         if openstack_upgrade_available('neutron-server'):
             do_openstack_upgrade(CONFIGS)
+
+    apt_install(filter_installed_packages(
+                determine_packages(config('openstack-origin'))),
+                fatal=True)
     configure_https()
     update_nrpe_config()
     CONFIGS.write_all()
