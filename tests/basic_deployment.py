@@ -327,8 +327,8 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
             },
         }
 
-        if (self._get_openstack_release() == self.trusty_kilo or
-            self._get_openstack_release() == self.vivid_kilo):
+        if self._get_openstack_release() in [self.trusty_kilo,
+                                             self.vivid_kilo]:
             # Kilo
             expected.update(
                 {
@@ -397,8 +397,8 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
             }
         }
 
-        if (self._get_openstack_release() == self.trusty_kilo or
-            self._get_openstack_release() == self.vivid_kilo):
+        if self._get_openstack_release() in [self.trusty_kilo,
+                                             self.vivid_kilo]:
             # Kilo
             expected['ml2'].update(
                 {
@@ -432,8 +432,8 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
         if self._get_openstack_release() <= self.trusty_juno:
             neutron_services.append('status neutron-vpn-agent')
 
-        if (self._get_openstack_release() != self.trusty_kilo and
-            self._get_openstack_release() != self.vivid_kilo):
+        if self._get_openstack_release() not in [self.trusty_kilo,
+                                                 self.vivid_kilo]:
             neutron_services.append('status neutron-metering-agent')
 
         nova_cc_services = ['status nova-api-ec2',
