@@ -374,24 +374,11 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
         conf = '/etc/neutron/plugins/ml2/ml2_conf.ini'
         neutron_api_relation = unit.relation('shared-db', 'mysql:shared-db')
 
-        if (self._get_openstack_release() == self.trusty_kilo or
-            self._get_openstack_release() == self.vivid_kilo):
-            # Kilo
-            ml2_expected = {
-                'type_drivers': 'gre,vxlan,vlan,flat',
-                'tenant_network_types': 'gre,vxlan,vlan,flat',
-                'mechanism_drivers': 'openvswitch,l2population'
-            }
-        else:
-            # Not Kilo
-            ml2_expected = {
-                'type_drivers': 'gre,vxlan,vlan,flat',
-                'tenant_network_types': 'gre,vxlan,vlan,flat',
-                'mechanism_drivers': 'openvswitch,hyperv,l2population'
-            }
-
         expected = {
-            'ml2': ml2_expected,
+            'ml2': {
+                'type_drivers': 'gre,vxlan,vlan,flat',
+                'tenant_network_types': 'gre,vxlan,vlan,flat',
+            },
             'ml2_type_gre': {
                 'tunnel_id_ranges': '1:1000'
             },
@@ -409,6 +396,22 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
                 'enable_security_group': 'False',
             }
         }
+
+        if (self._get_openstack_release() == self.trusty_kilo or
+            self._get_openstack_release() == self.vivid_kilo):
+            # Kilo
+            expected['ml2'].update(
+                {
+                    'mechanism_drivers': 'openvswitch,l2population'
+                }
+            )
+        else:
+            # Not Kilo
+            expected['ml2'].update(
+                {
+                    'mechanism_drivers': 'openvswitch,hyperv,l2population'
+                }
+            )
 
         for section, pairs in expected.iteritems():
             ret = u.validate_config_data(unit, conf, section, pairs)
