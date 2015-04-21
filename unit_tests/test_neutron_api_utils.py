@@ -3,6 +3,7 @@ from mock import MagicMock, patch, call
 from collections import OrderedDict
 from copy import deepcopy
 import charmhelpers.contrib.openstack.templating as templating
+import neutron_api_context as ncontext
 
 templating.OSConfigRenderer = MagicMock()
 
@@ -55,6 +56,15 @@ def _mock_npa(plugin, attr, net_manager=None):
         },
     }
     return plugins[plugin][attr]
+
+
+class DummyIdentityServiceContext():
+
+    def __init__(self, return_value):
+        self.return_value = return_value
+
+    def __call__(self):
+        return self.return_value
 
 
 class TestNeutronAPIUtils(CharmTestCase):
@@ -199,6 +209,122 @@ class TestNeutronAPIUtils(CharmTestCase):
                                             options=dpkg_opts,
                                             fatal=True)
         configs.set_release.assert_called_with(openstack_release='juno')
+
+    @patch.object(ncontext, 'IdentityServiceContext')
+    @patch('neutronclient.v2_0.client.Client')
+    def test_get_neutron_client(self, nclient, IdentityServiceContext):
+        creds = {
+            'auth_protocol': 'http',
+            'auth_host': 'myhost',
+            'auth_port': '2222',
+            'admin_user': 'bob',
+            'admin_password': 'pa55w0rd',
+            'admin_tenant_name': 'tenant1',
+            'region': 'region2',
+        }
+        IdentityServiceContext.return_value = \
+            DummyIdentityServiceContext(return_value=creds)
+        nutils.get_neutron_client()
+        nclient.assert_called_with(
+            username='bob',
+            tenant_name='tenant1',
+            password='pa55w0rd',
+            auth_url='http://myhost:2222/v2.0',
+            region_name='region2',
+        )
+
+    @patch.object(ncontext, 'IdentityServiceContext')
+    def test_get_neutron_client_noidservice(self, IdentityServiceContext):
+        creds = {}
+        IdentityServiceContext.return_value = \
+            DummyIdentityServiceContext(return_value=creds)
+        self.assertEquals(nutils.get_neutron_client(), None)
+
+    @patch.object(nutils, 'get_neutron_client')
+    def test_router_feature_present_keymissing(self, get_neutron_client):
+        routers = {
+            'routers': [
+                {
+                    u'status': u'ACTIVE',
+                    u'external_gateway_info': {
+                        u'network_id': u'eedffb9b-b93e-49c6-9545-47c656c9678e',
+                        u'enable_snat': True
+                    }, u'name': u'provider-router',
+                    u'admin_state_up': True,
+                    u'tenant_id': u'b240d06e38394780a3ea296138cdd174',
+                    u'routes': [],
+                    u'id': u'84182bc8-eede-4564-9c87-1a56bdb26a90',
+                }
+            ]
+        }
+        get_neutron_client.list_routers.return_value = routers
+        self.assertEquals(nutils.router_feature_present('ha'), False)
+
+    @patch.object(nutils, 'get_neutron_client')
+    def test_router_feature_present_keyfalse(self, get_neutron_client):
+        routers = {
+            'routers': [
+                {
+                    u'status': u'ACTIVE',
+                    u'external_gateway_info': {
+                        u'network_id': u'eedffb9b-b93e-49c6-9545-47c656c9678e',
+                        u'enable_snat': True
+                    }, u'name': u'provider-router',
+                    u'admin_state_up': True,
+                    u'tenant_id': u'b240d06e38394780a3ea296138cdd174',
+                    u'routes': [],
+                    u'id': u'84182bc8-eede-4564-9c87-1a56bdb26a90',
+                    u'ha': False,
+                }
+            ]
+        }
+        dummy_client = MagicMock()
+        dummy_client.list_routers.return_value = routers
+        get_neutron_client.return_value = dummy_client
+        self.assertEquals(nutils.router_feature_present('ha'), False)
+
+    @patch.object(nutils, 'get_neutron_client')
+    def test_router_feature_present_keytrue(self, get_neutron_client):
+        routers = {
+            'routers': [
+                {
+                    u'status': u'ACTIVE',
+                    u'external_gateway_info': {
+                        u'network_id': u'eedffb9b-b93e-49c6-9545-47c656c9678e',
+                        u'enable_snat': True
+                    }, u'name': u'provider-router',
+                    u'admin_state_up': True,
+                    u'tenant_id': u'b240d06e38394780a3ea296138cdd174',
+                    u'routes': [],
+                    u'id': u'84182bc8-eede-4564-9c87-1a56bdb26a90',
+                    u'ha': True,
+                }
+            ]
+        }
+
+        dummy_client = MagicMock()
+        dummy_client.list_routers.return_value = routers
+        get_neutron_client.return_value = dummy_client
+        self.assertEquals(nutils.router_feature_present('ha'), True)
+
+    @patch.object(nutils, 'get_neutron_client')
+    def test_neutron_ready(self, get_neutron_client):
+        dummy_client = MagicMock()
+        dummy_client.list_routers.return_value = []
+        get_neutron_client.return_value = dummy_client
+        self.assertEquals(nutils.neutron_ready(), True)
+
+    @patch.object(nutils, 'get_neutron_client')
+    def test_neutron_ready_noclient(self, get_neutron_client):
+        get_neutron_client.return_value = None
+        self.assertEquals(nutils.neutron_ready(), False)
+
+    @patch.object(nutils, 'get_neutron_client')
+    def test_neutron_ready_clientexception(self, get_neutron_client):
+        dummy_client = MagicMock()
+        dummy_client.list_routers.side_effect = Exception('Boom!')
+        get_neutron_client.return_value = dummy_client
+        self.assertEquals(nutils.neutron_ready(), False)
 
     @patch.object(nutils, 'git_install_requested')
     @patch.object(nutils, 'git_clone_and_install')
