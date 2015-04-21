@@ -49,6 +49,7 @@ from neutron_api_utils import (
     git_install,
     dvr_router_present,
     l3ha_router_present,
+    neutron_ready,
     register_configs,
     restart_map,
     services,
@@ -131,16 +132,19 @@ def install():
 @hooks.hook('config-changed')
 @restart_on_change(restart_map(), stopstart=True)
 def config_changed():
-    if l3ha_router_present() and not get_l3ha():
-        e = ('Cannot disable Router HA while ha enabled routers exist. Please'
-             ' remove any ha routers')
-        log(e, level=ERROR)
-        raise Exception(e)
-    if dvr_router_present() and not get_dvr():
-        e = ('Cannot disable dvr while dvr enabled routers exist. Please'
-             ' remove any distributed routers')
-        log(e, level=ERROR)
-        raise Exception(e)
+    # If neutron is ready to be queried then check for incompatability between
+    # existing neutron objects and charm settings
+    if neutron_ready():
+        if l3ha_router_present() and not get_l3ha():
+            e = ('Cannot disable Router HA while ha enabled routers exist.'
+                 ' Please remove any ha routers')
+            log(e, level=ERROR)
+            raise Exception(e)
+        if dvr_router_present() and not get_dvr():
+            e = ('Cannot disable dvr while dvr enabled routers exist. Please'
+                 ' remove any distributed routers')
+            log(e, level=ERROR)
+            raise Exception(e)
     if config('prefer-ipv6'):
         setup_ipv6()
         sync_db_with_multi_ipv6_addresses(config('database'),
