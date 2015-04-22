@@ -105,7 +105,7 @@ def conditional_neutron_migration():
 
     if clustered:
         if is_leader(CLUSTER_RES):
-            allowed_units = relation_get('neutron_allowed_units')
+            allowed_units = relation_get('allowed_units')
             if allowed_units and local_unit() in allowed_units.split():
                 migrate_neutron_database()
                 service_restart('neutron-server')
