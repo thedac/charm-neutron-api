@@ -99,7 +99,7 @@ CONFIGS = register_configs()
 def conditional_neutron_migration():
     clustered = relation_get('clustered')
     if os_release('neutron-server') < 'kilo':
-        log('Not running neutron database migration as migrations are handled'
+        log('Not running neutron database migration as migrations are handled '
             'by the neutron-server process or nova-cloud-controller charm.')
         return
 
