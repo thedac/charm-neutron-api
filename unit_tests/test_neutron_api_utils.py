@@ -3,6 +3,7 @@ from mock import MagicMock, patch, call
 from collections import OrderedDict
 from copy import deepcopy
 import charmhelpers.contrib.openstack.templating as templating
+import charmhelpers.contrib.openstack.utils
 
 templating.OSConfigRenderer = MagicMock()
 
@@ -29,6 +30,7 @@ TO_PATCH = [
     'log',
     'neutron_plugin_attribute',
     'os_release',
+    'subprocess',
 ]
 
 openstack_origin_git = \
@@ -63,7 +65,6 @@ class TestNeutronAPIUtils(CharmTestCase):
         self.config.side_effect = self.test_config.get
         self.test_config.set('region', 'region101')
         self.neutron_plugin_attribute.side_effect = _mock_npa
-        self.os_release.side_effect = 'trusty'
 
     def tearDown(self):
         # Reset cached cache
@@ -172,15 +173,19 @@ class TestNeutronAPIUtils(CharmTestCase):
             nutils.keystone_ca_cert_b64()
             self.assertTrue(self.b64encode.called)
 
+    @patch.object(nutils, 'migrate_neutron_database')
+    @patch.object(nutils, 'stamp_neutron_database')
     @patch.object(nutils, 'git_install_requested')
-    def test_do_openstack_upgrade(self, git_requested):
+    def test_do_openstack_upgrade_juno(self, git_requested,
+                                       stamp_neutron_db, migrate_neutron_db):
         git_requested.return_value = False
         self.config.side_effect = self.test_config.get
         self.test_config.set('openstack-origin', 'cloud:trusty-juno')
-        self.os_release.side_effect = 'icehouse'
+        self.os_release.return_value = 'icehouse'
         self.get_os_codename_install_source.return_value = 'juno'
         configs = MagicMock()
         nutils.do_openstack_upgrade(configs)
+        self.os_release.assert_called_with('neutron-server')
         self.log.assert_called()
         self.configure_installation_source.assert_called_with(
             'cloud:trusty-juno'
@@ -199,6 +204,46 @@ class TestNeutronAPIUtils(CharmTestCase):
                                             options=dpkg_opts,
                                             fatal=True)
         configs.set_release.assert_called_with(openstack_release='juno')
+        self.assertItemsEqual(stamp_neutron_db.call_args_list, [])
+        self.assertItemsEqual(migrate_neutron_db.call_args_list, [])
+
+    @patch.object(charmhelpers.contrib.openstack.utils,
+                  'get_os_codename_install_source')
+    @patch.object(nutils, 'migrate_neutron_database')
+    @patch.object(nutils, 'stamp_neutron_database')
+    @patch.object(nutils, 'git_install_requested')
+    def test_do_openstack_upgrade_kilo(self, git_requested,
+                                       stamp_neutron_db, migrate_neutron_db,
+                                       gsrc):
+        git_requested.return_value = False
+        self.os_release.return_value = 'juno'
+        self.config.side_effect = self.test_config.get
+        self.test_config.set('openstack-origin', 'cloud:trusty-kilo')
+        gsrc.return_value = 'kilo'
+        self.get_os_codename_install_source.return_value = 'kilo'
+        configs = MagicMock()
+        nutils.do_openstack_upgrade(configs)
+        self.os_release.assert_called_with('neutron-server')
+        self.log.assert_called()
+        self.configure_installation_source.assert_called_with(
+            'cloud:trusty-kilo'
+        )
+        self.apt_update.assert_called_with(fatal=True)
+        dpkg_opts = [
+            '--option', 'Dpkg::Options::=--force-confnew',
+            '--option', 'Dpkg::Options::=--force-confdef',
+        ]
+        self.apt_upgrade.assert_called_with(options=dpkg_opts,
+                                            fatal=True,
+                                            dist=True)
+        pkgs = nutils.determine_packages()
+        pkgs.sort()
+        self.apt_install.assert_called_with(packages=pkgs,
+                                            options=dpkg_opts,
+                                            fatal=True)
+        configs.set_release.assert_called_with(openstack_release='kilo')
+        stamp_neutron_db.assert_called_with('juno')
+        migrate_neutron_db.assert_called_with()
 
     @patch.object(nutils, 'git_install_requested')
     @patch.object(nutils, 'git_clone_and_install')
@@ -276,3 +321,21 @@ class TestNeutronAPIUtils(CharmTestCase):
             call('neutron-server'),
         ]
         self.assertEquals(service_restart.call_args_list, expected)
+
+    def test_stamp_neutron_database(self):
+        nutils.stamp_neutron_database('icehouse')
+        cmd = ['neutron-db-manage',
+               '--config-file', '/etc/neutron/neutron.conf',
+               '--config-file', '/etc/neutron/plugins/ml2/ml2_conf.ini',
+               'stamp',
+               'icehouse']
+        self.subprocess.check_output.assert_called_with(cmd)
+
+    def test_migrate_neutron_database(self):
+        nutils.migrate_neutron_database()
+        cmd = ['neutron-db-manage',
+               '--config-file', '/etc/neutron/neutron.conf',
+               '--config-file', '/etc/neutron/plugins/ml2/ml2_conf.ini',
+               'upgrade',
+               'head']
+        self.subprocess.check_output.assert_called_with(cmd)

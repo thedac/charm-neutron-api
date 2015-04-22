@@ -70,7 +70,7 @@ from neutron_api_context import (
 
 from charmhelpers.contrib.hahelpers.cluster import (
     get_hacluster_config,
-    is_leader,
+    is_elected_leader,
 )
 
 from charmhelpers.payload.execd import execd_preinstall
@@ -97,26 +97,20 @@ CONFIGS = register_configs()
 
 
 def conditional_neutron_migration():
-    clustered = relation_get('clustered')
     if os_release('neutron-server') < 'kilo':
         log('Not running neutron database migration as migrations are handled '
             'by the neutron-server process or nova-cloud-controller charm.')
         return
 
-    if clustered:
-        if is_leader(CLUSTER_RES):
-            allowed_units = relation_get('allowed_units')
-            if allowed_units and local_unit() in allowed_units.split():
-                migrate_neutron_database()
-                service_restart('neutron-server')
-            else:
-                log('allowed_units either not presented, or local unit '
-                    'not in acl list: %s' % repr(allowed_units))
-        else:
-            log('Not running neutron database migration, not leader')
-    else:
+    if is_elected_leader(CLUSTER_RES):
+        allowed_units = relation_get('allowed_units')
+        if allowed_units and local_unit() not in allowed_units.split():
+            log('Allowed_units list provided and this unit not present')
+            return
         migrate_neutron_database()
         service_restart('neutron-server')
+    else:
+        log('Not running neutron database migration, not leader')
 
 
 def configure_https():
