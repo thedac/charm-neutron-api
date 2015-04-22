@@ -11,6 +11,7 @@ from charmhelpers.core.hookenv import (
     UnregisteredHookError,
     config,
     is_relation_made,
+    local_unit,
     log,
     ERROR,
     relation_get,
@@ -104,8 +105,13 @@ def conditional_neutron_migration():
 
     if clustered:
         if is_leader(CLUSTER_RES):
-            migrate_neutron_database()
-            service_restart('neutron-server')
+            allowed_units = relation_get('neutron_allowed_units')
+            if allowed_units and local_unit() in allowed_units.split():
+                migrate_neutron_database()
+                service_restart('neutron-server')
+            else:
+                log('allowed_units either not presented, or local unit '
+                    'not in acl list: %s' % repr(allowed_units))
         else:
             log('Not running neutron database migration, not leader')
     else:
