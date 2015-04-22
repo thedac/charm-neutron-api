@@ -307,8 +307,8 @@ def setup_ipv6():
         apt_install('haproxy/trusty-backports', fatal=True)
 
 
-def router_feature_present(feature):
-    ''' Check For dvr enabled routers '''
+def get_neutron_client():
+    ''' Return a neutron client if possible '''
     env = neutron_api_context.IdentityServiceContext()()
     if not env:
         log('Unable to check resources at this time')
@@ -322,6 +322,12 @@ def router_feature_present(feature):
                                    tenant_name=env['admin_tenant_name'],
                                    auth_url=auth_url,
                                    region_name=env['region'])
+    return neutron_client
+
+
+def router_feature_present(feature):
+    ''' Check For dvr enabled routers '''
+    neutron_client = get_neutron_client()
     for router in neutron_client.list_routers()['routers']:
         if router.get(feature, False):
             return True
@@ -330,6 +336,21 @@ def router_feature_present(feature):
 l3ha_router_present = partial(router_feature_present, feature='ha')
 
 dvr_router_present = partial(router_feature_present, feature='distributed')
+
+
+def neutron_ready():
+    ''' Check if neutron is ready by running arbitrary query'''
+    neutron_client = get_neutron_client()
+    if not neutron_client:
+        log('No neutron client, neutron not ready')
+        return False
+    try:
+        neutron_client.list_routers()
+        log('neutron client ready')
+        return True
+    except:
+        log('neutron query failed, neutron not ready ')
+        return False
 
 
 def git_install(projects_yaml):
