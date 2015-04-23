@@ -172,13 +172,28 @@ def neutron_plugins():
             'services': ['calico-felix',
                          'bird',
                          'neutron-dhcp-agent',
-                         'nova-api-metadata'],
+                         'nova-api-metadata',
+                         'etcd'],
             'packages': [[headers_package()] + determine_dkms_package(),
                          ['calico-compute',
                           'bird',
                           'neutron-dhcp-agent',
-                          'nova-api-metadata']],
-            'server_packages': ['neutron-server', 'calico-control'],
+                          'nova-api-metadata',
+                          'etcd']],
+            'server_packages': ['neutron-server', 'calico-control', 'etcd'],
+            'server_services': ['neutron-server', 'etcd']
+        },
+        'vsp': {
+            'config': '/etc/neutron/plugins/nuage/nuage_plugin.ini',
+            'driver': 'neutron.plugins.nuage.plugin.NuagePlugin',
+            'contexts': [
+                context.SharedDBContext(user=config('neutron-database-user'),
+                                        database=config('neutron-database'),
+                                        relation_prefix='neutron',
+                                        ssl_dir=NEUTRON_CONF_DIR)],
+            'services': [],
+            'packages': [],
+            'server_packages': ['neutron-server', 'neutron-plugin-nuage'],
             'server_services': ['neutron-server']
         }
     }
