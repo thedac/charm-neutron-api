@@ -2,13 +2,16 @@
 
 import sys
 import uuid
+from subprocess import (
+    check_call,
+)
 
-from subprocess import check_call
 from charmhelpers.core.hookenv import (
     Hooks,
     UnregisteredHookError,
     config,
     is_relation_made,
+    local_unit,
     log,
     ERROR,
     relation_get,
@@ -20,6 +23,8 @@ from charmhelpers.core.hookenv import (
 
 from charmhelpers.core.host import (
     restart_on_change,
+    service_reload,
+    service_restart,
 )
 
 from charmhelpers.fetch import (
@@ -29,32 +34,47 @@ from charmhelpers.fetch import (
 )
 
 from charmhelpers.contrib.openstack.utils import (
+    config_value_changed,
     configure_installation_source,
+    git_install_requested,
     openstack_upgrade_available,
+    os_requires_version,
+    os_release,
     sync_db_with_multi_ipv6_addresses
 )
 
 from neutron_api_utils import (
+    CLUSTER_RES,
     NEUTRON_CONF,
     api_port,
     determine_packages,
     determine_ports,
     do_openstack_upgrade,
+    git_install,
+    dvr_router_present,
+    l3ha_router_present,
+    migrate_neutron_database,
+    neutron_ready,
     register_configs,
     restart_map,
     services,
     setup_ipv6,
+    get_topics,
     additional_install_locations,
     force_etcd_restart,
 )
 from neutron_api_context import (
+    get_dvr,
+    get_l3ha,
     get_l2population,
     get_overlay_network_type,
+    IdentityServiceContext,
     EtcdContext,
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
     get_hacluster_config,
+    is_elected_leader,
 )
 
 from charmhelpers.payload.execd import execd_preinstall
@@ -80,6 +100,25 @@ hooks = Hooks()
 CONFIGS = register_configs()
 
 
+def conditional_neutron_migration():
+    if os_release('neutron-server') < 'kilo':
+        log('Not running neutron database migration as migrations are handled '
+            'by the neutron-server process or nova-cloud-controller charm.')
+        return
+
+    if is_elected_leader(CLUSTER_RES):
+        allowed_units = relation_get('allowed_units')
+        if allowed_units and local_unit() in allowed_units.split():
+            migrate_neutron_database()
+            service_restart('neutron-server')
+        else:
+            log('Not running neutron database migration, either no'
+                ' allowed_units or this unit is not present')
+            return
+    else:
+        log('Not running neutron database migration, not leader')
+
+
 def configure_https():
     '''
     Enables SSL API Apache config if appropriate and kicks identity-service
@@ -95,6 +134,10 @@ def configure_https():
         cmd = ['a2dissite', 'openstack_https_frontend']
         check_call(cmd)
 
+    # TODO: improve this by checking if local CN certs are available
+    # first then checking reload status (see LP #1433114).
+    service_reload('apache2', restart_on_failure=True)
+
     for rid in relation_ids('identity-service'):
         identity_joined(rid=rid)
 
@@ -108,6 +151,9 @@ def install():
     apt_update()
     apt_install(determine_packages(config('openstack-origin')),
                 fatal=True)
+
+    git_install(config('openstack-origin-git'))
+
     [open_port(port) for port in determine_ports()]
 
 
@@ -115,18 +161,36 @@ def install():
 @hooks.hook('config-changed')
 @restart_on_change(restart_map(), stopstart=True)
 def config_changed():
-    apt_install(filter_installed_packages(
-                determine_packages(config('openstack-origin'))),
-                fatal=True)
+    # If neutron is ready to be queried then check for incompatability between
+    # existing neutron objects and charm settings
+    if neutron_ready():
+        if l3ha_router_present() and not get_l3ha():
+            e = ('Cannot disable Router HA while ha enabled routers exist.'
+                 ' Please remove any ha routers')
+            log(e, level=ERROR)
+            raise Exception(e)
+        if dvr_router_present() and not get_dvr():
+            e = ('Cannot disable dvr while dvr enabled routers exist. Please'
+                 ' remove any distributed routers')
+            log(e, level=ERROR)
+            raise Exception(e)
     if config('prefer-ipv6'):
         setup_ipv6()
         sync_db_with_multi_ipv6_addresses(config('database'),
                                           config('database-user'))
 
     global CONFIGS
+    if git_install_requested():
+        if config_value_changed('openstack-origin-git'):
+            git_install(config('openstack-origin-git'))
+    else:
+        if openstack_upgrade_available('neutron-server'):
+            do_openstack_upgrade(CONFIGS)
+
+    apt_install(filter_installed_packages(
+                determine_packages(config('openstack-origin'))),
+                fatal=True)
     additional_install_locations(config('neutron-plugin'))
-    if openstack_upgrade_available('neutron-server'):
-        do_openstack_upgrade(CONFIGS)
     configure_https()
     update_nrpe_config()
     CONFIGS.write_all()
@@ -138,6 +202,8 @@ def config_changed():
         amqp_joined(relation_id=r_id)
     for r_id in relation_ids('identity-service'):
         identity_joined(rid=r_id)
+    for rid in relation_ids('zeromq-configuration'):
+        zeromq_configuration_relation_joined(rid)
     [cluster_joined(rid) for rid in relation_ids('cluster')]
 
 
@@ -195,12 +261,14 @@ def db_changed():
         log('shared-db relation incomplete. Peer not ready?')
         return
     CONFIGS.write_all()
+    conditional_neutron_migration()
 
 
 @hooks.hook('pgsql-db-relation-changed')
 @restart_on_change(restart_map())
 def postgresql_neutron_db_changed():
     CONFIGS.write(NEUTRON_CONF)
+    conditional_neutron_migration()
 
 
 @hooks.hook('amqp-relation-broken',
@@ -241,6 +309,8 @@ def identity_changed():
     CONFIGS.write(NEUTRON_CONF)
     for r_id in relation_ids('neutron-api'):
         neutron_api_relation_joined(rid=r_id)
+    for r_id in relation_ids('neutron-plugin-api'):
+        neutron_plugin_api_relation_joined(rid=r_id)
     configure_https()
 
 
@@ -284,9 +354,35 @@ def neutron_plugin_api_relation_joined(rid=None):
         relation_data = {
             'neutron-security-groups': config('neutron-security-groups'),
             'l2-population': get_l2population(),
+            'enable-dvr': get_dvr(),
+            'enable-l3ha': get_l3ha(),
             'overlay-network-type': get_overlay_network_type(),
             'addr': unit_get('private-address'),
         }
+
+        # Provide this value to relations since it needs to be set in multiple
+        # places e.g. neutron.conf, nova.conf
+        net_dev_mtu = config('network-device-mtu')
+        if net_dev_mtu:
+            relation_data['network-device-mtu'] = net_dev_mtu
+
+    identity_ctxt = IdentityServiceContext()()
+    if not identity_ctxt:
+        identity_ctxt = {}
+
+    relation_data.update({
+        'auth_host': identity_ctxt.get('auth_host'),
+        'auth_port': identity_ctxt.get('auth_port'),
+        'auth_protocol': identity_ctxt.get('auth_protocol'),
+        'service_protocol': identity_ctxt.get('service_protocol'),
+        'service_host': identity_ctxt.get('service_host'),
+        'service_port': identity_ctxt.get('service_port'),
+        'service_tenant': identity_ctxt.get('admin_tenant_name'),
+        'service_username': identity_ctxt.get('admin_user'),
+        'service_password': identity_ctxt.get('admin_password'),
+        'region': config('region'),
+    })
+
     relation_set(relation_id=rid, **relation_data)
 
 
@@ -379,6 +475,20 @@ def ha_changed():
         identity_joined(rid=rid)
     for rid in relation_ids('neutron-api'):
         neutron_api_relation_joined(rid=rid)
+
+
+@hooks.hook('zeromq-configuration-relation-joined')
+@os_requires_version('kilo', 'neutron-server')
+def zeromq_configuration_relation_joined(relid=None):
+    relation_set(relation_id=relid,
+                 topics=" ".join(get_topics()),
+                 users="neutron")
+
+
+@hooks.hook('zeromq-configuration-relation-changed')
+@restart_on_change(restart_map(), stopstart=True)
+def zeromq_configuration_relation_changed():
+    CONFIGS.write_all()
 
 
 @hooks.hook('nrpe-external-master-relation-joined',

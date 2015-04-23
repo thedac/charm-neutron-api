@@ -34,6 +34,9 @@ requires:
   ha:
     interface: hacluster
     scope: container
+  zeromq-configuration:
+    interface: zeromq-configuration
+    scope: container
   etcd-peer:
     interface: http
 peers:
