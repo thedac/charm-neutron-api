@@ -720,10 +720,3 @@ class NeutronAPIHooksTests(CharmTestCase):
             'Not running neutron database migration as migrations are handled '
             'by the neutron-server process or nova-cloud-controller charm.'
         )
-
-    def test_conditional_neutron_migration_not_clustered(self):
-        self.relation_ids.return_value = ['nova-cc/o']
-        self.os_release.return_value = 'kilo'
-        hooks.conditional_neutron_migration()
-        self.migrate_neutron_database.assert_called_with()
-        self.service_restart.assert_called_with('neutron-server')

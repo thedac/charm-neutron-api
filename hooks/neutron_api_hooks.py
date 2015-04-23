@@ -105,11 +105,13 @@ def conditional_neutron_migration():
 
     if is_elected_leader(CLUSTER_RES):
         allowed_units = relation_get('allowed_units')
-        if allowed_units and local_unit() not in allowed_units.split():
-            log('Allowed_units list provided and this unit not present')
+        if allowed_units and local_unit() in allowed_units.split():
+            migrate_neutron_database()
+            service_restart('neutron-server')
+        else:
+            log('Not running neutron database migration, either no'
+                ' allowed_units or this unit is not present')
             return
-        migrate_neutron_database()
-        service_restart('neutron-server')
     else:
         log('Not running neutron database migration, not leader')
 
