@@ -47,6 +47,7 @@ TO_PATCH = [
     'is_relation_made',
     'log',
     'migrate_neutron_database',
+    'neutron_ready',
     'open_port',
     'openstack_upgrade_available',
     'os_release',
@@ -152,6 +153,7 @@ class NeutronAPIHooksTests(CharmTestCase):
     @patch.object(hooks, 'git_install_requested')
     def test_config_changed(self, git_requested, conf_https):
         git_requested.return_value = False
+        self.neutron_ready.return_value = True
         self.openstack_upgrade_available.return_value = True
         self.dvr_router_present.return_value = False
         self.l3ha_router_present.return_value = False
@@ -174,12 +176,34 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.assertTrue(self.do_openstack_upgrade.called)
         self.assertTrue(self.apt_install.called)
 
+    def test_config_changed_nodvr_disprouters(self):
+        self.neutron_ready.return_value = True
+        self.dvr_router_present.return_value = True
+        self.get_dvr.return_value = False
+        with self.assertRaises(Exception) as context:
+            self._call_hook('config-changed')
+        self.assertEqual(context.exception.message,
+                         'Cannot disable dvr while dvr enabled routers exist.'
+                         ' Please remove any distributed routers')
+
+    def test_config_changed_nol3ha_harouters(self):
+        self.neutron_ready.return_value = True
+        self.dvr_router_present.return_value = False
+        self.l3ha_router_present.return_value = True
+        self.get_l3ha.return_value = False
+        with self.assertRaises(Exception) as context:
+            self._call_hook('config-changed')
+        self.assertEqual(context.exception.message,
+                         'Cannot disable Router HA while ha enabled routers'
+                         ' exist. Please remove any ha routers')
+
     @patch.object(hooks, 'configure_https')
     @patch.object(hooks, 'git_install_requested')
     @patch.object(hooks, 'config_value_changed')
     def test_config_changed_git(self, config_val_changed, git_requested,
                                 configure_https):
         git_requested.return_value = True
+        self.neutron_ready.return_value = True
         self.dvr_router_present.return_value = False
         self.l3ha_router_present.return_value = False
         self.relation_ids.side_effect = self._fake_relids
