@@ -11,6 +11,7 @@ from charmhelpers.core.hookenv import (
     UnregisteredHookError,
     config,
     is_relation_made,
+    local_unit,
     log,
     ERROR,
     relation_get,
@@ -23,6 +24,7 @@ from charmhelpers.core.hookenv import (
 from charmhelpers.core.host import (
     restart_on_change,
     service_reload,
+    service_restart,
 )
 
 from charmhelpers.fetch import (
@@ -37,10 +39,12 @@ from charmhelpers.contrib.openstack.utils import (
     git_install_requested,
     openstack_upgrade_available,
     os_requires_version,
+    os_release,
     sync_db_with_multi_ipv6_addresses
 )
 
 from neutron_api_utils import (
+    CLUSTER_RES,
     NEUTRON_CONF,
     api_port,
     determine_packages,
@@ -49,6 +53,7 @@ from neutron_api_utils import (
     git_install,
     dvr_router_present,
     l3ha_router_present,
+    migrate_neutron_database,
     neutron_ready,
     register_configs,
     restart_map,
@@ -66,6 +71,7 @@ from neutron_api_context import (
 
 from charmhelpers.contrib.hahelpers.cluster import (
     get_hacluster_config,
+    is_elected_leader,
 )
 
 from charmhelpers.payload.execd import execd_preinstall
@@ -89,6 +95,25 @@ from charmhelpers.contrib.charmsupport import nrpe
 
 hooks = Hooks()
 CONFIGS = register_configs()
+
+
+def conditional_neutron_migration():
+    if os_release('neutron-server') < 'kilo':
+        log('Not running neutron database migration as migrations are handled '
+            'by the neutron-server process or nova-cloud-controller charm.')
+        return
+
+    if is_elected_leader(CLUSTER_RES):
+        allowed_units = relation_get('allowed_units')
+        if allowed_units and local_unit() in allowed_units.split():
+            migrate_neutron_database()
+            service_restart('neutron-server')
+        else:
+            log('Not running neutron database migration, either no'
+                ' allowed_units or this unit is not present')
+            return
+    else:
+        log('Not running neutron database migration, not leader')
 
 
 def configure_https():
@@ -231,12 +256,14 @@ def db_changed():
         log('shared-db relation incomplete. Peer not ready?')
         return
     CONFIGS.write_all()
+    conditional_neutron_migration()
 
 
 @hooks.hook('pgsql-db-relation-changed')
 @restart_on_change(restart_map())
 def postgresql_neutron_db_changed():
     CONFIGS.write(NEUTRON_CONF)
+    conditional_neutron_migration()
 
 
 @hooks.hook('amqp-relation-broken',

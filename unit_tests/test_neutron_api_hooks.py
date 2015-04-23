@@ -34,6 +34,7 @@ TO_PATCH = [
     'determine_ports',
     'do_openstack_upgrade',
     'dvr_router_present',
+    'local_unit',
     'l3ha_router_present',
     'execd_preinstall',
     'filter_installed_packages',
@@ -42,15 +43,19 @@ TO_PATCH = [
     'get_l2population',
     'get_overlay_network_type',
     'git_install',
+    'is_elected_leader',
     'is_relation_made',
     'log',
+    'migrate_neutron_database',
     'neutron_ready',
     'open_port',
     'openstack_upgrade_available',
+    'os_release',
     'os_requires_version',
     'relation_get',
     'relation_ids',
     'relation_set',
+    'service_restart',
     'unit_get',
     'get_iface_for_address',
     'get_netmask_for_address',
@@ -292,19 +297,23 @@ class NeutronAPIHooksTests(CharmTestCase):
                          'Attempting to associate a postgresql database when'
                          ' there is already associated a mysql one')
 
-    def test_shared_db_changed(self):
+    @patch.object(hooks, 'conditional_neutron_migration')
+    def test_shared_db_changed(self, cond_neutron_mig):
         self.CONFIGS.complete_contexts.return_value = ['shared-db']
         self._call_hook('shared-db-relation-changed')
         self.assertTrue(self.CONFIGS.write_all.called)
+        cond_neutron_mig.assert_called_with()
 
     def test_shared_db_changed_partial_ctxt(self):
         self.CONFIGS.complete_contexts.return_value = []
         self._call_hook('shared-db-relation-changed')
         self.assertFalse(self.CONFIGS.write_all.called)
 
-    def test_pgsql_db_changed(self):
+    @patch.object(hooks, 'conditional_neutron_migration')
+    def test_pgsql_db_changed(self, cond_neutron_mig):
         self._call_hook('pgsql-db-relation-changed')
         self.assertTrue(self.CONFIGS.write.called)
+        cond_neutron_mig.assert_called_with()
 
     def test_amqp_broken(self):
         self._call_hook('amqp-relation-broken')
@@ -668,3 +677,46 @@ class NeutronAPIHooksTests(CharmTestCase):
                  call('service', 'apache2', 'reload')]
         self.check_call.assert_called_has_calls(calls)
         self.assertTrue(_id_rel_joined.called)
+
+    def test_conditional_neutron_migration_icehouse(self):
+        self.os_release.return_value = 'icehouse'
+        hooks.conditional_neutron_migration()
+        self.log.assert_called_with(
+            'Not running neutron database migration as migrations are handled '
+            'by the neutron-server process or nova-cloud-controller charm.'
+        )
+
+    def test_conditional_neutron_migration_ncc_rel_leader_juno(self):
+        self.test_relation.set({
+            'allowed_units': 'neutron-api/0 neutron-api/1 neutron-api/4',
+        })
+        self.local_unit.return_value = 'neutron-api/1'
+        self.is_elected_leader.return_value = True
+        self.os_release.return_value = 'juno'
+        hooks.conditional_neutron_migration()
+        self.log.assert_called_with(
+            'Not running neutron database migration as migrations are handled'
+            ' by the neutron-server process or nova-cloud-controller charm.'
+        )
+
+    def test_conditional_neutron_migration_ncc_rel_leader_kilo(self):
+        self.test_relation.set({
+            'allowed_units': 'neutron-api/0 neutron-api/1 neutron-api/4',
+        })
+        self.local_unit.return_value = 'neutron-api/1'
+        self.is_elected_leader.return_value = True
+        self.os_release.return_value = 'kilo'
+        hooks.conditional_neutron_migration()
+        self.migrate_neutron_database.assert_called_with()
+        self.service_restart.assert_called_with('neutron-server')
+
+    def test_conditional_neutron_migration_ncc_rel_notleader(self):
+        self.is_elected_leader.return_value = False
+        self.os_release.return_value = 'juno'
+        hooks.conditional_neutron_migration()
+        self.assertFalse(self.migrate_neutron_database.called)
+        self.assertFalse(self.service_restart.called)
+        self.log.assert_called_with(
+            'Not running neutron database migration as migrations are handled '
+            'by the neutron-server process or nova-cloud-controller charm.'
+        )
