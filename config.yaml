@@ -78,7 +78,6 @@ options:
       Neutron plugin to use for network management; supports
       .
         ovs - OpenvSwitch Plugin
-        nvp - Nicira Network Virtualization Platform
         nsx - VMWare NSX
         Calico - Project Calico Networking
       .
