@@ -260,7 +260,6 @@ def do_openstack_upgrade(configs):
     :param configs: The charms main OSConfigRenderer object.
     """
     cur_os_rel = os_release('neutron-server')
-    print cur_os_rel
     new_src = config('openstack-origin')
     new_os_rel = get_os_codename_install_source(new_src)
 
