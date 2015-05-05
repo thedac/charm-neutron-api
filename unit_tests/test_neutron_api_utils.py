@@ -263,6 +263,7 @@ class TestNeutronAPIUtils(CharmTestCase):
             'service_description': 'Neutron API server',
             'charm_name': 'neutron-api',
             'process_name': 'neutron-server',
+            'executable_name': 'joined-string',
         }
         expected = [
             call('git/neutron_sudoers', '/etc/sudoers.d/neutron_sudoers', {},
