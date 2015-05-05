@@ -3,6 +3,8 @@ from mock import MagicMock, patch, call
 from collections import OrderedDict
 from copy import deepcopy
 import charmhelpers.contrib.openstack.templating as templating
+import charmhelpers.contrib.openstack.utils
+import neutron_api_context as ncontext
 
 templating.OSConfigRenderer = MagicMock()
 
@@ -29,6 +31,7 @@ TO_PATCH = [
     'log',
     'neutron_plugin_attribute',
     'os_release',
+    'subprocess',
 ]
 
 openstack_origin_git = \
@@ -57,13 +60,21 @@ def _mock_npa(plugin, attr, net_manager=None):
     return plugins[plugin][attr]
 
 
+class DummyIdentityServiceContext():
+
+    def __init__(self, return_value):
+        self.return_value = return_value
+
+    def __call__(self):
+        return self.return_value
+
+
 class TestNeutronAPIUtils(CharmTestCase):
     def setUp(self):
         super(TestNeutronAPIUtils, self).setUp(nutils, TO_PATCH)
         self.config.side_effect = self.test_config.get
         self.test_config.set('region', 'region101')
         self.neutron_plugin_attribute.side_effect = _mock_npa
-        self.os_release.side_effect = 'trusty'
 
     def tearDown(self):
         # Reset cached cache
@@ -172,15 +183,19 @@ class TestNeutronAPIUtils(CharmTestCase):
             nutils.keystone_ca_cert_b64()
             self.assertTrue(self.b64encode.called)
 
+    @patch.object(nutils, 'migrate_neutron_database')
+    @patch.object(nutils, 'stamp_neutron_database')
     @patch.object(nutils, 'git_install_requested')
-    def test_do_openstack_upgrade(self, git_requested):
+    def test_do_openstack_upgrade_juno(self, git_requested,
+                                       stamp_neutron_db, migrate_neutron_db):
         git_requested.return_value = False
         self.config.side_effect = self.test_config.get
         self.test_config.set('openstack-origin', 'cloud:trusty-juno')
-        self.os_release.side_effect = 'icehouse'
+        self.os_release.return_value = 'icehouse'
         self.get_os_codename_install_source.return_value = 'juno'
         configs = MagicMock()
         nutils.do_openstack_upgrade(configs)
+        self.os_release.assert_called_with('neutron-server')
         self.log.assert_called()
         self.configure_installation_source.assert_called_with(
             'cloud:trusty-juno'
@@ -199,6 +214,162 @@ class TestNeutronAPIUtils(CharmTestCase):
                                             options=dpkg_opts,
                                             fatal=True)
         configs.set_release.assert_called_with(openstack_release='juno')
+        self.assertItemsEqual(stamp_neutron_db.call_args_list, [])
+        self.assertItemsEqual(migrate_neutron_db.call_args_list, [])
+
+    @patch.object(charmhelpers.contrib.openstack.utils,
+                  'get_os_codename_install_source')
+    @patch.object(nutils, 'migrate_neutron_database')
+    @patch.object(nutils, 'stamp_neutron_database')
+    @patch.object(nutils, 'git_install_requested')
+    def test_do_openstack_upgrade_kilo(self, git_requested,
+                                       stamp_neutron_db, migrate_neutron_db,
+                                       gsrc):
+        git_requested.return_value = False
+        self.os_release.return_value = 'juno'
+        self.config.side_effect = self.test_config.get
+        self.test_config.set('openstack-origin', 'cloud:trusty-kilo')
+        gsrc.return_value = 'kilo'
+        self.get_os_codename_install_source.return_value = 'kilo'
+        configs = MagicMock()
+        nutils.do_openstack_upgrade(configs)
+        self.os_release.assert_called_with('neutron-server')
+        self.log.assert_called()
+        self.configure_installation_source.assert_called_with(
+            'cloud:trusty-kilo'
+        )
+        self.apt_update.assert_called_with(fatal=True)
+        dpkg_opts = [
+            '--option', 'Dpkg::Options::=--force-confnew',
+            '--option', 'Dpkg::Options::=--force-confdef',
+        ]
+        self.apt_upgrade.assert_called_with(options=dpkg_opts,
+                                            fatal=True,
+                                            dist=True)
+        pkgs = nutils.determine_packages()
+        pkgs.sort()
+        self.apt_install.assert_called_with(packages=pkgs,
+                                            options=dpkg_opts,
+                                            fatal=True)
+        configs.set_release.assert_called_with(openstack_release='kilo')
+        stamp_neutron_db.assert_called_with('juno')
+        migrate_neutron_db.assert_called_with()
+
+    @patch.object(ncontext, 'IdentityServiceContext')
+    @patch('neutronclient.v2_0.client.Client')
+    def test_get_neutron_client(self, nclient, IdentityServiceContext):
+        creds = {
+            'auth_protocol': 'http',
+            'auth_host': 'myhost',
+            'auth_port': '2222',
+            'admin_user': 'bob',
+            'admin_password': 'pa55w0rd',
+            'admin_tenant_name': 'tenant1',
+            'region': 'region2',
+        }
+        IdentityServiceContext.return_value = \
+            DummyIdentityServiceContext(return_value=creds)
+        nutils.get_neutron_client()
+        nclient.assert_called_with(
+            username='bob',
+            tenant_name='tenant1',
+            password='pa55w0rd',
+            auth_url='http://myhost:2222/v2.0',
+            region_name='region2',
+        )
+
+    @patch.object(ncontext, 'IdentityServiceContext')
+    def test_get_neutron_client_noidservice(self, IdentityServiceContext):
+        creds = {}
+        IdentityServiceContext.return_value = \
+            DummyIdentityServiceContext(return_value=creds)
+        self.assertEquals(nutils.get_neutron_client(), None)
+
+    @patch.object(nutils, 'get_neutron_client')
+    def test_router_feature_present_keymissing(self, get_neutron_client):
+        routers = {
+            'routers': [
+                {
+                    u'status': u'ACTIVE',
+                    u'external_gateway_info': {
+                        u'network_id': u'eedffb9b-b93e-49c6-9545-47c656c9678e',
+                        u'enable_snat': True
+                    }, u'name': u'provider-router',
+                    u'admin_state_up': True,
+                    u'tenant_id': u'b240d06e38394780a3ea296138cdd174',
+                    u'routes': [],
+                    u'id': u'84182bc8-eede-4564-9c87-1a56bdb26a90',
+                }
+            ]
+        }
+        get_neutron_client.list_routers.return_value = routers
+        self.assertEquals(nutils.router_feature_present('ha'), False)
+
+    @patch.object(nutils, 'get_neutron_client')
+    def test_router_feature_present_keyfalse(self, get_neutron_client):
+        routers = {
+            'routers': [
+                {
+                    u'status': u'ACTIVE',
+                    u'external_gateway_info': {
+                        u'network_id': u'eedffb9b-b93e-49c6-9545-47c656c9678e',
+                        u'enable_snat': True
+                    }, u'name': u'provider-router',
+                    u'admin_state_up': True,
+                    u'tenant_id': u'b240d06e38394780a3ea296138cdd174',
+                    u'routes': [],
+                    u'id': u'84182bc8-eede-4564-9c87-1a56bdb26a90',
+                    u'ha': False,
+                }
+            ]
+        }
+        dummy_client = MagicMock()
+        dummy_client.list_routers.return_value = routers
+        get_neutron_client.return_value = dummy_client
+        self.assertEquals(nutils.router_feature_present('ha'), False)
+
+    @patch.object(nutils, 'get_neutron_client')
+    def test_router_feature_present_keytrue(self, get_neutron_client):
+        routers = {
+            'routers': [
+                {
+                    u'status': u'ACTIVE',
+                    u'external_gateway_info': {
+                        u'network_id': u'eedffb9b-b93e-49c6-9545-47c656c9678e',
+                        u'enable_snat': True
+                    }, u'name': u'provider-router',
+                    u'admin_state_up': True,
+                    u'tenant_id': u'b240d06e38394780a3ea296138cdd174',
+                    u'routes': [],
+                    u'id': u'84182bc8-eede-4564-9c87-1a56bdb26a90',
+                    u'ha': True,
+                }
+            ]
+        }
+
+        dummy_client = MagicMock()
+        dummy_client.list_routers.return_value = routers
+        get_neutron_client.return_value = dummy_client
+        self.assertEquals(nutils.router_feature_present('ha'), True)
+
+    @patch.object(nutils, 'get_neutron_client')
+    def test_neutron_ready(self, get_neutron_client):
+        dummy_client = MagicMock()
+        dummy_client.list_routers.return_value = []
+        get_neutron_client.return_value = dummy_client
+        self.assertEquals(nutils.neutron_ready(), True)
+
+    @patch.object(nutils, 'get_neutron_client')
+    def test_neutron_ready_noclient(self, get_neutron_client):
+        get_neutron_client.return_value = None
+        self.assertEquals(nutils.neutron_ready(), False)
+
+    @patch.object(nutils, 'get_neutron_client')
+    def test_neutron_ready_clientexception(self, get_neutron_client):
+        dummy_client = MagicMock()
+        dummy_client.list_routers.side_effect = Exception('Boom!')
+        get_neutron_client.return_value = dummy_client
+        self.assertEquals(nutils.neutron_ready(), False)
 
     @patch.object(nutils, 'git_install_requested')
     @patch.object(nutils, 'git_clone_and_install')
@@ -277,3 +448,21 @@ class TestNeutronAPIUtils(CharmTestCase):
             call('neutron-server'),
         ]
         self.assertEquals(service_restart.call_args_list, expected)
+
+    def test_stamp_neutron_database(self):
+        nutils.stamp_neutron_database('icehouse')
+        cmd = ['neutron-db-manage',
+               '--config-file', '/etc/neutron/neutron.conf',
+               '--config-file', '/etc/neutron/plugins/ml2/ml2_conf.ini',
+               'stamp',
+               'icehouse']
+        self.subprocess.check_output.assert_called_with(cmd)
+
+    def test_migrate_neutron_database(self):
+        nutils.migrate_neutron_database()
+        cmd = ['neutron-db-manage',
+               '--config-file', '/etc/neutron/neutron.conf',
+               '--config-file', '/etc/neutron/plugins/ml2/ml2_conf.ini',
+               'upgrade',
+               'head']
+        self.subprocess.check_output.assert_called_with(cmd)
