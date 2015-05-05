@@ -3,6 +3,7 @@ from copy import deepcopy
 from functools import partial
 import os
 import shutil
+import subprocess
 from base64 import b64encode
 from charmhelpers.contrib.openstack import context, templating
 from charmhelpers.contrib.openstack.neutron import (
@@ -259,6 +260,7 @@ def do_openstack_upgrade(configs):
 
     :param configs: The charms main OSConfigRenderer object.
     """
+    cur_os_rel = os_release('neutron-server')
     new_src = config('openstack-origin')
     new_os_rel = get_os_codename_install_source(new_src)
 
@@ -280,6 +282,38 @@ def do_openstack_upgrade(configs):
 
     # set CONFIGS to load templates from new release
     configs.set_release(openstack_release=new_os_rel)
+    # Before kilo it's nova-cloud-controllers job
+    if new_os_rel >= 'kilo':
+        stamp_neutron_database(cur_os_rel)
+        migrate_neutron_database()
+
+
+def stamp_neutron_database(release):
+    '''Stamp the database with the current release before upgrade.'''
+    log('Stamping the neutron database with release %s.' % release)
+    plugin = config('neutron-plugin')
+    cmd = ['neutron-db-manage',
+           '--config-file', NEUTRON_CONF,
+           '--config-file', neutron_plugin_attribute(plugin,
+                                                     'config',
+                                                     'neutron'),
+           'stamp',
+           release]
+    subprocess.check_output(cmd)
+
+
+def migrate_neutron_database():
+    '''Initializes a new database or upgrades an existing database.'''
+    log('Migrating the neutron database.')
+    plugin = config('neutron-plugin')
+    cmd = ['neutron-db-manage',
+           '--config-file', NEUTRON_CONF,
+           '--config-file', neutron_plugin_attribute(plugin,
+                                                     'config',
+                                                     'neutron'),
+           'upgrade',
+           'head']
+    subprocess.check_output(cmd)
 
 
 def get_topics():
@@ -308,8 +342,8 @@ def setup_ipv6():
         apt_install('haproxy/trusty-backports', fatal=True)
 
 
-def router_feature_present(feature):
-    ''' Check For dvr enabled routers '''
+def get_neutron_client():
+    ''' Return a neutron client if possible '''
     env = neutron_api_context.IdentityServiceContext()()
     if not env:
         log('Unable to check resources at this time')
@@ -323,6 +357,12 @@ def router_feature_present(feature):
                                    tenant_name=env['admin_tenant_name'],
                                    auth_url=auth_url,
                                    region_name=env['region'])
+    return neutron_client
+
+
+def router_feature_present(feature):
+    ''' Check For dvr enabled routers '''
+    neutron_client = get_neutron_client()
     for router in neutron_client.list_routers()['routers']:
         if router.get(feature, False):
             return True
@@ -331,6 +371,21 @@ def router_feature_present(feature):
 l3ha_router_present = partial(router_feature_present, feature='ha')
 
 dvr_router_present = partial(router_feature_present, feature='distributed')
+
+
+def neutron_ready():
+    ''' Check if neutron is ready by running arbitrary query'''
+    neutron_client = get_neutron_client()
+    if not neutron_client:
+        log('No neutron client, neutron not ready')
+        return False
+    try:
+        neutron_client.list_routers()
+        log('neutron client ready')
+        return True
+    except:
+        log('neutron query failed, neutron not ready ')
+        return False
 
 
 def git_install(projects_yaml):
