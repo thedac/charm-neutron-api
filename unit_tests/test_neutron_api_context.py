@@ -65,14 +65,6 @@ class GeneralTests(CharmTestCase):
         self.os_release.return_value = 'juno'
         self.assertEquals(context.get_l3ha(), False)
 
-    def test_get_l3ha_badoverlay(self):
-        self.test_config.set('enable-l3ha', True)
-        self.test_config.set('overlay-network-type', 'tokenring')
-        self.test_config.set('neutron-plugin', 'ovs')
-        self.test_config.set('l2-population', False)
-        self.os_release.return_value = 'juno'
-        self.assertEquals(context.get_l3ha(), False)
-
     def test_get_dvr(self):
         self.test_config.set('enable-dvr', True)
         self.test_config.set('enable-l3ha', False)
@@ -108,6 +100,24 @@ class GeneralTests(CharmTestCase):
         self.test_config.set('l2-population', True)
         self.os_release.return_value = 'juno'
         self.assertEquals(context.get_dvr(), False)
+
+    def test_get_dvr_gre_kilo(self):
+        self.test_config.set('enable-dvr', True)
+        self.test_config.set('enable-l3ha', False)
+        self.test_config.set('overlay-network-type', 'gre')
+        self.test_config.set('neutron-plugin', 'ovs')
+        self.test_config.set('l2-population', True)
+        self.os_release.return_value = 'kilo'
+        self.assertEquals(context.get_dvr(), True)
+
+    def test_get_dvr_vxlan_kilo(self):
+        self.test_config.set('enable-dvr', True)
+        self.test_config.set('enable-l3ha', False)
+        self.test_config.set('overlay-network-type', 'vxlan')
+        self.test_config.set('neutron-plugin', 'ovs')
+        self.test_config.set('l2-population', True)
+        self.os_release.return_value = 'kilo'
+        self.assertEquals(context.get_dvr(), True)
 
     def test_get_dvr_l3ha_on(self):
         self.test_config.set('enable-dvr', True)
