@@ -53,7 +53,7 @@ def get_dvr():
             log('Disabling DVR, enable-dvr is not valid before Juno')
             return False
         if os_release('neutron-server') == 'juno':
-            if config('overlay-network-type') != VXLAN:
+            if VXLAN not in config('overlay-network-type').split():
                 log('Disabling DVR, enable-dvr requires the use of the vxlan '
                     'overlay network for OpenStack Juno')
                 return False
