@@ -87,7 +87,7 @@ options:
       Overlay network type to use choose one of:
       .
         gre
-        vxlan 
+        vxlan
       .
   flat-network-providers:
     type: string

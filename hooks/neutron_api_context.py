@@ -14,6 +14,12 @@ from charmhelpers.contrib.openstack.utils import (
     os_release,
 )
 
+VLAN = 'vlan'
+VXLAN = 'vxlan'
+GRE = 'gre'
+
+OVERLAY_NET_TYPES = [VXLAN, GRE]
+
 
 def get_l2population():
     plugin = config('neutron-plugin')
@@ -22,7 +28,7 @@ def get_l2population():
 
 def get_overlay_network_type():
     overlay_net = config('overlay-network-type')
-    if overlay_net not in ['vxlan', 'gre']:
+    if overlay_net not in OVERLAY_NET_TYPES:
         raise Exception('Unsupported overlay-network-type')
     return overlay_net
 
@@ -31,10 +37,6 @@ def get_l3ha():
     if config('enable-l3ha'):
         if os_release('neutron-server') < 'juno':
             log('Disabling L3 HA, enable-l3ha is not valid before Juno')
-            return False
-        if config('overlay-network-type') not in ['vlan', 'gre', 'vxlan']:
-            log('Disabling L3 HA, enable-l3ha requires the use of the vxlan, '
-                'vlan or gre overlay network')
             return False
         if get_l2population():
             log('Disabling L3 HA, l2-population must be disabled with L3 HA')
@@ -49,10 +51,11 @@ def get_dvr():
         if os_release('neutron-server') < 'juno':
             log('Disabling DVR, enable-dvr is not valid before Juno')
             return False
-        if config('overlay-network-type') != 'vxlan':
-            log('Disabling DVR, enable-dvr requires the use of the vxlan '
-                'overlay network')
-            return False
+        if os_release('neutron-server') == 'juno':
+            if config('overlay-network-type') != VXLAN:
+                log('Disabling DVR, enable-dvr requires the use of the vxlan '
+                    'overlay network for OpenStack Juno')
+                return False
         if get_l3ha():
             log('Disabling DVR, enable-l3ha must be disabled with dvr')
             return False
