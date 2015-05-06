@@ -17,7 +17,6 @@ from charmhelpers.contrib.openstack.utils import (
 VLAN = 'vlan'
 VXLAN = 'vxlan'
 GRE = 'gre'
-
 OVERLAY_NET_TYPES = [VXLAN, GRE]
 
 
@@ -27,10 +26,12 @@ def get_l2population():
 
 
 def get_overlay_network_type():
-    overlay_net = config('overlay-network-type')
-    if overlay_net not in OVERLAY_NET_TYPES:
-        raise Exception('Unsupported overlay-network-type')
-    return overlay_net
+    overlay_networks = config('overlay-network-type').split()
+    for overlay_net in overlay_networks:
+        if overlay_net not in OVERLAY_NET_TYPES:
+            raise ValueError('Unsupported overlay-network-type %s'
+                             % overlay_net)
+    return ','.join(overlay_networks)
 
 
 def get_l3ha():

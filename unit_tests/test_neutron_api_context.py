@@ -34,12 +34,16 @@ class GeneralTests(CharmTestCase):
         self.test_config.set('overlay-network-type', 'gre')
         self.assertEquals(context.get_overlay_network_type(), 'gre')
 
+    def test_get_overlay_network_type_multi(self):
+        self.test_config.set('overlay-network-type', 'gre vxlan')
+        self.assertEquals(context.get_overlay_network_type(), 'gre,vxlan')
+
     def test_get_overlay_network_type_unsupported(self):
         self.test_config.set('overlay-network-type', 'tokenring')
-        with self.assertRaises(Exception) as _exceptctxt:
+        with self.assertRaises(ValueError) as _exceptctxt:
             context.get_overlay_network_type()
         self.assertEqual(_exceptctxt.exception.message,
-                         'Unsupported overlay-network-type')
+                         'Unsupported overlay-network-type tokenring')
 
     def test_get_l3ha(self):
         self.test_config.set('enable-l3ha', True)
