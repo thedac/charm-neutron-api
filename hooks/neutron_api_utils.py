@@ -22,7 +22,6 @@ from charmhelpers.contrib.openstack.utils import (
 
 from charmhelpers.core.hookenv import (
     config,
-    charm_dir,
     log,
 )
 
