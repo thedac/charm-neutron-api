@@ -17,7 +17,12 @@ from charmhelpers.contrib.openstack.utils import (
     git_clone_and_install,
     git_src_dir,
     git_pip_venv_dir,
+    git_yaml_value,
     configure_installation_source,
+)
+
+from charmhelpers.contrib.python.packages import (
+    pip_install,
 )
 
 from charmhelpers.core.hookenv import (
@@ -68,6 +73,7 @@ KILO_PACKAGES = [
 ]
 
 BASE_GIT_PACKAGES = [
+    'libmysqlclient-dev',
     'libxml2-dev',
     'libxslt1-dev',
     'python-dev',
@@ -421,6 +427,14 @@ def git_pre_install():
 
 def git_post_install(projects_yaml):
     """Perform post-install setup."""
+    http_proxy = git_yaml_value(projects_yaml, 'http_proxy')
+    if http_proxy:
+        pip_install('mysql-python', proxy=http_proxy,
+                    venv=git_pip_venv_dir(projects_yaml))
+    else:
+        pip_install('mysql-python',
+                    venv=git_pip_venv_dir(projects_yaml))
+
     src_etc = os.path.join(git_src_dir(projects_yaml, 'neutron'), 'etc')
     configs = [
         {'src': src_etc,
