@@ -10,6 +10,10 @@ from charmhelpers.contrib.openstack.neutron import (
     neutron_plugin_attribute,
 )
 
+from charmhelpers.contrib.python.packages import (
+    pip_get_virtualenv_path,
+)
+
 from charmhelpers.contrib.openstack.utils import (
     os_release,
     get_os_codename_install_source,
@@ -439,7 +443,7 @@ def git_post_install(projects_yaml):
     render('git/neutron_sudoers', '/etc/sudoers.d/neutron_sudoers', {},
            perms=0o440)
 
-    bin_dir = os.path.join(charm_dir(), 'venv/bin')
+    bin_dir = os.path.join(pip_get_virtualenv_path(), 'bin')
     neutron_api_context = {
         'service_description': 'Neutron API server',
         'charm_name': 'neutron-api',
