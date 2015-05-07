@@ -417,10 +417,11 @@ class TestNeutronAPIUtils(CharmTestCase):
     @patch.object(nutils, 'render')
     @patch('os.path.join')
     @patch('os.path.exists')
+    @patch('os.symlink')
     @patch('shutil.copytree')
     @patch('shutil.rmtree')
-    def test_git_post_install(self, rmtree, copytree, exists, join, render,
-                              service_restart, git_src_dir):
+    def test_git_post_install(self, rmtree, copytree, symlink, exists, join,
+                              render, service_restart, git_src_dir):
         projects_yaml = openstack_origin_git
         join.return_value = 'joined-string'
         nutils.git_post_install(projects_yaml)
@@ -430,6 +431,10 @@ class TestNeutronAPIUtils(CharmTestCase):
             call('joined-string', '/etc/neutron/rootwrap.d'),
         ]
         copytree.assert_has_calls(expected)
+        expected = [
+            call('joined-string', '/usr/local/bin/neutron-rootwrap'),
+        ]
+        symlink.assert_has_calls(expected, any_order=True)
         neutron_api_context = {
             'service_description': 'Neutron API server',
             'charm_name': 'neutron-api',
