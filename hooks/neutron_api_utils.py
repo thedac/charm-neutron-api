@@ -440,7 +440,7 @@ def git_post_install(projects_yaml):
     render('git/neutron_sudoers', '/etc/sudoers.d/neutron_sudoers', {},
            perms=0o440)
 
-    bin_dir = os.path.join(git_pip_venv_dir(), 'bin')
+    bin_dir = os.path.join(git_pip_venv_dir(projects_yaml), 'bin')
     neutron_api_context = {
         'service_description': 'Neutron API server',
         'charm_name': 'neutron-api',
