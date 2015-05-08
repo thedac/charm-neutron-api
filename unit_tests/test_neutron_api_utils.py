@@ -31,6 +31,7 @@ TO_PATCH = [
     'log',
     'neutron_plugin_attribute',
     'os_release',
+    'pip_install',
     'subprocess',
 ]
 
