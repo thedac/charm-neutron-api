@@ -144,6 +144,8 @@ BASE_RESOURCE_MAP = OrderedDict([
     }),
 ])
 
+# The interface is said to be satisfied if anyone of the interfaces in the
+# list has a complete context.
 REQUIRED_INTERFACES = {
     'database': ['shared-db', 'pgsql-db'],
     'message': ['messaging', 'zeromq-configuration'],
@@ -153,23 +155,28 @@ REQUIRED_INTERFACES = {
 
 # set_relation_status and incomplete_relations to go into charmhelpers
 def set_relation_status(configs):
-    inc_rels = incomplete_relations(configs)
+    inc_rels = incomplete_interfaces(configs)
     if inc_rels:
-        status_set('blocked', '{} relations are absent or incomplete'.format(','.join(inc_rels)))
+        status_set(
+            'blocked',
+            '{} relations are absent or incomplete'.format(','.join(inc_rels))
+        )
     else:
         status_set('active', 'relations are present and complete')
 
-def incomplete_relations(configs):
+
+def incomplete_interfaces(configs):
     complete_ctxts = configs.complete_contexts()
     incomplete_relations = []
     for svc_type in REQUIRED_INTERFACES.keys():
-       found_ctxt = False
-       for interface in REQUIRED_INTERFACES[svc_type]:
-           if interface in complete_ctxts:
-               found_ctxt = True
-       if not found_ctxt:
-           incomplete_relations.append(svc_type)
+        found_ctxt = False
+        for interface in REQUIRED_INTERFACES[svc_type]:
+            if interface in complete_ctxts:
+                found_ctxt = True
+        if not found_ctxt:
+            incomplete_relations.append(svc_type)
     return incomplete_relations
+
 
 def api_port(service):
     return API_PORTS[service]
