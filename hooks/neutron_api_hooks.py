@@ -17,6 +17,7 @@ from charmhelpers.core.hookenv import (
     relation_get,
     relation_ids,
     relation_set,
+    status_set,
     open_port,
     unit_get,
 )
@@ -47,6 +48,7 @@ from neutron_api_utils import (
     CLUSTER_RES,
     NEUTRON_CONF,
     api_port,
+    set_relation_status,
     determine_packages,
     determine_ports,
     do_openstack_upgrade,
@@ -163,14 +165,14 @@ def config_changed():
         if l3ha_router_present() and not get_l3ha():
             e = ('Cannot disable Router HA while ha enabled routers exist.'
                  ' Please remove any ha routers')
-            log(e, level=ERROR)
-            raise Exception(e)
+            status_set('blocked', e)
         if dvr_router_present() and not get_dvr():
             e = ('Cannot disable dvr while dvr enabled routers exist. Please'
                  ' remove any distributed routers')
             log(e, level=ERROR)
-            raise Exception(e)
+            status_set('blocked', e)
     if config('prefer-ipv6'):
+        status_set('maintenance', 'configuring ipv6')
         setup_ipv6()
         sync_db_with_multi_ipv6_addresses(config('database'),
                                           config('database-user'))
@@ -178,11 +180,14 @@ def config_changed():
     global CONFIGS
     if git_install_requested():
         if config_value_changed('openstack-origin-git'):
+            status_set('maintenance', 'Running Git install')
             git_install(config('openstack-origin-git'))
     else:
         if openstack_upgrade_available('neutron-server'):
+            status_set('maintenance', 'Running openstack upgrade')
             do_openstack_upgrade(CONFIGS)
 
+    status_set('maintenance', 'Installing apt packages')
     apt_install(filter_installed_packages(
                 determine_packages(config('openstack-origin'))),
                 fatal=True)
@@ -200,7 +205,7 @@ def config_changed():
     for rid in relation_ids('zeromq-configuration'):
         zeromq_configuration_relation_joined(rid)
     [cluster_joined(rid) for rid in relation_ids('cluster')]
-
+    set_relation_status(CONFIGS)
 
 @hooks.hook('amqp-relation-joined')
 def amqp_joined(relation_id=None):
@@ -216,6 +221,7 @@ def amqp_changed():
         log('amqp relation incomplete. Peer not ready?')
         return
     CONFIGS.write(NEUTRON_CONF)
+    set_relation_status(CONFIGS)
 
 
 @hooks.hook('shared-db-relation-joined')
@@ -247,6 +253,7 @@ def pgsql_neutron_db_joined():
         raise Exception(e)
 
     relation_set(database=config('database'))
+    set_relation_status(CONFIGS)
 
 
 @hooks.hook('shared-db-relation-changed')
@@ -257,6 +264,7 @@ def db_changed():
         return
     CONFIGS.write_all()
     conditional_neutron_migration()
+    set_relation_status(CONFIGS)
 
 
 @hooks.hook('pgsql-db-relation-changed')
@@ -272,6 +280,7 @@ def postgresql_neutron_db_changed():
             'pgsql-db-relation-broken')
 def relation_broken():
     CONFIGS.write_all()
+    set_relation_status(CONFIGS)
 
 
 @hooks.hook('identity-service-relation-joined')
@@ -307,6 +316,7 @@ def identity_changed():
     for r_id in relation_ids('neutron-plugin-api'):
         neutron_plugin_api_relation_joined(rid=r_id)
     configure_https()
+    set_relation_status(CONFIGS)
 
 
 @hooks.hook('neutron-api-relation-joined')
