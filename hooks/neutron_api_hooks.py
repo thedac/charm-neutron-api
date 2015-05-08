@@ -207,6 +207,7 @@ def config_changed():
     [cluster_joined(rid) for rid in relation_ids('cluster')]
     set_relation_status(CONFIGS)
 
+
 @hooks.hook('amqp-relation-joined')
 def amqp_joined(relation_id=None):
     relation_set(relation_id=relation_id,
