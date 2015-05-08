@@ -438,6 +438,7 @@ class TestNeutronAPIUtils(CharmTestCase):
         copytree.assert_has_calls(expected)
         expected = [
             call('joined-string', '/usr/local/bin/neutron-rootwrap'),
+            call('joined-string', '/usr/local/bin/neutron-db-manage'),
         ]
         symlink.assert_has_calls(expected, any_order=True)
         neutron_api_context = {
