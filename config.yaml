@@ -84,11 +84,12 @@ options:
     default: gre
     type: string
     description: |
-      Overlay network type to use choose one of:
+      Overlay network types to use, valid options include:
       .
         gre
-        vxlan 
+        vxlan
       .
+      Multiple types can be provided - field is space delimited.
   flat-network-providers:
     type: string
     default:
