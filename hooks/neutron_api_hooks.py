@@ -11,6 +11,7 @@ from charmhelpers.core.hookenv import (
     UnregisteredHookError,
     config,
     is_relation_made,
+    local_unit,
     log,
     ERROR,
     relation_get,
@@ -23,6 +24,7 @@ from charmhelpers.core.hookenv import (
 from charmhelpers.core.host import (
     restart_on_change,
     service_reload,
+    service_restart,
 )
 
 from charmhelpers.fetch import (
@@ -32,20 +34,27 @@ from charmhelpers.fetch import (
 )
 
 from charmhelpers.contrib.openstack.utils import (
+    config_value_changed,
     configure_installation_source,
+    git_install_requested,
     openstack_upgrade_available,
     os_requires_version,
+    os_release,
     sync_db_with_multi_ipv6_addresses
 )
 
 from neutron_api_utils import (
+    CLUSTER_RES,
     NEUTRON_CONF,
     api_port,
     determine_packages,
     determine_ports,
     do_openstack_upgrade,
+    git_install,
     dvr_router_present,
     l3ha_router_present,
+    migrate_neutron_database,
+    neutron_ready,
     register_configs,
     restart_map,
     services,
@@ -62,6 +71,7 @@ from neutron_api_context import (
 
 from charmhelpers.contrib.hahelpers.cluster import (
     get_hacluster_config,
+    is_elected_leader,
 )
 
 from charmhelpers.payload.execd import execd_preinstall
@@ -85,6 +95,25 @@ from charmhelpers.contrib.charmsupport import nrpe
 
 hooks = Hooks()
 CONFIGS = register_configs()
+
+
+def conditional_neutron_migration():
+    if os_release('neutron-server') < 'kilo':
+        log('Not running neutron database migration as migrations are handled '
+            'by the neutron-server process or nova-cloud-controller charm.')
+        return
+
+    if is_elected_leader(CLUSTER_RES):
+        allowed_units = relation_get('allowed_units')
+        if allowed_units and local_unit() in allowed_units.split():
+            migrate_neutron_database()
+            service_restart('neutron-server')
+        else:
+            log('Not running neutron database migration, either no'
+                ' allowed_units or this unit is not present')
+            return
+    else:
+        log('Not running neutron database migration, not leader')
 
 
 def configure_https():
@@ -114,9 +143,13 @@ def configure_https():
 def install():
     execd_preinstall()
     configure_installation_source(config('openstack-origin'))
+
     apt_update()
     apt_install(determine_packages(config('openstack-origin')),
                 fatal=True)
+
+    git_install(config('openstack-origin-git'))
+
     [open_port(port) for port in determine_ports()]
 
 
@@ -124,27 +157,35 @@ def install():
 @hooks.hook('config-changed')
 @restart_on_change(restart_map(), stopstart=True)
 def config_changed():
-    if l3ha_router_present() and not get_l3ha():
-        e = ('Cannot disable Router HA while ha enabled routers exist. Please'
-             ' remove any ha routers')
-        log(e, level=ERROR)
-        raise Exception(e)
-    if dvr_router_present() and not get_dvr():
-        e = ('Cannot disable dvr while dvr enabled routers exist. Please'
-             ' remove any distributed routers')
-        log(e, level=ERROR)
-        raise Exception(e)
-    apt_install(filter_installed_packages(
-                determine_packages(config('openstack-origin'))),
-                fatal=True)
+    # If neutron is ready to be queried then check for incompatability between
+    # existing neutron objects and charm settings
+    if neutron_ready():
+        if l3ha_router_present() and not get_l3ha():
+            e = ('Cannot disable Router HA while ha enabled routers exist.'
+                 ' Please remove any ha routers')
+            log(e, level=ERROR)
+            raise Exception(e)
+        if dvr_router_present() and not get_dvr():
+            e = ('Cannot disable dvr while dvr enabled routers exist. Please'
+                 ' remove any distributed routers')
+            log(e, level=ERROR)
+            raise Exception(e)
     if config('prefer-ipv6'):
         setup_ipv6()
         sync_db_with_multi_ipv6_addresses(config('database'),
                                           config('database-user'))
 
     global CONFIGS
-    if openstack_upgrade_available('neutron-server'):
-        do_openstack_upgrade(CONFIGS)
+    if git_install_requested():
+        if config_value_changed('openstack-origin-git'):
+            git_install(config('openstack-origin-git'))
+    else:
+        if openstack_upgrade_available('neutron-server'):
+            do_openstack_upgrade(CONFIGS)
+
+    apt_install(filter_installed_packages(
+                determine_packages(config('openstack-origin'))),
+                fatal=True)
     configure_https()
     update_nrpe_config()
     CONFIGS.write_all()
@@ -215,12 +256,14 @@ def db_changed():
         log('shared-db relation incomplete. Peer not ready?')
         return
     CONFIGS.write_all()
+    conditional_neutron_migration()
 
 
 @hooks.hook('pgsql-db-relation-changed')
 @restart_on_change(restart_map())
 def postgresql_neutron_db_changed():
     CONFIGS.write(NEUTRON_CONF)
+    conditional_neutron_migration()
 
 
 @hooks.hook('amqp-relation-broken',
