@@ -37,6 +37,7 @@ Resultant relations of neutron-api service:
 
 import amulet
 import os
+import time
 import yaml
 
 from charmhelpers.contrib.openstack.amulet.deployment import (
@@ -145,11 +146,15 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
             self._get_openstack_release()))
         u.log.debug('openstack release str: {}'.format(
             self._get_openstack_release_string()))
+        # Let things settle a bit before moving forward
+        time.sleep(30)
+
 
     def test_100_services(self):
         """Verify the expected services are running on the corresponding
            service units."""
         u.log.debug('Checking status of system services...')
+        # Fails vivid-kilo, bug 1454754
         neutron_api_services = ['status neutron-server']
         neutron_services = ['status neutron-dhcp-agent',
                             'status neutron-lbaas-agent',
