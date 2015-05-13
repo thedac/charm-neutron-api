@@ -76,10 +76,10 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
             openstack_origin_git = {
                 'repositories': [
                     {'name': 'requirements',
-                     'repository': 'git://git.openstack.org/openstack/requirements',
+                     'repository': 'git://github.com/openstack/requirements',
                      'branch': branch},
                     {'name': 'neutron',
-                     'repository': 'git://git.openstack.org/openstack/neutron',
+                     'repository': 'git://github.com/openstack/neutron',
                      'branch': branch},
                 ],
                 'directory': '/mnt/openstack-git',
@@ -113,6 +113,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
 
     def test_neutron_api_shared_db_relation(self):
         """Verify the neutron-api to mysql shared-db relation data"""
+        u.log.debug('Checking neutron-api:mysql relation data...')
         unit = self.neutron_api_sentry
         relation = ['shared-db', 'mysql:shared-db']
         expected = {
@@ -129,6 +130,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
 
     def test_shared_db_neutron_api_relation(self):
         """Verify the mysql to neutron-api shared-db relation data"""
+        u.log.debug('Checking mysql:neutron-api relation data...')
         unit = self.mysql_sentry
         relation = ['shared-db', 'neutron-api:shared-db']
         expected = {
@@ -151,6 +153,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
 
     def test_neutron_api_amqp_relation(self):
         """Verify the neutron-api to rabbitmq-server amqp relation data"""
+        u.log.debug('Checking neutron-api:amqp relation data...')
         unit = self.neutron_api_sentry
         relation = ['amqp', 'rabbitmq-server:amqp']
         expected = {
@@ -166,6 +169,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
 
     def test_amqp_neutron_api_relation(self):
         """Verify the rabbitmq-server to neutron-api amqp relation data"""
+        u.log.debug('Checking amqp:neutron-api relation data...')
         unit = self.rabbitmq_sentry
         relation = ['amqp', 'neutron-api:amqp']
         rel_data = unit.relation('amqp', 'neutron-api:amqp')
@@ -181,6 +185,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
 
     def test_neutron_api_identity_relation(self):
         """Verify the neutron-api to keystone identity-service relation data"""
+        u.log.debug('Checking neutron-api:keystone relation data...')
         unit = self.neutron_api_sentry
         relation = ['identity-service', 'keystone:identity-service']
         api_ip = unit.relation('identity-service',
@@ -202,6 +207,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
 
     def test_keystone_neutron_api_identity_relation(self):
         """Verify the keystone to neutron-api identity-service relation data"""
+        u.log.debug('Checking keystone:neutron-api relation data...')
         unit = self.keystone_sentry
         relation = ['identity-service', 'neutron-api:identity-service']
         id_relation = unit.relation('identity-service',
@@ -222,6 +228,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
 
     def test_neutron_api_plugin_relation(self):
         """Verify neutron-api to neutron-openvswitch neutron-plugin-api"""
+        u.log.debug('Checking neutron-api:neutron-ovs relation data...')
         unit = self.neutron_api_sentry
         relation = ['neutron-plugin-api',
                     'neutron-openvswitch:neutron-plugin-api']
@@ -245,11 +252,14 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
            but it forces the test to run last.  It just makes things
            easier because restarting services requires re-authorization.
            """
+        u.log.debug('Checking novacc neutron-api relation data...')
         conf = '/etc/neutron/neutron.conf'
         services = ['neutron-server']
+        u.log.debug('Making config change on neutron-api service...')
         self.d.configure('neutron-api', {'use-syslog': 'True'})
         stime = 60
         for s in services:
+            u.log.debug("Checking that service restarted: {}".format(s))
             if not u.service_restarted(self.neutron_api_sentry, s, conf,
                                        pgrep_full=True, sleep_time=stime):
                 self.d.configure('neutron-api', {'use-syslog': 'False'})
@@ -260,6 +270,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
 
     def test_neutron_api_novacc_relation(self):
         """Verify the neutron-api to nova-cloud-controller relation data"""
+        u.log.debug('Checking neutron-api:novacc relation data...')
         unit = self.neutron_api_sentry
         relation = ['neutron-api', 'nova-cloud-controller:neutron-api']
         api_ip = unit.relation('identity-service',
@@ -278,6 +289,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
 
     def test_novacc_neutron_api_relation(self):
         """Verify the nova-cloud-controller to neutron-api relation data"""
+        u.log.debug('Checking novacc:neutron-api relation data...')
         unit = self.nova_cc_sentry
         relation = ['neutron-api', 'neutron-api:neutron-api']
         cc_ip = unit.relation('neutron-api',
@@ -294,6 +306,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
 
     def test_neutron_config(self):
         """Verify the data in the neutron config file."""
+        u.log.debug('Checking neutron.conf config file data...')
         unit = self.neutron_api_sentry
         cc_relation = self.nova_cc_sentry.relation('neutron-api',
                                                    'neutron-api:neutron-api')
@@ -375,15 +388,13 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
     def test_ml2_config(self):
         """Verify the data in the ml2 config file. This is only available
            since icehouse."""
+        u.log.debug('Checking ml2 config file data...')
         unit = self.neutron_api_sentry
         conf = '/etc/neutron/plugins/ml2/ml2_conf.ini'
         neutron_api_relation = unit.relation('shared-db', 'mysql:shared-db')
 
         expected = {
-            'ml2': {
-                'type_drivers': 'gre,vxlan,vlan,flat',
-                'tenant_network_types': 'gre,vxlan,vlan,flat',
-            },
+            'ml2': {},
             'ml2_type_gre': {
                 'tunnel_id_ranges': '1:1000'
             },
@@ -401,6 +412,25 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
                 'enable_security_group': 'False',
             }
         }
+
+
+        if self._get_openstack_release() == self.precise_icehouse:
+            # Precise-Icehouse
+            expected['ml2'].update(
+                {
+                    'type_drivers': 'gre,vlan,flat',
+                    'tenant_network_types': 'gre,vlan,flat',
+                }
+            )
+        else:
+            # Trusty-Icehouse and later
+            expected['ml2'].update(
+                {
+                    'type_drivers': 'gre,vxlan,vlan,flat',
+                    'tenant_network_types': 'gre,vxlan,vlan,flat',
+                }
+            )
+
 
         if self._get_openstack_release() >= self.trusty_kilo:
             # Kilo or later
