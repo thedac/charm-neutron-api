@@ -194,6 +194,19 @@ def neutron_plugins():
                           'nova-api-metadata']],
             'server_packages': ['neutron-server', 'calico-control'],
             'server_services': ['neutron-server']
+        },
+        'vsp': {
+            'config': '/etc/neutron/plugins/nuage/nuage_plugin.ini',
+            'driver': 'neutron.plugins.nuage.plugin.NuagePlugin',
+            'contexts': [
+                context.SharedDBContext(user=config('neutron-database-user'),
+                                        database=config('neutron-database'),
+                                        relation_prefix='neutron',
+                                        ssl_dir=NEUTRON_CONF_DIR)],
+            'services': [],
+            'packages': [],
+            'server_packages': ['neutron-server', 'neutron-plugin-nuage'],
+            'server_services': ['neutron-server']
         }
     }
     if release >= 'icehouse':
@@ -257,11 +270,14 @@ def network_manager():
 def parse_mappings(mappings):
     parsed = {}
     if mappings:
-        mappings = mappings.split(' ')
+        mappings = mappings.split()
         for m in mappings:
             p = m.partition(':')
-            if p[1] == ':':
-                parsed[p[0].strip()] = p[2].strip()
+            key = p[0].strip()
+            if p[1]:
+                parsed[key] = p[2].strip()
+            else:
+                parsed[key] = ''
 
     return parsed
 
@@ -284,13 +300,13 @@ def parse_data_port_mappings(mappings, default_bridge='br-data'):
     Returns dict of the form {bridge:port}.
     """
     _mappings = parse_mappings(mappings)
-    if not _mappings:
+    if not _mappings or list(_mappings.values()) == ['']:
         if not mappings:
             return {}
 
         # For backwards-compatibility we need to support port-only provided in
         # config.
-        _mappings = {default_bridge: mappings.split(' ')[0]}
+        _mappings = {default_bridge: mappings.split()[0]}
 
     bridges = _mappings.keys()
     ports = _mappings.values()
@@ -309,6 +325,8 @@ def parse_vlan_range_mappings(mappings):
     """Parse vlan range mappings.
 
     Mappings must be a space-delimited list of provider:start:end mappings.
+
+    The start:end range is optional and may be omitted.
 
     Returns dict of the form {provider: (start, end)}.
     """

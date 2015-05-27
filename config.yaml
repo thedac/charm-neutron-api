@@ -14,6 +14,22 @@ options:
       Note that updating this setting to a source that is known to
       provide a later version of OpenStack will trigger a software
       upgrade.
+
+      Note that when openstack-origin-git is specified, openstack
+      specific packages will be installed from source rather than
+      from the openstack-origin repository.
+  openstack-origin-git:
+    default:
+    type: string
+    description: |
+      Specifies a YAML-formatted dictionary listing the git
+      repositories and branches from which to install OpenStack and
+      its dependencies.
+
+      Note that the installed config files will be determined based on
+      the OpenStack release of the openstack-origin option.
+
+      For more details see README.md.
   rabbit-user:
     default: neutron
     type: string
@@ -69,10 +85,10 @@ options:
     default: gre
     type: string
     description: |
-      Overlay network type to use choose one of:
+      Overlay network types to use, valid options include:
       .
         gre
-        vxlan 
+        vxlan
       .
   neutron-plugin-ppa-key:
     type: string
@@ -86,6 +102,20 @@ options:
     type: string
     default:
     description: Optional URL to Neutron Plugin containing python packages.
+      Multiple types can be provided - field is space delimited.
+  flat-network-providers:
+    type: string
+    default:
+    description: |
+      Space-delimited list of Neutron flat network providers.
+  vlan-ranges:
+    type: string
+    default: "physnet1:1000:2000"
+    description: |
+      Space-delimited list of <physical_network>:<vlan_min>:<vlan_max> or
+      <physical_network> specifying physical_network names usable for VLAN
+      provider and tenant networks, as well as ranges of VLAN tags on each
+      available for allocation to tenant networks.
   # Quota configuration settings
   quota-security-group:
     default: 10

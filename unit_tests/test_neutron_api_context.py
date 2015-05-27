@@ -34,12 +34,16 @@ class GeneralTests(CharmTestCase):
         self.test_config.set('overlay-network-type', 'gre')
         self.assertEquals(context.get_overlay_network_type(), 'gre')
 
+    def test_get_overlay_network_type_multi(self):
+        self.test_config.set('overlay-network-type', 'gre vxlan')
+        self.assertEquals(context.get_overlay_network_type(), 'gre,vxlan')
+
     def test_get_overlay_network_type_unsupported(self):
         self.test_config.set('overlay-network-type', 'tokenring')
-        with self.assertRaises(Exception) as _exceptctxt:
+        with self.assertRaises(ValueError) as _exceptctxt:
             context.get_overlay_network_type()
         self.assertEqual(_exceptctxt.exception.message,
-                         'Unsupported overlay-network-type')
+                         'Unsupported overlay-network-type tokenring')
 
     def test_get_l3ha(self):
         self.test_config.set('enable-l3ha', True)
@@ -62,14 +66,6 @@ class GeneralTests(CharmTestCase):
         self.test_config.set('overlay-network-type', 'gre')
         self.test_config.set('neutron-plugin', 'ovs')
         self.test_config.set('l2-population', True)
-        self.os_release.return_value = 'juno'
-        self.assertEquals(context.get_l3ha(), False)
-
-    def test_get_l3ha_badoverlay(self):
-        self.test_config.set('enable-l3ha', True)
-        self.test_config.set('overlay-network-type', 'tokenring')
-        self.test_config.set('neutron-plugin', 'ovs')
-        self.test_config.set('l2-population', False)
         self.os_release.return_value = 'juno'
         self.assertEquals(context.get_l3ha(), False)
 
@@ -108,6 +104,24 @@ class GeneralTests(CharmTestCase):
         self.test_config.set('l2-population', True)
         self.os_release.return_value = 'juno'
         self.assertEquals(context.get_dvr(), False)
+
+    def test_get_dvr_gre_kilo(self):
+        self.test_config.set('enable-dvr', True)
+        self.test_config.set('enable-l3ha', False)
+        self.test_config.set('overlay-network-type', 'gre')
+        self.test_config.set('neutron-plugin', 'ovs')
+        self.test_config.set('l2-population', True)
+        self.os_release.return_value = 'kilo'
+        self.assertEquals(context.get_dvr(), True)
+
+    def test_get_dvr_vxlan_kilo(self):
+        self.test_config.set('enable-dvr', True)
+        self.test_config.set('enable-l3ha', False)
+        self.test_config.set('overlay-network-type', 'vxlan')
+        self.test_config.set('neutron-plugin', 'ovs')
+        self.test_config.set('l2-population', True)
+        self.os_release.return_value = 'kilo'
+        self.assertEquals(context.get_dvr(), True)
 
     def test_get_dvr_l3ha_on(self):
         self.test_config.set('enable-dvr', True)
@@ -291,6 +305,7 @@ class NeutronCCContextTest(CharmTestCase):
             'quota_security_group_rule': 100,
             'quota_subnet': 10,
             'quota_vip': 10,
+            'vlan_ranges': 'physnet1:1000:2000',
         }
         napi_ctxt = context.NeutronCCContext()
         with patch.object(napi_ctxt, '_ensure_packages'):
@@ -301,6 +316,7 @@ class NeutronCCContextTest(CharmTestCase):
     @patch('__builtin__.__import__')
     def test_neutroncc_context_vxlan(self, _import, plugin, nm):
         plugin.return_value = None
+        self.test_config.set('flat-network-providers', 'physnet2 physnet3')
         self.test_config.set('overlay-network-type', 'vxlan')
         ctxt_data = {
             'debug': True,
@@ -322,6 +338,8 @@ class NeutronCCContextTest(CharmTestCase):
             'quota_security_group_rule': 100,
             'quota_subnet': 10,
             'quota_vip': 10,
+            'vlan_ranges': 'physnet1:1000:2000',
+            'network_providers': 'physnet2,physnet3',
         }
         napi_ctxt = context.NeutronCCContext()
         with patch.object(napi_ctxt, '_ensure_packages'):
@@ -359,6 +377,7 @@ class NeutronCCContextTest(CharmTestCase):
             'quota_security_group_rule': 100,
             'quota_subnet': 10,
             'quota_vip': 10,
+            'vlan_ranges': 'physnet1:1000:2000',
         }
         napi_ctxt = context.NeutronCCContext()
         with patch.object(napi_ctxt, '_ensure_packages'):
