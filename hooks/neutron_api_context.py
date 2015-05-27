@@ -14,6 +14,11 @@ from charmhelpers.contrib.openstack.utils import (
     os_release,
 )
 
+VLAN = 'vlan'
+VXLAN = 'vxlan'
+GRE = 'gre'
+OVERLAY_NET_TYPES = [VXLAN, GRE]
+
 
 def get_l2population():
     plugin = config('neutron-plugin')
@@ -21,20 +26,18 @@ def get_l2population():
 
 
 def get_overlay_network_type():
-    overlay_net = config('overlay-network-type')
-    if overlay_net not in ['vxlan', 'gre']:
-        raise Exception('Unsupported overlay-network-type')
-    return overlay_net
+    overlay_networks = config('overlay-network-type').split()
+    for overlay_net in overlay_networks:
+        if overlay_net not in OVERLAY_NET_TYPES:
+            raise ValueError('Unsupported overlay-network-type %s'
+                             % overlay_net)
+    return ','.join(overlay_networks)
 
 
 def get_l3ha():
     if config('enable-l3ha'):
         if os_release('neutron-server') < 'juno':
             log('Disabling L3 HA, enable-l3ha is not valid before Juno')
-            return False
-        if config('overlay-network-type') not in ['vlan', 'gre', 'vxlan']:
-            log('Disabling L3 HA, enable-l3ha requires the use of the vxlan, '
-                'vlan or gre overlay network')
             return False
         if get_l2population():
             log('Disabling L3 HA, l2-population must be disabled with L3 HA')
@@ -49,10 +52,11 @@ def get_dvr():
         if os_release('neutron-server') < 'juno':
             log('Disabling DVR, enable-dvr is not valid before Juno')
             return False
-        if config('overlay-network-type') != 'vxlan':
-            log('Disabling DVR, enable-dvr requires the use of the vxlan '
-                'overlay network')
-            return False
+        if os_release('neutron-server') == 'juno':
+            if VXLAN not in config('overlay-network-type').split():
+                log('Disabling DVR, enable-dvr requires the use of the vxlan '
+                    'overlay network for OpenStack Juno')
+                return False
         if get_l3ha():
             log('Disabling DVR, enable-l3ha must be disabled with dvr')
             return False
@@ -126,6 +130,25 @@ class NeutronCCContext(context.NeutronContext):
     def _save_flag_file(self):
         pass
 
+    def get_neutron_api_rel_settings(self):
+        settings = {}
+        for rid in relation_ids('neutron-api'):
+            for unit in related_units(rid):
+                rdata = relation_get(rid=rid, unit=unit)
+                cell_type = rdata.get('cell_type')
+                settings['nova_url'] = rdata.get('nova_url')
+                settings['restart_trigger'] = rdata.get('restart_trigger')
+                # If there are multiple nova-cloud-controllers joined to this
+                # service in a cell deployment then ignore the non-api cell
+                # ones
+                if cell_type and not cell_type == "api":
+                    continue
+
+                if settings['nova_url']:
+                    return settings
+
+        return settings
+
     def __call__(self):
         from neutron_api_utils import api_port
         ctxt = super(NeutronCCContext, self).__call__()
@@ -182,19 +205,18 @@ class NeutronCCContext(context.NeutronContext):
         ctxt['quota_router'] = config('quota-router')
         ctxt['quota_floatingip'] = config('quota-floatingip')
 
-        for rid in relation_ids('neutron-api'):
-            for unit in related_units(rid):
-                rdata = relation_get(rid=rid, unit=unit)
-                cell_type = rdata.get('cell_type')
-                ctxt['nova_url'] = rdata.get('nova_url')
-                ctxt['restart_trigger'] = rdata.get('restart_trigger')
-                # If there are multiple nova-cloud-controllers joined to this
-                # service in a cell deployment then ignore the non-api cell
-                # ones
-                if cell_type and not cell_type == "api":
-                    continue
-                if ctxt['nova_url']:
-                    return ctxt
+        n_api_settings = self.get_neutron_api_rel_settings()
+        if n_api_settings:
+            ctxt.update(n_api_settings)
+
+        flat_providers = config('flat-network-providers')
+        if flat_providers:
+            ctxt['network_providers'] = ','.join(flat_providers.split())
+
+        vlan_ranges = config('vlan-ranges')
+        if vlan_ranges:
+            ctxt['vlan_ranges'] = ','.join(vlan_ranges.split())
+
         return ctxt
 
 

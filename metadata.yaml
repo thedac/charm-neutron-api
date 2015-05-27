@@ -12,7 +12,7 @@ description: |
   etc.)
   .
   This charm provides the OpenStack Neutron API service.
-categories:
+tags:
   - openstack
 provides:
   nrpe-external-master:
