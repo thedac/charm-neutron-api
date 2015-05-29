@@ -473,7 +473,7 @@ def ha_joined():
 def ha_changed():
     clustered = relation_get('clustered')
     if not clustered or clustered in [None, 'None', '']:
-        log('ha_changed: hacluster subordinate'
+        log('ha_changed: haacluster subordinate'
             ' not fully clustered: %s' % clustered)
         return
     log('Cluster configured, notifying other services and updating '
