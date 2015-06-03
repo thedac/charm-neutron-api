@@ -235,7 +235,7 @@ options:
       192.168.0.0/24)
       .
       This network will be used for public endpoints.
-  endpoint-public-name:
+  os-public-hostname:
     type: string
     default:
     description: |
@@ -243,7 +243,7 @@ options:
       in the keystone identity provider.
       .
       This value will be used for public endpoints. For example, an
-      endpoint-public-name set to 'neutron-api.example.com' with ssl enabled
+      os-public-hostname set to 'neutron-api.example.com' with ssl enabled
       will create the following endpoint for neutron-api:
       .
       https://neutron-api.example.com:9696/

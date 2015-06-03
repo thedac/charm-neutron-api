@@ -347,7 +347,7 @@ class NeutronAPIHooksTests(CharmTestCase):
         _config.side_effect = self.test_config.get
         self.api_port.return_value = '9696'
         self.test_config.set('region', 'region1')
-        self.test_config.set('endpoint-public-name',
+        self.test_config.set('os-public-hostname',
                              'neutron-api.example.com')
         self._call_hook('identity-service-relation-joined')
         _neutron_url = 'http://127.0.0.1:9696'
