@@ -337,6 +337,8 @@ class NeutronAPIHooksTests(CharmTestCase):
             relation_settings=_endpoints
         )
 
+    @patch('charmhelpers.contrib.openstack.ip.service_name',
+           lambda *args: 'neutron-api')
     @patch('charmhelpers.contrib.openstack.ip.unit_get')
     @patch('charmhelpers.contrib.openstack.ip.is_clustered')
     @patch('charmhelpers.contrib.openstack.ip.config')
