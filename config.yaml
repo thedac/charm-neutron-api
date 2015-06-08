@@ -347,6 +347,6 @@ options:
     type: string
     description: |
       Repository from which to install Calico packages. If set, must be
-      a PPA URL, of the form  ppa:somecustom/ppa. Note that this
-      must be set before the 'install' hook runs.
+      a PPA URL, of the form ppa:somecustom/ppa. Changing this value
+      after installation will force an immediate software upgrade.
   # End of Calico plugin configuration

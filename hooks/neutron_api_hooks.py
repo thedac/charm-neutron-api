@@ -187,10 +187,10 @@ def config_changed():
         if openstack_upgrade_available('neutron-server'):
             do_openstack_upgrade(CONFIGS)
 
+    additional_install_locations(config('neutron-plugin'))
     apt_install(filter_installed_packages(
                 determine_packages(config('openstack-origin'))),
                 fatal=True)
-    additional_install_locations(config('neutron-plugin'))
     configure_https()
     update_nrpe_config()
     CONFIGS.write_all()
