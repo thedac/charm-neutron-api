@@ -107,15 +107,40 @@ CONFIGS = register_configs()
 
 def conditional_neutron_migration():
     if os_release('neutron-server') < 'kilo':
-        log('Not running neutron database migration as migrations are handled '
-            'by the neutron-server process or nova-cloud-controller charm.')
-        return
+        if not ((config('neutron-plugin') == 'vsp') and
+           (os_release('neutron-server') == 'juno')):
+            log('Not running neutron database migration as migrations'
+                'are handled by the neutron-server process or'
+                'nova-cloud-controller charm.')
+            return
 
     if is_elected_leader(CLUSTER_RES):
         allowed_units = relation_get('allowed_units')
         if allowed_units and local_unit() in allowed_units.split():
-            migrate_neutron_database()
-            service_restart('neutron-server')
+            if (os_release('neutron-server') == 'juno' and
+               config('neutron-plugin') == 'vsp'):
+                nuage_migration_db_path = '/usr/lib/python2.7/dist-packages/'\
+                                          'neutron/db/migration/nuage'
+                if os.path.exists(nuage_migration_db_path):
+                    log('Running Migartion_Script_for_Juno_Release')
+                    check_output(
+                        [
+                            'bash', '-c',
+                            'cd {}; sudo python migrate_hybrid_juno.py'
+                            ' --config-file'
+                            ' /etc/neutron/plugins/nuage/nuage_plugin.ini'
+                            ' --config-file /etc/neutron/neutron.conf'.format(
+                                nuage_migration_db_path)
+                        ]
+                    )
+                else:
+                    log('Path doesnot exists{}'.format(
+                        nuage_migration_db_path))
+                    log('Therefore cannot run Neutron db Migration Script')
+
+            else:
+                migrate_neutron_database()
+                service_restart('neutron-server')
         else:
             log('Not running neutron database migration, either no'
                 ' allowed_units or this unit is not present')
