@@ -36,7 +36,6 @@ TO_PATCH = [
     'service_stop',
     'service_start',
     'glob',
-    'shutil',
 ]
 
 openstack_origin_git = \
@@ -480,13 +479,14 @@ class TestNeutronAPIUtils(CharmTestCase):
         nutils.additional_install_locations('Calico')
         self.add_source.assert_called_with('ppa:testppa/project-calico')
 
-    def test_force_etcd_restart(self):
+    @patch('shutil.rmtree')
+    def test_force_etcd_restart(self, rmtree):
         self.glob.glob.return_value = [
             '/var/lib/etcd/one', '/var/lib/etcd/two'
         ]
         nutils.force_etcd_restart()
         self.service_stop.assert_called_once_with('etcd')
         self.glob.glob.assert_called_once_with('/var/lib/etcd/*')
-        self.shutil.rmtree.assert_any_call('/var/lib/etcd/one')
-        self.shutil.rmtree.assert_any_call('/var/lib/etcd/two')
+        rmtree.assert_any_call('/var/lib/etcd/one')
+        rmtree.assert_any_call('/var/lib/etcd/two')
         self.service_start.assert_called_once_with('etcd')
