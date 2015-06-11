@@ -37,6 +37,12 @@ requires:
   zeromq-configuration:
     interface: zeromq-configuration
     scope: container
+  neutron-plugin:
+    interface: neutron-plugin
+    scope: container
+  neutron-test:
+    interface: neutron-test
+    scope: container
 peers:
   cluster:
     interface: neutron-api-ha

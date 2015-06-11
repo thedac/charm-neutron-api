@@ -234,3 +234,62 @@ class HAProxyContext(context.HAProxyContext):
         # for haproxy.conf
         ctxt['service_ports'] = port_mapping
         return ctxt
+
+
+class NeutronApiSDNContext(context.OSContextGenerator):
+    interfaces = ['neutron-test']
+
+    def __call__(self):
+        ctxt = {}
+        defaults = {
+            'core-plugin': {
+                'templ_key': 'core_plugin',
+                'value': 'neutron.plugins.ml2.plugin.Ml2Plugin',
+            },
+            'neutron-plugin-config': {
+                'templ_key': 'neutron_plugin_config',
+                'value': '/etc/neutron/plugins/ml2/ml2_conf.ini',
+            },
+            'service-plugins': {
+                'templ_key': 'service_plugins',
+                'value': 'router,firewall,lbaas,vpnaas,metering',
+            },
+        }
+        for rid in relation_ids('neutron-test'):
+            for unit in related_units(rid):
+                rdata = relation_get(rid=rid, unit=unit)
+                ctxt = {
+                    'neutron_plugin': rdata.get('neutron-plugin'),
+                }
+                if not context.context_complete(ctxt):
+                    continue
+                for key in defaults.keys():
+                    remote_value = rdata.get(key)
+                    ctxt_key = defaults[key]['templ_key']
+                    if remote_value:
+                        ctxt[ctxt_key] = remote_value
+                    else:
+                        ctxt[ctxt_key] = defaults[key]['value']
+                print ctxt
+                return ctxt
+        return ctxt
+
+class NeutronApiSDNConfigFileContext(context.OSContextGenerator):
+    interfaces = ['neutron-test']
+
+    def __call__(self):
+        ctxt = {}
+        defaults = {
+            'neutron-plugin-config': {
+                'templ_key': 'neutron_plugin_config',
+                'value': '/etc/neutron/plugins/ml2/ml2_conf.ini',
+            },
+        }
+        for rid in relation_ids('neutron-test'):
+            for unit in related_units(rid):
+                rdata = relation_get(rid=rid, unit=unit)
+                neutron_server_plugin_config = rdata.get('neutron-plugin-config')
+                print neutron_server_plugin_config
+                if neutron_server_plugin_config:
+                    return { 'config': neutron_server_plugin_config }
+        return { 'config': '/etc/neutron/plugins/ml2/ml2_conf.ini' }
