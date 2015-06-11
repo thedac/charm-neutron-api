@@ -254,6 +254,10 @@ class NeutronApiSDNContext(context.OSContextGenerator):
                 'templ_key': 'service_plugins',
                 'value': 'router,firewall,lbaas,vpnaas,metering',
             },
+            'restart-trigger': {
+                'templ_key': 'restart_trigger',
+                'value': '',
+            },
         }
         for rid in relation_ids('neutron-test'):
             for unit in related_units(rid):
@@ -270,7 +274,6 @@ class NeutronApiSDNContext(context.OSContextGenerator):
                         ctxt[ctxt_key] = remote_value
                     else:
                         ctxt[ctxt_key] = defaults[key]['value']
-                print ctxt
                 return ctxt
         return ctxt
 
@@ -289,7 +292,6 @@ class NeutronApiSDNConfigFileContext(context.OSContextGenerator):
             for unit in related_units(rid):
                 rdata = relation_get(rid=rid, unit=unit)
                 neutron_server_plugin_config = rdata.get('neutron-plugin-config')
-                print neutron_server_plugin_config
                 if neutron_server_plugin_config:
                     return { 'config': neutron_server_plugin_config }
         return { 'config': '/etc/neutron/plugins/ml2/ml2_conf.ini' }
