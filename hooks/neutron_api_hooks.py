@@ -110,8 +110,8 @@ def conditional_neutron_migration():
         if not ((config('neutron-plugin') == 'vsp') and
            (os_release('neutron-server') == 'juno')):
             log('Not running neutron database migration as migrations'
-                'are handled by the neutron-server process or'
-                'nova-cloud-controller charm.')
+                ' are handled by the neutron-server process or'
+                ' nova-cloud-controller charm.')
             return
 
     if is_elected_leader(CLUSTER_RES):
