@@ -40,8 +40,8 @@ requires:
   neutron-plugin:
     interface: neutron-plugin
     scope: container
-  neutron-test:
-    interface: neutron-test
+  neutron-plugin-api-subordinate:
+    interface: neutron-plugin-api-subordinate
     scope: container
 peers:
   cluster:

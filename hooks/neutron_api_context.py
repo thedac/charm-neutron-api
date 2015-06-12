@@ -237,10 +237,10 @@ class HAProxyContext(context.HAProxyContext):
 
 
 class NeutronApiSDNContext(context.SubordinateConfigContext):
-    interfaces = 'neutron-test'
+    interfaces = 'neutron-plugin-api-subordinate'
 
     def __init__(self):
-        super(NeutronApiSDNContext, self).__init__(interface='neutron-test',
+        super(NeutronApiSDNContext, self).__init__(interface='neutron-plugin-api-subordinate',
                                                    service='neutron-api',
                                                    config_file='/etc/neutron/neutron.conf')
 
@@ -264,7 +264,7 @@ class NeutronApiSDNContext(context.SubordinateConfigContext):
                 'value': '',
             },
         }
-        for rid in relation_ids('neutron-test'):
+        for rid in relation_ids('neutron-plugin-api-subordinate'):
             for unit in related_units(rid):
                 rdata = relation_get(rid=rid, unit=unit)
                 ctxt['neutron_plugin'] = rdata.get('neutron-plugin')
@@ -281,7 +281,7 @@ class NeutronApiSDNContext(context.SubordinateConfigContext):
         return ctxt
 
 class NeutronApiSDNConfigFileContext(context.OSContextGenerator):
-    interfaces = ['neutron-test']
+    interfaces = ['neutron-plugin-api-subordinate']
 
     def __call__(self):
         ctxt = {}
@@ -291,7 +291,7 @@ class NeutronApiSDNConfigFileContext(context.OSContextGenerator):
                 'value': '/etc/neutron/plugins/ml2/ml2_conf.ini',
             },
         }
-        for rid in relation_ids('neutron-test'):
+        for rid in relation_ids('neutron-plugin-api-subordinate'):
             for unit in related_units(rid):
                 rdata = relation_get(rid=rid, unit=unit)
                 neutron_server_plugin_config = rdata.get('neutron-plugin-config')
