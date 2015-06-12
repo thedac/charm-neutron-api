@@ -236,11 +236,16 @@ class HAProxyContext(context.HAProxyContext):
         return ctxt
 
 
-class NeutronApiSDNContext(context.OSContextGenerator):
-    interfaces = ['neutron-test']
+class NeutronApiSDNContext(context.SubordinateConfigContext):
+    interfaces = 'neutron-test'
+
+    def __init__(self):
+        super(NeutronApiSDNContext, self).__init__(interface='neutron-test',
+                                                   service='neutron-api',
+                                                   config_file='/etc/neutron/neutron.conf')
 
     def __call__(self):
-        ctxt = {}
+        ctxt = super(NeutronApiSDNContext, self).__call__()
         defaults = {
             'core-plugin': {
                 'templ_key': 'core_plugin',
@@ -262,9 +267,7 @@ class NeutronApiSDNContext(context.OSContextGenerator):
         for rid in relation_ids('neutron-test'):
             for unit in related_units(rid):
                 rdata = relation_get(rid=rid, unit=unit)
-                ctxt = {
-                    'neutron_plugin': rdata.get('neutron-plugin'),
-                }
+                ctxt['neutron_plugin'] = rdata.get('neutron-plugin')
                 if not context.context_complete(ctxt):
                     continue
                 for key in defaults.keys():
