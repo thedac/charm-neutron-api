@@ -233,6 +233,7 @@ def resource_map():
             context.PostgresqlDBContext(database=config('database')))
 
     else:
+        print "Adding NeutronApiSDNContext"
         resource_map[NEUTRON_CONF]['contexts'].append(
             neutron_api_context.NeutronApiSDNContext()
         )
