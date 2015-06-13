@@ -37,9 +37,6 @@ requires:
   zeromq-configuration:
     interface: zeromq-configuration
     scope: container
-  neutron-plugin:
-    interface: neutron-plugin
-    scope: container
   neutron-plugin-api-subordinate:
     interface: neutron-plugin-api-subordinate
     scope: container
