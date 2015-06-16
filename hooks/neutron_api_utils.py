@@ -164,7 +164,6 @@ def additional_install_locations(plugin, source):
             release = get_os_codename_install_source(source)
             calico_source = 'ppa:project-calico/%s' % release
 
-
         add_source(calico_source)
 
         apt_update()
