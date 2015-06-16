@@ -146,7 +146,9 @@ def configure_https():
 def install():
     execd_preinstall()
     configure_installation_source(config('openstack-origin'))
-    additional_install_locations(config('neutron-plugin'))
+    additional_install_locations(
+        config('neutron-plugin'), config('openstack-origin')
+    )
 
     apt_update()
     apt_install(determine_packages(config('openstack-origin')),
@@ -187,7 +189,10 @@ def config_changed():
         if openstack_upgrade_available('neutron-server'):
             do_openstack_upgrade(CONFIGS)
 
-    additional_install_locations(config('neutron-plugin'))
+    additional_install_locations(
+        config('neutron-plugin'),
+        config('openstack-origin')
+    )
     apt_install(filter_installed_packages(
                 determine_packages(config('openstack-origin'))),
                 fatal=True)
