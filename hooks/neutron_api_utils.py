@@ -151,17 +151,19 @@ def api_port(service):
     return API_PORTS[service]
 
 
-def additional_install_locations(plugin):
+def additional_install_locations(plugin, source):
     '''
     Add any required additional package locations for the charm, based
     on the Neutron plugin being used. This will also force an immediate
     package upgrade.
     '''
     if plugin == 'Calico':
-        calico_source = 'ppa:project-calico/icehouse'
-
         if config('calico-origin'):
             calico_source = config('calico-origin')
+        else:
+            release = get_os_codename_install_source(source)
+            calico_source = 'ppa:project-calico/%s' % release
+
 
         add_source(calico_source)
 

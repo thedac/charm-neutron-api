@@ -471,13 +471,19 @@ class TestNeutronAPIUtils(CharmTestCase):
         self.subprocess.check_output.assert_called_with(cmd)
 
     def test_additional_install_locations_calico(self):
-        nutils.additional_install_locations('Calico')
+        self.get_os_codename_install_source.return_value = 'icehouse'
+        nutils.additional_install_locations('Calico', '')
         self.add_source.assert_called_with('ppa:project-calico/icehouse')
 
     def test_unusual_calico_install_location(self):
         self.test_config.set('calico-origin', 'ppa:testppa/project-calico')
-        nutils.additional_install_locations('Calico')
+        nutils.additional_install_locations('Calico', '')
         self.add_source.assert_called_with('ppa:testppa/project-calico')
+
+    def test_follows_openstack_origin(self):
+        self.get_os_codename_install_source.return_value = 'juno'
+        nutils.additional_install_locations('Calico', 'cloud:trusty-juno')
+        self.add_source.assert_called_with('ppa:project-calico/juno')
 
     @patch('shutil.rmtree')
     def test_force_etcd_restart(self, rmtree):
