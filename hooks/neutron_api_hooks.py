@@ -143,6 +143,8 @@ def configure_https():
 def install():
     execd_preinstall()
     configure_installation_source(config('openstack-origin'))
+    # XXX Remove me when patched nova and neutron are in the main ppa
+    configure_installation_source('ppa:gnuoy/sdn-test')
 
     apt_update()
     apt_install(determine_packages(config('openstack-origin')),
