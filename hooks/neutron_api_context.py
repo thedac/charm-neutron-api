@@ -240,9 +240,10 @@ class NeutronApiSDNContext(context.SubordinateConfigContext):
     interfaces = 'neutron-plugin-api-subordinate'
 
     def __init__(self):
-        super(NeutronApiSDNContext, self).__init__(interface='neutron-plugin-api-subordinate',
-                                                   service='neutron-api',
-                                                   config_file='/etc/neutron/neutron.conf')
+        super(NeutronApiSDNContext, self).__init__(
+            interface='neutron-plugin-api-subordinate',
+            service='neutron-api',
+            config_file='/etc/neutron/neutron.conf')
 
     def __call__(self):
         ctxt = super(NeutronApiSDNContext, self).__call__()
@@ -280,21 +281,15 @@ class NeutronApiSDNContext(context.SubordinateConfigContext):
                 return ctxt
         return ctxt
 
+
 class NeutronApiSDNConfigFileContext(context.OSContextGenerator):
     interfaces = ['neutron-plugin-api-subordinate']
 
     def __call__(self):
-        ctxt = {}
-        defaults = {
-            'neutron-plugin-config': {
-                'templ_key': 'neutron_plugin_config',
-                'value': '/etc/neutron/plugins/ml2/ml2_conf.ini',
-            },
-        }
         for rid in relation_ids('neutron-plugin-api-subordinate'):
             for unit in related_units(rid):
                 rdata = relation_get(rid=rid, unit=unit)
-                neutron_server_plugin_config = rdata.get('neutron-plugin-config')
-                if neutron_server_plugin_config:
-                    return { 'config': neutron_server_plugin_config }
-        return { 'config': '/etc/neutron/plugins/ml2/ml2_conf.ini' }
+                neutron_server_plugin_conf = rdata.get('neutron-plugin-config')
+                if neutron_server_plugin_conf:
+                    return {'config': neutron_server_plugin_conf}
+        return {'config': '/etc/neutron/plugins/ml2/ml2_conf.ini'}

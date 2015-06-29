@@ -161,6 +161,7 @@ def api_port(service):
 def manage_plugin():
     return config('manage-neutron-plugin-legacy-mode')
 
+
 def determine_packages(source=None):
     # currently all packages match service names
     packages = [] + BASE_PACKAGES
@@ -214,8 +215,8 @@ def resource_map():
         resource_map.pop(APACHE_24_CONF)
 
     if manage_plugin():
-        # add neutron plugin requirements. nova-c-c only needs the neutron-server
-        # associated with configs, not the plugin agent.
+        # add neutron plugin requirements. nova-c-c only needs the
+        # neutron-server associated with configs, not the plugin agent.
         plugin = config('neutron-plugin')
         conf = neutron_plugin_attribute(plugin, 'config', 'neutron')
         ctxts = (neutron_plugin_attribute(plugin, 'contexts', 'neutron')
