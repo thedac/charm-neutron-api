@@ -234,12 +234,11 @@ def resource_map():
             context.PostgresqlDBContext(database=config('database')))
 
     else:
-        print "Adding NeutronApiSDNContext"
         resource_map[NEUTRON_CONF]['contexts'].append(
             neutron_api_context.NeutronApiSDNContext()
         )
         resource_map[NEUTRON_DEFAULT]['contexts'] = \
-            neutron_api_context.NeutronApiSDNConfigFileContext()
+            [neutron_api_context.NeutronApiSDNConfigFileContext()]
     return resource_map
 
 
