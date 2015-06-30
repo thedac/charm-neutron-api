@@ -268,9 +268,10 @@ class NeutronApiSDNContext(context.SubordinateConfigContext):
         for rid in relation_ids('neutron-plugin-api-subordinate'):
             for unit in related_units(rid):
                 rdata = relation_get(rid=rid, unit=unit)
-                ctxt['neutron_plugin'] = rdata.get('neutron-plugin')
-                if not context.context_complete(ctxt):
+                plugin = rdata.get('neutron-plugin')
+                if not plugin:
                     continue
+                ctxt['neutron_plugin'] = plugin
                 for key in defaults.keys():
                     remote_value = rdata.get(key)
                     ctxt_key = defaults[key]['templ_key']
