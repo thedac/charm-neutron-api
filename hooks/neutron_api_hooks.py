@@ -166,11 +166,13 @@ def config_changed():
             e = ('Cannot disable Router HA while ha enabled routers exist.'
                  ' Please remove any ha routers')
             status_set('blocked', e)
+            raise Exception(e)
         if dvr_router_present() and not get_dvr():
             e = ('Cannot disable dvr while dvr enabled routers exist. Please'
                  ' remove any distributed routers')
             log(e, level=ERROR)
             status_set('blocked', e)
+            raise Exception(e)
     if config('prefer-ipv6'):
         status_set('maintenance', 'configuring ipv6')
         setup_ipv6()
@@ -219,7 +221,9 @@ def amqp_joined(relation_id=None):
 @restart_on_change(restart_map())
 def amqp_changed():
     if 'amqp' not in CONFIGS.complete_contexts():
-        log('amqp relation incomplete. Peer not ready?')
+        e = 'amqp relation incomplete. Peer not ready?'
+        log(e)
+        status_set('blocked', e)
         return
     CONFIGS.write(NEUTRON_CONF)
     set_relation_status(CONFIGS)
@@ -261,7 +265,9 @@ def pgsql_neutron_db_joined():
 @restart_on_change(restart_map())
 def db_changed():
     if 'shared-db' not in CONFIGS.complete_contexts():
-        log('shared-db relation incomplete. Peer not ready?')
+        e = 'shared-db relation incomplete. Peer not ready?'
+        log(e)
+        status_set('blocked', e)
         return
     CONFIGS.write_all()
     conditional_neutron_migration()
@@ -273,6 +279,7 @@ def db_changed():
 def postgresql_neutron_db_changed():
     CONFIGS.write(NEUTRON_CONF)
     conditional_neutron_migration()
+    set_relation_status(CONFIGS)
 
 
 @hooks.hook('amqp-relation-broken',
@@ -303,13 +310,16 @@ def identity_joined(rid=None, relation_trigger=False):
     if relation_trigger:
         rel_settings['relation_trigger'] = str(uuid.uuid4())
     relation_set(relation_id=rid, relation_settings=rel_settings)
+    set_relation_status(CONFIGS)
 
 
 @hooks.hook('identity-service-relation-changed')
 @restart_on_change(restart_map())
 def identity_changed():
     if 'identity-service' not in CONFIGS.complete_contexts():
-        log('identity-service relation incomplete. Peer not ready?')
+        e = 'identity-service relation incomplete. Peer not ready?'
+        log(e)
+        status_set('blocked', e)
         return
     CONFIGS.write(NEUTRON_CONF)
     for r_id in relation_ids('neutron-api'):
@@ -488,12 +498,14 @@ def zeromq_configuration_relation_joined(relid=None):
     relation_set(relation_id=relid,
                  topics=" ".join(get_topics()),
                  users="neutron")
+    set_relation_status(CONFIGS)
 
 
 @hooks.hook('zeromq-configuration-relation-changed')
 @restart_on_change(restart_map(), stopstart=True)
 def zeromq_configuration_relation_changed():
     CONFIGS.write_all()
+    set_relation_status(CONFIGS)
 
 
 @hooks.hook('nrpe-external-master-relation-joined',

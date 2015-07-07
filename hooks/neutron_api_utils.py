@@ -148,8 +148,8 @@ BASE_RESOURCE_MAP = OrderedDict([
 # list has a complete context.
 REQUIRED_INTERFACES = {
     'database': ['shared-db', 'pgsql-db'],
-    'message': ['messaging', 'zeromq-configuration'],
-    'identity': ['identity'],
+    'message': ['amqp', 'zeromq-configuration'],
+    'identity': ['identity-service'],
 }
 
 
@@ -162,7 +162,7 @@ def set_relation_status(configs):
             '{} relations are absent or incomplete'.format(','.join(inc_rels))
         )
     else:
-        status_set('active', 'relations are present and complete')
+        status_set('active', 'Relations are present and complete')
 
 
 def incomplete_interfaces(configs):
