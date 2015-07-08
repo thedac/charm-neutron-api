@@ -1,0 +1,4 @@
+[ /etc/apt/preferences.d/patched-icehouse ]
+Package: *
+Pin: release o=LP-PPA-sdn-charmers-cisco-vpp-testing
+Pin-Priority: 990
