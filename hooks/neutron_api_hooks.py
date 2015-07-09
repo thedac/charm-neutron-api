@@ -37,6 +37,7 @@ from charmhelpers.fetch import (
 from charmhelpers.contrib.openstack.utils import (
     config_value_changed,
     configure_installation_source,
+    context_status,
     git_install_requested,
     openstack_upgrade_available,
     os_requires_version,
@@ -49,7 +50,6 @@ from neutron_api_utils import (
     NEUTRON_CONF,
     REQUIRED_INTERFACES,
     api_port,
-    context_status,
     determine_packages,
     determine_ports,
     do_openstack_upgrade,
