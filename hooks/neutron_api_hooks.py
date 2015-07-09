@@ -47,8 +47,9 @@ from charmhelpers.contrib.openstack.utils import (
 from neutron_api_utils import (
     CLUSTER_RES,
     NEUTRON_CONF,
+    REQUIRED_INTERFACES,
     api_port,
-    set_relation_status,
+    context_status,
     determine_packages,
     determine_ports,
     do_openstack_upgrade,
@@ -157,6 +158,7 @@ def install():
 
 @hooks.hook('upgrade-charm')
 @hooks.hook('config-changed')
+@context_status(CONFIGS, REQUIRED_INTERFACES)
 @restart_on_change(restart_map(), stopstart=True)
 def config_changed():
     # If neutron is ready to be queried then check for incompatability between
@@ -207,7 +209,6 @@ def config_changed():
     for rid in relation_ids('zeromq-configuration'):
         zeromq_configuration_relation_joined(rid)
     [cluster_joined(rid) for rid in relation_ids('cluster')]
-    set_relation_status(CONFIGS)
 
 
 @hooks.hook('amqp-relation-joined')
@@ -218,6 +219,7 @@ def amqp_joined(relation_id=None):
 
 @hooks.hook('amqp-relation-changed')
 @hooks.hook('amqp-relation-departed')
+@context_status(CONFIGS, REQUIRED_INTERFACES)
 @restart_on_change(restart_map())
 def amqp_changed():
     if 'amqp' not in CONFIGS.complete_contexts():
@@ -226,7 +228,6 @@ def amqp_changed():
         status_set('blocked', e)
         return
     CONFIGS.write(NEUTRON_CONF)
-    set_relation_status(CONFIGS)
 
 
 @hooks.hook('shared-db-relation-joined')
@@ -258,10 +259,10 @@ def pgsql_neutron_db_joined():
         raise Exception(e)
 
     relation_set(database=config('database'))
-    set_relation_status(CONFIGS)
 
 
 @hooks.hook('shared-db-relation-changed')
+@context_status(CONFIGS, REQUIRED_INTERFACES)
 @restart_on_change(restart_map())
 def db_changed():
     if 'shared-db' not in CONFIGS.complete_contexts():
@@ -271,24 +272,23 @@ def db_changed():
         return
     CONFIGS.write_all()
     conditional_neutron_migration()
-    set_relation_status(CONFIGS)
 
 
 @hooks.hook('pgsql-db-relation-changed')
+@context_status(CONFIGS, REQUIRED_INTERFACES)
 @restart_on_change(restart_map())
 def postgresql_neutron_db_changed():
     CONFIGS.write(NEUTRON_CONF)
     conditional_neutron_migration()
-    set_relation_status(CONFIGS)
 
 
 @hooks.hook('amqp-relation-broken',
             'identity-service-relation-broken',
             'shared-db-relation-broken',
             'pgsql-db-relation-broken')
+@context_status(CONFIGS, REQUIRED_INTERFACES)
 def relation_broken():
     CONFIGS.write_all()
-    set_relation_status(CONFIGS)
 
 
 @hooks.hook('identity-service-relation-joined')
@@ -310,10 +310,10 @@ def identity_joined(rid=None, relation_trigger=False):
     if relation_trigger:
         rel_settings['relation_trigger'] = str(uuid.uuid4())
     relation_set(relation_id=rid, relation_settings=rel_settings)
-    set_relation_status(CONFIGS)
 
 
 @hooks.hook('identity-service-relation-changed')
+@context_status(CONFIGS, REQUIRED_INTERFACES)
 @restart_on_change(restart_map())
 def identity_changed():
     if 'identity-service' not in CONFIGS.complete_contexts():
@@ -327,7 +327,6 @@ def identity_changed():
     for r_id in relation_ids('neutron-plugin-api'):
         neutron_plugin_api_relation_joined(rid=r_id)
     configure_https()
-    set_relation_status(CONFIGS)
 
 
 @hooks.hook('neutron-api-relation-joined')
@@ -498,14 +497,13 @@ def zeromq_configuration_relation_joined(relid=None):
     relation_set(relation_id=relid,
                  topics=" ".join(get_topics()),
                  users="neutron")
-    set_relation_status(CONFIGS)
 
 
 @hooks.hook('zeromq-configuration-relation-changed')
+@context_status(CONFIGS, REQUIRED_INTERFACES)
 @restart_on_change(restart_map(), stopstart=True)
 def zeromq_configuration_relation_changed():
     CONFIGS.write_all()
-    set_relation_status(CONFIGS)
 
 
 @hooks.hook('nrpe-external-master-relation-joined',
