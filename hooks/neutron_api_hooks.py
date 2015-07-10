@@ -216,6 +216,7 @@ def config_changed():
 
 
 @hooks.hook('amqp-relation-joined')
+@context_status(CONFIGS, REQUIRED_INTERFACES)
 def amqp_joined(relation_id=None):
     relation_set(relation_id=relation_id,
                  username=config('rabbit-user'), vhost=config('rabbit-vhost'))
@@ -235,6 +236,7 @@ def amqp_changed():
 
 
 @hooks.hook('shared-db-relation-joined')
+@context_status(CONFIGS, REQUIRED_INTERFACES)
 def db_joined():
     if is_relation_made('pgsql-db'):
         # error, postgresql is used
@@ -254,6 +256,7 @@ def db_joined():
 
 
 @hooks.hook('pgsql-db-relation-joined')
+@context_status(CONFIGS, REQUIRED_INTERFACES)
 def pgsql_neutron_db_joined():
     if is_relation_made('shared-db'):
         # raise error
@@ -296,6 +299,7 @@ def relation_broken():
 
 
 @hooks.hook('identity-service-relation-joined')
+@context_status(CONFIGS, REQUIRED_INTERFACES)
 def identity_joined(rid=None, relation_trigger=False):
     public_url = '{}:{}'.format(canonical_url(CONFIGS, PUBLIC),
                                 api_port('neutron-server'))
@@ -496,6 +500,7 @@ def ha_changed():
 
 
 @hooks.hook('zeromq-configuration-relation-joined')
+@context_status(CONFIGS, REQUIRED_INTERFACES)
 @os_requires_version('kilo', 'neutron-server')
 def zeromq_configuration_relation_joined(relid=None):
     relation_set(relation_id=relid,
