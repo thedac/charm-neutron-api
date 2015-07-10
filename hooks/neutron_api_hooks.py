@@ -143,14 +143,18 @@ def configure_https():
 
 
 @hooks.hook()
+@context_status(CONFIGS, REQUIRED_INTERFACES)
 def install():
+    status_set('maintenance', 'Executing pre-install')
     execd_preinstall()
     configure_installation_source(config('openstack-origin'))
 
+    status_set('maintenance', 'Installing apt packages')
     apt_update()
     apt_install(determine_packages(config('openstack-origin')),
                 fatal=True)
 
+    status_set('maintenance', 'Git install')
     git_install(config('openstack-origin-git'))
 
     [open_port(port) for port in determine_ports()]
