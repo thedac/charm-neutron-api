@@ -37,6 +37,8 @@ from charmhelpers.core.hookenv import (
     relation_ids,
     related_units,
     relation_set,
+    status_compound,
+    status_get,
     unit_get,
     unit_private_ip,
     charm_name,
@@ -101,11 +103,17 @@ def ensure_packages(packages):
 
 def context_complete(ctxt):
     _missing = []
+    # keys are set by default even before the relation completes them
+    # i.e. rabbitmq-password: None
+    # so if they are None or '' they are missing from the relation
     for k, v in six.iteritems(ctxt):
         if v is None or v == '':
             _missing.append(k)
 
     if _missing:
+        status_compound(status_get(include_data=True), 'waiting',
+                                   'Missing required data: %s' % 
+                                   ' '.join(_missing))
         log('Missing required data: %s' % ' '.join(_missing), level=INFO)
         return False
 
