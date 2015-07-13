@@ -81,7 +81,7 @@ BASE_GIT_PACKAGES = [
     'libxslt1-dev',
     'libyaml-dev',
     'python-dev',
-    'python-neutronclient', # required for get_neutron_client() import
+    'python-neutronclient',  # required for get_neutron_client() import
     'python-pip',
     'python-setuptools',
     'zlib1g-dev',
