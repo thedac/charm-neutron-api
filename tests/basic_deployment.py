@@ -147,7 +147,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
                     'repositories': [
                         {'name': 'requirements',
                          'repository': reqs_repo,
-                         'branch': neutron_branch},
+                         'branch': reqs_branch},
                         {'name': 'neutron',
                          'repository': neutron_repo,
                          'branch': neutron_branch},
