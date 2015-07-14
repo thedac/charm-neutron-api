@@ -660,60 +660,65 @@ def status_set(workload_state, message):
         )
     cmd = ['status-set', workload_state, message]
     try:
-        ret = subprocess.call(cmd)
-        if ret == 0:
-            return
+        subprocess.call(cmd)
     except OSError as e:
-        if e.errno != errno.ENOENT:
+        if e.errno == errno.ENOENT:
+            log_message = 'status-set failed: {} {}'.format(workload_state,
+                                                            message)
+            log(log_message, level='INFO')
+            return
+        else:
             raise
-    log_message = 'status-set failed: {} {}'.format(workload_state,
-                                                    message)
-    log(log_message, level='INFO')
+    # Log the status change
+    if workload_state == 'blocked' or workload_state == 'waiting':
+        lvl = 'WARN'
+    else:
+        lvl = 'INFO'
+    log('{}: {}'.format(workload_state, message), lvl)
 
 
-def status_get(include_data=False, service=False):
-    """Retrieve the previously set juju workload state
+def status_get(include_data=True, service=False):
+    """Retrieve the previously set juju workload state and return as a
+    dictionary.
+
+    If service is set return status for all units of this service if this unit
+    is the leader
 
     If the status-set command is not found then assume this is juju < 1.23 and
     return 'unknown'
-
-    If service return status for all units of this service if this unit is the leader
-
-    If include_data is set return dictionary
     """
-    cmd = ['status-get']
-    if service:
-        cmd.append('--service')
+    cmd = ['status-get', '--format', 'json']
     if include_data:
         cmd.append('--include-data')
-    if include_data or service:
-        cmd.extend(['--format', 'json'])
+    if service:
+        cmd.append('--service')
     try:
-        raw_status = subprocess.check_output(cmd, universal_newlines=True)
-        status = raw_status.rstrip()
-        if include_data or service:
-            status = json.loads(status)
-        return status
+        return json.loads(subprocess.check_output(cmd,
+                                                  universal_newlines=True))
     except OSError as e:
         if e.errno == errno.ENOENT:
-            return 'unknown'
+            return {'status': 'unknown'}
         else:
             raise
 
 
 def status_compound(current_status, workload_state, message):
-    """Compound statuses: Take the current status and new
-    workload state and message and status_set with the correct
-    workload state and a compound message
+    """Compound statuses: Take the current status as a dictionary
+    and new workload state and message then status_set with the highest
+    severity workload state and a compound message
+    Example:
+      status_compound(status_get(include-data=True),
+                      'waiting',
+                      'waiting on relations data')
     """
-    hierarchy = {"unknown": -1,
-                 "active": 0,
-                 "maintenance": 1,
-                 "waiting": 2,
-                 "blocked": 3,
+    hierarchy = {'unknown': -1,
+                 'active': 0,
+                 'maintenance': 1,
+                 'waiting': 2,
+                 'blocked': 3,
                  }
-    current_workload_state = current_status.get("status")
-    current_message = current_status.get("message")
+    current_workload_state = current_status.get('status')
+    current_message = current_status.get('message')
 
     # Do not set unknown or other invalid state
     if hierarchy.get(workload_state) is None:
@@ -728,14 +733,14 @@ def status_compound(current_status, workload_state, message):
 
     # New state of 'active' overrides all others
     if workload_state == 'active':
-        hierarchy["active"] = 10
+        hierarchy['active'] = 10
         current_message = None
 
-    # Set workload_state based on heirarchy of statuses
+    # Set workload_state based on hierarchy of statuses
     if hierarchy.get(current_workload_state) > hierarchy.get(workload_state):
         workload_state = current_workload_state
     else:
-        if current_workload_state == "active":
+        if current_workload_state == 'active':
             current_message = None
 
     # Compound the message
@@ -749,7 +754,7 @@ def status_compound(current_status, workload_state, message):
         status_set(workload_state, message)
 
     # Return new status
-    return {"status": workload_state, "message": message}
+    return {'status': workload_state, 'message': message}
 
 
 def translate_exc(from_exc, to_exc):
