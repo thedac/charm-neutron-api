@@ -37,8 +37,6 @@ from charmhelpers.core.hookenv import (
     relation_ids,
     related_units,
     relation_set,
-    status_compound,
-    status_get,
     unit_get,
     unit_private_ip,
     charm_name,
@@ -111,9 +109,6 @@ def context_complete(ctxt):
             _missing.append(k)
 
     if _missing:
-        status_compound(status_get(include_data=True), 'waiting',
-                                   'Missing required data: %s' % 
-                                   ' '.join(_missing))
         log('Missing required data: %s' % ' '.join(_missing), level=INFO)
         return False
 
@@ -197,9 +192,25 @@ def config_flags_parser(config_flags):
 class OSContextGenerator(object):
     """Base class for all context generators."""
     interfaces = []
+    related = False
+    complete = False
+    missing_data = []
 
     def __call__(self):
         raise NotImplementedError
+
+    def context_complete(self, ctxt):
+        for k, v in six.iteritems(ctxt):
+            if v is None or v == '':
+                self.missing_data.append(k)
+
+        if self.missing_data:
+            self.complete = False
+            log('Missing required data: %s' % ' '.join(self.missing_data), level=INFO)
+            # XXX Don't need this as self.missing_data is set
+            # return self.missing_data
+        self.complete = True
+        return self.complete
 
 
 class SharedDBContext(OSContextGenerator):
@@ -250,6 +261,7 @@ class SharedDBContext(OSContextGenerator):
 
         for rid in relation_ids(self.interfaces[0]):
             for unit in related_units(rid):
+                self.related = True
                 rdata = relation_get(rid=rid, unit=unit)
                 host = rdata.get('db_host')
                 host = format_ipv6_addr(host) or host
@@ -260,7 +272,7 @@ class SharedDBContext(OSContextGenerator):
                     'database_password': rdata.get(password_setting),
                     'database_type': 'mysql'
                 }
-                if context_complete(ctxt):
+                if self.context_complete(ctxt):
                     db_ssl(rdata, ctxt, self.ssl_dir)
                     return ctxt
         return {}
@@ -282,6 +294,7 @@ class PostgresqlDBContext(OSContextGenerator):
         ctxt = {}
         for rid in relation_ids(self.interfaces[0]):
             for unit in related_units(rid):
+                self.related = True
                 rel_host = relation_get('host', rid=rid, unit=unit)
                 rel_user = relation_get('user', rid=rid, unit=unit)
                 rel_passwd = relation_get('password', rid=rid, unit=unit)
@@ -290,7 +303,7 @@ class PostgresqlDBContext(OSContextGenerator):
                         'database_user': rel_user,
                         'database_password': rel_passwd,
                         'database_type': 'postgresql'}
-                if context_complete(ctxt):
+                if self.context_complete(ctxt):
                     return ctxt
 
         return {}
@@ -352,6 +365,7 @@ class IdentityServiceContext(OSContextGenerator):
 
         for rid in relation_ids(self.rel_name):
             for unit in related_units(rid):
+                self.related = True
                 rdata = relation_get(rid=rid, unit=unit)
                 serv_host = rdata.get('service_host')
                 serv_host = format_ipv6_addr(serv_host) or serv_host
@@ -369,7 +383,7 @@ class IdentityServiceContext(OSContextGenerator):
                              'service_protocol': svc_protocol,
                              'auth_protocol': auth_protocol})
 
-                if context_complete(ctxt):
+                if self.context_complete(ctxt):
                     # NOTE(jamespage) this is required for >= icehouse
                     # so a missing value just indicates keystone needs
                     # upgrading
@@ -409,6 +423,7 @@ class AMQPContext(OSContextGenerator):
         for rid in relation_ids(self.rel_name):
             ha_vip_only = False
             for unit in related_units(rid):
+                self.related = True
                 if relation_get('clustered', rid=rid, unit=unit):
                     ctxt['clustered'] = True
                     vip = relation_get('vip', rid=rid, unit=unit)
@@ -440,7 +455,7 @@ class AMQPContext(OSContextGenerator):
                 ha_vip_only = relation_get('ha-vip-only',
                                            rid=rid, unit=unit) is not None
 
-                if context_complete(ctxt):
+                if self.context_complete(ctxt):
                     if 'rabbit_ssl_ca' in ctxt:
                         if not self.ssl_dir:
                             log("Charm not setup for ssl support but ssl ca "
@@ -472,7 +487,7 @@ class AMQPContext(OSContextGenerator):
             ctxt['oslo_messaging_flags'] = config_flags_parser(
                 oslo_messaging_flags)
 
-        if not context_complete(ctxt):
+        if not self.complete:
             return {}
 
         return ctxt
@@ -511,7 +526,7 @@ class CephContext(OSContextGenerator):
         if not os.path.isdir('/etc/ceph'):
             os.mkdir('/etc/ceph')
 
-        if not context_complete(ctxt):
+        if self.context_complete:
             return {}
 
         ensure_packages(['ceph-common'])
@@ -1331,6 +1346,6 @@ class NetworkServiceContext(OSContextGenerator):
                     'auth_protocol':
                     rdata.get('auth_protocol') or 'http',
                 }
-                if context_complete(ctxt):
+                if self.context_complete(ctxt):
                     return ctxt
         return {}

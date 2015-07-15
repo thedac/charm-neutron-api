@@ -112,12 +112,22 @@ class OSConfigTemplate(object):
 
     def complete_contexts(self):
         '''
-        Return a list of interfaces that have atisfied contexts.
+        Return a list of interfaces that have satisfied contexts.
         '''
         if self._complete_contexts:
             return self._complete_contexts
         self.context()
         return self._complete_contexts
+
+    def missing_context_data(self, context):
+        '''
+        Given a context object return any missing data in the relationship
+        if the relation exists
+        '''
+        related = context.related
+        missing_data = context.missing_data
+        if related:
+            return missing_data
 
 
 class OSConfigRenderer(object):
@@ -292,4 +302,16 @@ class OSConfigRenderer(object):
         interfaces = []
         [interfaces.extend(i.complete_contexts())
          for i in six.itervalues(self.templates)]
+
         return interfaces
+
+    def incomplete_contexts(self, interfaces):
+        incomplete = {}
+        for i in six.itervalues(self.templates):
+            for context in i.contexts:
+                for interface in interfaces:
+                    if interface in context.interfaces:
+                        _missing = i.missing_context_data(context)
+                        if _missing:
+                            incomplete[interface] = _missing
+        return incomplete

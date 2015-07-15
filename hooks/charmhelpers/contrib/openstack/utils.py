@@ -728,11 +728,15 @@ def set_context_status(configs, required_interfaces):
     """
     incomplete_ctxts = incomplete_contexts(configs, required_interfaces)
     if incomplete_ctxts:
-        status_set(
-            'blocked',
-            '{} contexts are absent or incomplete'
-            ''.format(', '.join(incomplete_ctxts))
-        )
+        message = '{} contexts are absent or incomplete.'.format(', '.join(incomplete_ctxts.keys()))
+        for ctxt in incomplete_ctxts.keys():
+            for interface in incomplete_ctxts[ctxt].keys():
+                message += " {} context's interface, {}, is related but " \
+                           "waiting on {}." \
+                           "".format(ctxt, interface,
+                                     ', '.join(incomplete_ctxts[ctxt][interface]))
+
+        status_set('waiting', message)
     else:
         status_set('active', 'Contexts are present and complete')
 
@@ -754,10 +758,14 @@ def incomplete_contexts(configs, required_interfaces):
     complete_ctxts = configs.complete_contexts()
     incomplete_contexts = []
     for svc_type in required_interfaces.keys():
+        # Avoid duplicates
         found_ctxt = False
         for interface in required_interfaces[svc_type]:
             if interface in complete_ctxts:
                 found_ctxt = True
         if not found_ctxt:
             incomplete_contexts.append(svc_type)
-    return incomplete_contexts
+    myinc = {}
+    for i in incomplete_contexts:
+        myinc[i] = configs.incomplete_contexts(required_interfaces[i])
+    return myinc
