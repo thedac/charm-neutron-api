@@ -209,7 +209,8 @@ class OSContextGenerator(object):
             log('Missing required data: %s' % ' '.join(self.missing_data), level=INFO)
             # XXX Don't need this as self.missing_data is set
             # return self.missing_data
-        self.complete = True
+        else:
+            self.complete = True
         return self.complete
 
 
