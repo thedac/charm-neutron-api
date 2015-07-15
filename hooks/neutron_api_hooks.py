@@ -9,7 +9,6 @@ from subprocess import (
 from charmhelpers.core.hookenv import (
     Hooks,
     UnregisteredHookError,
-    charm_dir,
     config,
     is_relation_made,
     local_unit,
@@ -144,11 +143,7 @@ def configure_https():
 def install():
     execd_preinstall()
     configure_installation_source(config('openstack-origin'))
-    # XXX Remove me when patched nova and neutron are in the main ppa
-    configure_installation_source('ppa:sdn-charmers/cisco-vpp-testing')
-    apt_pin_file = charm_dir() + '/files/patched-icehouse'
-    import shutil
-    shutil.copyfile(apt_pin_file, '/etc/apt/preferences.d/patched-icehouse')
+
     apt_update()
     apt_install(determine_packages(config('openstack-origin')),
                 fatal=True)
@@ -484,7 +479,8 @@ def zeromq_configuration_relation_joined(relid=None):
                  users="neutron")
 
 
-@hooks.hook('zeromq-configuration-relation-changed')
+@hooks.hook('zeromq-configuration-relation-changed',
+            'neutron-plugin-api-subordinate-relation-changed')
 @restart_on_change(restart_map(), stopstart=True)
 def zeromq_configuration_relation_changed():
     CONFIGS.write_all()
