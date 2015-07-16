@@ -124,9 +124,9 @@ class OSConfigTemplate(object):
         Given a context object return any missing data in the relationship
         if the relation exists
         '''
-        related = context.related
+        related = context.get_related()
         missing_data = context.missing_data
-        if related:
+        if related and missing_data:
             return missing_data
 
 
@@ -312,6 +312,7 @@ class OSConfigRenderer(object):
                 for interface in interfaces:
                     if interface in context.interfaces:
                         _missing = i.missing_context_data(context)
+                        # XXX if _missing is None vs _missing is empty
                         if _missing:
                             incomplete[interface] = _missing
         return incomplete
