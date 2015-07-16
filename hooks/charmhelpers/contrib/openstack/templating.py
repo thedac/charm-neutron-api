@@ -119,16 +119,6 @@ class OSConfigTemplate(object):
         self.context()
         return self._complete_contexts
 
-    def missing_context_data(self, context):
-        '''
-        Given a context object return any missing data in the relationship
-        if the relation exists
-        '''
-        related = context.get_related()
-        missing_data = context.missing_data
-        if related and missing_data:
-            return missing_data
-
 
 class OSConfigRenderer(object):
     """
@@ -305,14 +295,23 @@ class OSConfigRenderer(object):
 
         return interfaces
 
-    def incomplete_contexts(self, interfaces):
-        incomplete = {}
+    def get_incomplete_context_data(self, interfaces):
+        incomplete_context_data = {}
+
         for i in six.itervalues(self.templates):
             for context in i.contexts:
                 for interface in interfaces:
+                    related = False
                     if interface in context.interfaces:
-                        _missing = i.missing_context_data(context)
-                        # XXX if _missing is None vs _missing is empty
-                        if _missing:
-                            incomplete[interface] = _missing
-        return incomplete
+                        related = context.get_related()
+                        missing_data = context.missing_data
+                        if missing_data:
+                            incomplete_context_data[interface] = {'missing_data': missing_data}
+                        if related:
+                            if incomplete_context_data.get(interface):
+                                incomplete_context_data[interface].update({'related': True})
+                            else:
+                                incomplete_context_data[interface] = {'related': True}
+                        else:
+                            incomplete_context_data[interface] = {'related': False}
+        return incomplete_context_data
