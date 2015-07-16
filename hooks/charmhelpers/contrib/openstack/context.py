@@ -200,9 +200,13 @@ class OSContextGenerator(object):
         raise NotImplementedError
 
     def context_complete(self, ctxt):
+        # Fresh start
+        self.complete = False
+        self.missing_data = []
         for k, v in six.iteritems(ctxt):
             if v is None or v == '':
-                self.missing_data.append(k)
+                if k not in self.missing_data:
+                    self.missing_data.append(k)
 
         if self.missing_data:
             self.complete = False
@@ -212,6 +216,18 @@ class OSContextGenerator(object):
         else:
             self.complete = True
         return self.complete
+
+    def get_related(self):
+        related = False
+        try:
+            for interface in self.interfaces:
+                if relation_ids(interface):
+                    related = True
+            return related
+        except AttributeError as e:
+            log("{} {}"
+                "".format(self, e), 'INFO')
+            return False
 
 
 class SharedDBContext(OSContextGenerator):
@@ -228,6 +244,7 @@ class SharedDBContext(OSContextGenerator):
         self.database = database
         self.user = user
         self.ssl_dir = ssl_dir
+        self.rel_name = self.interfaces[0]
 
     def __call__(self):
         self.database = self.database or config('database')
@@ -261,8 +278,8 @@ class SharedDBContext(OSContextGenerator):
             password_setting = self.relation_prefix + '_password'
 
         for rid in relation_ids(self.interfaces[0]):
+            self.related = True
             for unit in related_units(rid):
-                self.related = True
                 rdata = relation_get(rid=rid, unit=unit)
                 host = rdata.get('db_host')
                 host = format_ipv6_addr(host) or host
@@ -294,8 +311,8 @@ class PostgresqlDBContext(OSContextGenerator):
 
         ctxt = {}
         for rid in relation_ids(self.interfaces[0]):
+            self.related = True
             for unit in related_units(rid):
-                self.related = True
                 rel_host = relation_get('host', rid=rid, unit=unit)
                 rel_user = relation_get('user', rid=rid, unit=unit)
                 rel_passwd = relation_get('password', rid=rid, unit=unit)
@@ -365,8 +382,8 @@ class IdentityServiceContext(OSContextGenerator):
             ctxt['signing_dir'] = cachedir
 
         for rid in relation_ids(self.rel_name):
+            self.related = True
             for unit in related_units(rid):
-                self.related = True
                 rdata = relation_get(rid=rid, unit=unit)
                 serv_host = rdata.get('service_host')
                 serv_host = format_ipv6_addr(serv_host) or serv_host
@@ -423,8 +440,8 @@ class AMQPContext(OSContextGenerator):
         ctxt = {}
         for rid in relation_ids(self.rel_name):
             ha_vip_only = False
+            self.related = True
             for unit in related_units(rid):
-                self.related = True
                 if relation_get('clustered', rid=rid, unit=unit):
                     ctxt['clustered'] = True
                     vip = relation_get('vip', rid=rid, unit=unit)
