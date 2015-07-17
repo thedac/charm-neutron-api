@@ -228,9 +228,7 @@ def amqp_joined(relation_id=None):
 @restart_on_change(restart_map())
 def amqp_changed():
     if 'amqp' not in CONFIGS.complete_contexts():
-        e = 'amqp relation incomplete. Peer not ready?'
-        log(e)
-        status_set('blocked', e)
+        log('amqp relation incomplete. Peer not ready?')
         return
     CONFIGS.write(NEUTRON_CONF)
 
@@ -273,9 +271,7 @@ def pgsql_neutron_db_joined():
 @restart_on_change(restart_map())
 def db_changed():
     if 'shared-db' not in CONFIGS.complete_contexts():
-        e = 'shared-db relation incomplete. Peer not ready?'
-        log(e)
-        status_set('blocked', e)
+        log('shared-db relation incomplete. Peer not ready?')
         return
     CONFIGS.write_all()
     conditional_neutron_migration()
@@ -325,9 +321,7 @@ def identity_joined(rid=None, relation_trigger=False):
 @restart_on_change(restart_map())
 def identity_changed():
     if 'identity-service' not in CONFIGS.complete_contexts():
-        e = 'identity-service relation incomplete. Peer not ready?'
-        log(e)
-        status_set('blocked', e)
+        log('identity-service relation incomplete. Peer not ready?')
         return
     CONFIGS.write(NEUTRON_CONF)
     for r_id in relation_ids('neutron-api'):
