@@ -9,6 +9,7 @@ from subprocess import (
 from charmhelpers.core.hookenv import (
     Hooks,
     UnregisteredHookError,
+    charm_dir,
     config,
     is_relation_made,
     local_unit,
@@ -143,6 +144,11 @@ def configure_https():
 def install():
     execd_preinstall()
     configure_installation_source(config('openstack-origin'))
+    # XXX Remove me when patched nova and neutron are in the main ppa
+    configure_installation_source('ppa:sdn-charmers/cisco-vpp-testing')
+    apt_pin_file = charm_dir() + '/files/patched-icehouse'
+    import shutil
+    shutil.copyfile(apt_pin_file, '/etc/apt/preferences.d/patched-icehouse')
 
     apt_update()
     apt_install(determine_packages(config('openstack-origin')),
