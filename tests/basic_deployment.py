@@ -81,7 +81,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
                           {'name': 'rabbitmq-server'}, {'name': 'keystone'},
                           {'name': 'neutron-openvswitch'},
                           {'name': 'nova-cloud-controller'},
-                          {'name': 'quantum-gateway'},
+                          {'name': 'neutron-gateway'},
                           {'name': 'nova-compute'}]
         super(NeutronAPIBasicDeployment, self)._add_services(this_service,
                                                              other_services)
@@ -92,7 +92,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
             'neutron-api:shared-db': 'mysql:shared-db',
             'neutron-api:amqp': 'rabbitmq-server:amqp',
             'neutron-api:neutron-api': 'nova-cloud-controller:neutron-api',
-            'neutron-api:neutron-plugin-api': 'quantum-gateway:'
+            'neutron-api:neutron-plugin-api': 'neutron-gateway:'
                                               'neutron-plugin-api',
             'neutron-api:neutron-plugin-api': 'neutron-openvswitch:'
                                               'neutron-plugin-api',
@@ -139,7 +139,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
         self.keystone_sentry = self.d.sentry.unit['keystone/0']
         self.rabbitmq_sentry = self.d.sentry.unit['rabbitmq-server/0']
         self.nova_cc_sentry = self.d.sentry.unit['nova-cloud-controller/0']
-        self.quantum_gateway_sentry = self.d.sentry.unit['quantum-gateway/0']
+        self.quantum_gateway_sentry = self.d.sentry.unit['neutron-gateway/0']
         self.neutron_api_sentry = self.d.sentry.unit['neutron-api/0']
         self.nova_compute_sentry = self.d.sentry.unit['nova-compute/0']
         u.log.debug('openstack release val: {}'.format(
