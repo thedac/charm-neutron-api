@@ -668,6 +668,7 @@ def status_set(workload_state, message):
             raise
     log_message = 'status-set failed: {} {}'.format(workload_state,
                                                     message)
+    # XXX Fix this
     log(log_message, level='INFO')
 
 

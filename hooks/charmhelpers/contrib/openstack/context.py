@@ -101,9 +101,6 @@ def ensure_packages(packages):
 
 def context_complete(ctxt):
     _missing = []
-    # keys are set by default even before the relation completes them
-    # i.e. rabbitmq-password: None
-    # so if they are None or '' they are missing from the relation
     for k, v in six.iteritems(ctxt):
         if v is None or v == '':
             _missing.append(k)
@@ -125,21 +122,24 @@ def config_flags_parser(config_flags):
          of specifying multiple key value pairs within the same string. For
          example, a string in the format of 'key1=value1, key2=value2' will
          return a dict of:
-         {'key1': 'value1',
-          'key2': 'value2'}.
+
+             {'key1': 'value1',
+              'key2': 'value2'}.
 
       2. A string in the above format, but supporting a comma-delimited list
          of values for the same key. For example, a string in the format of
          'key1=value1, key2=value3,value4,value5' will return a dict of:
-         {'key1', 'value1',
-          'key2', 'value2,value3,value4'}
+
+             {'key1', 'value1',
+              'key2', 'value2,value3,value4'}
 
       3. A string containing a colon character (:) prior to an equal
          character (=) will be treated as yaml and parsed as such. This can be
          used to specify more complex key value pairs. For example,
          a string in the format of 'key1: subkey1=value1, subkey2=value2' will
          return a dict of:
-         {'key1', 'subkey1=value1, subkey2=value2'}
+
+             {'key1', 'subkey1=value1, subkey2=value2'}
 
     The provided config_flags string may be a list of comma-separated values
     which themselves may be comma-separated list of values.
@@ -200,6 +200,10 @@ class OSContextGenerator(object):
         raise NotImplementedError
 
     def context_complete(self, ctxt):
+        """Check for missing data for the required context data.
+        Set self.missing_data if it exists and return False.
+        Set self.complete if no missing data and return True.
+        """ 
         # Fresh start
         self.complete = False
         self.missing_data = []
@@ -216,16 +220,21 @@ class OSContextGenerator(object):
         return self.complete
 
     def get_related(self):
-        related = False
+        """Check if any of the context interfaces have relation ids.
+        Set self.related and return True if one of the interfaces
+        has relation ids.
+        """
+        # Fresh start
+        self.related = False
         try:
             for interface in self.interfaces:
                 if relation_ids(interface):
-                    related = True
-            return related
+                    self.related = True
+            return self.related
         except AttributeError as e:
             log("{} {}"
                 "".format(self, e), 'INFO')
-            return False
+            return self.related
 
 
 class SharedDBContext(OSContextGenerator):
@@ -542,7 +551,7 @@ class CephContext(OSContextGenerator):
         if not os.path.isdir('/etc/ceph'):
             os.mkdir('/etc/ceph')
 
-        if self.context_complete:
+        if not self.context_complete(ctxt):
             return {}
 
         ensure_packages(['ceph-common'])
