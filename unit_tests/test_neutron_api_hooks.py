@@ -25,7 +25,6 @@ TO_PATCH = [
     'api_port',
     'apt_update',
     'apt_install',
-    'canonical_url',
     'config',
     'CONFIGS',
     'check_call',
@@ -361,8 +360,9 @@ class NeutronAPIHooksTests(CharmTestCase):
         self._call_hook('amqp-relation-broken')
         self.assertTrue(self.CONFIGS.write_all.called)
 
-    def test_identity_joined(self):
-        self.canonical_url.return_value = 'http://127.0.0.1'
+    @patch.object(hooks, 'canonical_url')
+    def test_identity_joined(self, _canonical_url):
+        _canonical_url.return_value = 'http://127.0.0.1'
         self.api_port.return_value = '9696'
         self.test_config.set('region', 'region1')
         _neutron_url = 'http://127.0.0.1:9696'
@@ -374,6 +374,34 @@ class NeutronAPIHooksTests(CharmTestCase):
             'quantum_internal_url': _neutron_url,
         }
         self._call_hook('identity-service-relation-joined')
+        self.relation_set.assert_called_with(
+            relation_id=None,
+            relation_settings=_endpoints
+        )
+
+    @patch('charmhelpers.contrib.openstack.ip.service_name',
+           lambda *args: 'neutron-api')
+    @patch('charmhelpers.contrib.openstack.ip.unit_get')
+    @patch('charmhelpers.contrib.openstack.ip.is_clustered')
+    @patch('charmhelpers.contrib.openstack.ip.config')
+    def test_identity_changed_public_name(self, _config, _is_clustered,
+                                          _unit_get):
+        _unit_get.return_value = '127.0.0.1'
+        _is_clustered.return_value = False
+        _config.side_effect = self.test_config.get
+        self.api_port.return_value = '9696'
+        self.test_config.set('region', 'region1')
+        self.test_config.set('os-public-hostname',
+                             'neutron-api.example.com')
+        self._call_hook('identity-service-relation-joined')
+        _neutron_url = 'http://127.0.0.1:9696'
+        _endpoints = {
+            'quantum_service': 'quantum',
+            'quantum_region': 'region1',
+            'quantum_public_url': 'http://neutron-api.example.com:9696',
+            'quantum_admin_url': _neutron_url,
+            'quantum_internal_url': _neutron_url,
+        }
         self.relation_set.assert_called_with(
             relation_id=None,
             relation_settings=_endpoints
@@ -395,12 +423,13 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.assertTrue(self.CONFIGS.write.called_with(NEUTRON_CONF))
         self.assertTrue(_api_rel_joined.called)
 
-    def test_neutron_api_relation_no_id_joined(self):
+    @patch.object(hooks, 'canonical_url')
+    def test_neutron_api_relation_no_id_joined(self, _canonical_url):
         host = 'http://127.0.0.1'
         port = 1234
         _id_rel_joined = self.patch('identity_joined')
         self.relation_ids.side_effect = self._fake_relids
-        self.canonical_url.return_value = host
+        _canonical_url.return_value = host
         self.api_port.return_value = port
         self.is_relation_made = False
         neutron_url = '%s:%s' % (host, port)
@@ -423,10 +452,11 @@ class NeutronAPIHooksTests(CharmTestCase):
             **_relation_data
         )
 
-    def test_neutron_api_relation_joined(self):
+    @patch.object(hooks, 'canonical_url')
+    def test_neutron_api_relation_joined(self, _canonical_url):
         host = 'http://127.0.0.1'
         port = 1234
-        self.canonical_url.return_value = host
+        _canonical_url.return_value = host
         self.api_port.return_value = port
         self.is_relation_made = True
         neutron_url = '%s:%s' % (host, port)
