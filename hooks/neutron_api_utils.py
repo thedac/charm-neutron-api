@@ -16,7 +16,13 @@ from charmhelpers.contrib.openstack.utils import (
     git_install_requested,
     git_clone_and_install,
     git_src_dir,
+    git_pip_venv_dir,
+    git_yaml_value,
     configure_installation_source,
+)
+
+from charmhelpers.contrib.python.packages import (
+    pip_install,
 )
 
 from charmhelpers.core.hookenv import (
@@ -42,6 +48,7 @@ from charmhelpers.core.host import (
 )
 
 from charmhelpers.core.templating import render
+from charmhelpers.contrib.hahelpers.cluster import is_elected_leader
 
 import neutron_api_context
 
@@ -67,9 +74,14 @@ KILO_PACKAGES = [
 ]
 
 BASE_GIT_PACKAGES = [
+    'libffi-dev',
+    'libmysqlclient-dev',
+    'libssl-dev',
     'libxml2-dev',
     'libxslt1-dev',
+    'libyaml-dev',
     'python-dev',
+    'python-neutronclient',  # required for get_neutron_client() import
     'python-pip',
     'python-setuptools',
     'zlib1g-dev',
@@ -285,7 +297,7 @@ def do_openstack_upgrade(configs):
     # set CONFIGS to load templates from new release
     configs.set_release(openstack_release=new_os_rel)
     # Before kilo it's nova-cloud-controllers job
-    if new_os_rel >= 'kilo':
+    if is_elected_leader(CLUSTER_RES) and new_os_rel >= 'kilo':
         stamp_neutron_database(cur_os_rel)
         migrate_neutron_database()
 
@@ -423,6 +435,14 @@ def git_pre_install():
 
 def git_post_install(projects_yaml):
     """Perform post-install setup."""
+    http_proxy = git_yaml_value(projects_yaml, 'http_proxy')
+    if http_proxy:
+        pip_install('mysql-python', proxy=http_proxy,
+                    venv=git_pip_venv_dir(projects_yaml))
+    else:
+        pip_install('mysql-python',
+                    venv=git_pip_venv_dir(projects_yaml))
+
     src_etc = os.path.join(git_src_dir(projects_yaml, 'neutron'), 'etc')
     configs = [
         {'src': src_etc,
@@ -438,13 +458,30 @@ def git_post_install(projects_yaml):
             shutil.rmtree(c['dest'])
         shutil.copytree(c['src'], c['dest'])
 
+    # NOTE(coreycb): Need to find better solution than bin symlinks.
+    symlinks = [
+        {'src': os.path.join(git_pip_venv_dir(projects_yaml),
+                             'bin/neutron-rootwrap'),
+         'link': '/usr/local/bin/neutron-rootwrap'},
+        {'src': os.path.join(git_pip_venv_dir(projects_yaml),
+                             'bin/neutron-db-manage'),
+         'link': '/usr/local/bin/neutron-db-manage'},
+    ]
+
+    for s in symlinks:
+        if os.path.lexists(s['link']):
+            os.remove(s['link'])
+        os.symlink(s['src'], s['link'])
+
     render('git/neutron_sudoers', '/etc/sudoers.d/neutron_sudoers', {},
            perms=0o440)
 
+    bin_dir = os.path.join(git_pip_venv_dir(projects_yaml), 'bin')
     neutron_api_context = {
         'service_description': 'Neutron API server',
         'charm_name': 'neutron-api',
         'process_name': 'neutron-server',
+        'executable_name': os.path.join(bin_dir, 'neutron-server'),
     }
 
     # NOTE(coreycb): Needs systemd support
