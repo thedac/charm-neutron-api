@@ -107,21 +107,53 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
         """Configure all of the services."""
         neutron_api_config = {}
         if self.git:
-            branch = 'stable/' + self._get_openstack_release_string()
             amulet_http_proxy = os.environ.get('AMULET_HTTP_PROXY')
-            openstack_origin_git = {
-                'repositories': [
-                    {'name': 'requirements',
-                     'repository': 'git://github.com/openstack/requirements',
-                     'branch': branch},
-                    {'name': 'neutron',
-                     'repository': 'git://github.com/openstack/neutron',
-                     'branch': branch},
-                ],
-                'directory': '/mnt/openstack-git',
-                'http_proxy': amulet_http_proxy,
-                'https_proxy': amulet_http_proxy,
-            }
+
+            branch = 'stable/' + self._get_openstack_release_string()
+
+            if self._get_openstack_release() >= self.trusty_kilo:
+                openstack_origin_git = {
+                    'repositories': [
+                        {'name': 'requirements',
+                         'repository': 'git://github.com/openstack/requirements',
+                         'branch': branch},
+                        {'name': 'neutron-fwaas',
+                         'repository': 'git://github.com/openstack/neutron-fwaas',
+                         'branch': branch},
+                        {'name': 'neutron-lbaas',
+                         'repository': 'git://github.com/openstack/neutron-lbaas',
+                         'branch': branch},
+                        {'name': 'neutron-vpnaas',
+                         'repository': 'git://github.com/openstack/neutron-vpnaas',
+                         'branch': branch},
+                        {'name': 'neutron',
+                         'repository': 'git://github.com/openstack/neutron',
+                         'branch': branch},
+                    ],
+                    'directory': '/mnt/openstack-git',
+                    'http_proxy': amulet_http_proxy,
+                    'https_proxy': amulet_http_proxy,
+                }
+            else:
+                reqs_repo = 'git://github.com/openstack/requirements'
+                neutron_repo = 'git://github.com/openstack/neutron'
+                if self._get_openstack_release() == self.trusty_icehouse:
+                    reqs_repo = 'git://github.com/coreycb/requirements'
+                    neutron_repo = 'git://github.com/coreycb/neutron'
+
+                openstack_origin_git = {
+                    'repositories': [
+                        {'name': 'requirements',
+                         'repository': reqs_repo,
+                         'branch': branch},
+                        {'name': 'neutron',
+                         'repository': neutron_repo,
+                         'branch': branch},
+                    ],
+                    'directory': '/mnt/openstack-git',
+                    'http_proxy': amulet_http_proxy,
+                    'https_proxy': amulet_http_proxy,
+                }
             neutron_api_config['openstack-origin-git'] = yaml.dump(openstack_origin_git)
         keystone_config = {'admin-password': 'openstack',
                            'admin-token': 'ubuntutesting'}
@@ -139,7 +171,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
         self.keystone_sentry = self.d.sentry.unit['keystone/0']
         self.rabbitmq_sentry = self.d.sentry.unit['rabbitmq-server/0']
         self.nova_cc_sentry = self.d.sentry.unit['nova-cloud-controller/0']
-        self.quantum_gateway_sentry = self.d.sentry.unit['neutron-gateway/0']
+        self.neutron_gateway_sentry = self.d.sentry.unit['neutron-gateway/0']
         self.neutron_api_sentry = self.d.sentry.unit['neutron-api/0']
         self.nova_compute_sentry = self.d.sentry.unit['nova-compute/0']
         u.log.debug('openstack release val: {}'.format(
@@ -180,7 +212,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
             self.mysql_sentry: ['status mysql'],
             self.keystone_sentry: ['status keystone'],
             self.nova_cc_sentry: nova_cc_services,
-            self.quantum_gateway_sentry: neutron_services,
+            self.neutron_gateway_sentry: neutron_services,
             self.neutron_api_sentry: neutron_api_services,
         }
 
