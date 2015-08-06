@@ -328,47 +328,41 @@ def nuage_vsp_juno_neutron_migration():
         if os.path.exists(nuage_migrate_hybrid_file_path):
             if os.path.exists(nuage_config_file):
                 log('Running Migartion Script for Juno Release')
-                check_output(
-                    [
-                        'bash', '-c',
-                        'cd {}; sudo python migrate_hybrid_juno.py'
-                        ' --config-file {}'
-                        ' --config-file {}'.format(
-                                                   nuage_migration_db_path,
-                                                   nuage_config_file,
-                                                   NEUTRON_CONF)
-                    ]
-                )
+                log('Running Migartion Script for Juno Release')
+                cmd = ['sudo python ', nuage_migrate_hybrid_file_path,
+                       ' --config-file ', NEUTRON_CONF,
+                       ' --config-file ', nuage_config_file]
+                subprocess.check_output(cmd)
             else:
                 e = nuage_config_file+' doesnot exist'
-                log(e, level=ERROR)
+                log(e)
                 raise Exception(e)
         else:
             e = nuage_migrate_hybrid_file_path+' doesnot exists'
-            log(e, level=ERROR)
+            log(e)
             raise Exception(e)
     else:
         e = nuage_migration_db_path+' doesnot exists'
-        log(e, level=ERROR)
+        log(e)
         raise Exception(e)
 
 
 def migrate_neutron_database():
     '''Initializes a new database or upgrades an existing database.'''
     log('Migrating the neutron database.')
-    if (os_release('neutron-server') == 'juno' and
-        config('neutron-plugin') == 'vsp'):
+    if(os_release('neutron-server') == 'juno' and
+       config('neutron-plugin') == 'vsp'):
         nuage_vsp_juno_neutron_migration()
     else:
-    plugin = config('neutron-plugin')
-    cmd = ['neutron-db-manage',
-           '--config-file', NEUTRON_CONF,
-           '--config-file', neutron_plugin_attribute(plugin,
-                                                     'config',
-                                                     'neutron'),
-           'upgrade',
-           'head']
-    subprocess.check_output(cmd)
+        plugin = config('neutron-plugin')
+        cmd = ['neutron-db-manage',
+               '--config-file', NEUTRON_CONF,
+               '--config-file', neutron_plugin_attribute(plugin,
+                                                         'config',
+                                                         'neutron'),
+               'upgrade',
+               'head']
+        subprocess.check_output(cmd)
 
 
 def get_topics():
