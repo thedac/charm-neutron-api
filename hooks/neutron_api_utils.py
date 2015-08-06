@@ -316,9 +316,50 @@ def stamp_neutron_database(release):
     subprocess.check_output(cmd)
 
 
+def nuage_vsp_juno_neutron_migration():
+    log('Nuage VSP with Juno Relase')
+    nuage_migration_db_path = '/usr/lib/python2.7/dist-packages/'\
+                              'neutron/db/migration/nuage'
+    nuage_migrate_hybrid_file_path = os.path.join(
+        nuage_migration_db_path, 'migrate_hybrid_juno.py')
+    nuage_config_file = neutron_plugin_attribute(config('neutron-plugin'),
+                                                 'config', 'neutron')
+    if os.path.exists(nuage_migration_db_path):
+        if os.path.exists(nuage_migrate_hybrid_file_path):
+            if os.path.exists(nuage_config_file):
+                log('Running Migartion Script for Juno Release')
+                check_output(
+                    [
+                        'bash', '-c',
+                        'cd {}; sudo python migrate_hybrid_juno.py'
+                        ' --config-file {}'
+                        ' --config-file {}'.format(
+                                                   nuage_migration_db_path,
+                                                   nuage_config_file,
+                                                   NEUTRON_CONF)
+                    ]
+                )
+            else:
+                e = nuage_config_file+' doesnot exist'
+                log(e, level=ERROR)
+                raise Exception(e)
+        else:
+            e = nuage_migrate_hybrid_file_path+' doesnot exists'
+            log(e, level=ERROR)
+            raise Exception(e)
+    else:
+        e = nuage_migration_db_path+' doesnot exists'
+        log(e, level=ERROR)
+        raise Exception(e)
+
+
 def migrate_neutron_database():
     '''Initializes a new database or upgrades an existing database.'''
     log('Migrating the neutron database.')
+    if (os_release('neutron-server') == 'juno' and
+        config('neutron-plugin') == 'vsp'):
+        nuage_vsp_juno_neutron_migration()
+    else:
     plugin = config('neutron-plugin')
     cmd = ['neutron-db-manage',
            '--config-file', NEUTRON_CONF,

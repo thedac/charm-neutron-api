@@ -107,13 +107,12 @@ CONFIGS = register_configs()
 
 def conditional_neutron_migration():
     if os_release('neutron-server') < 'kilo':
-        if (os_release('neutron-server') == 'juno' and
+        if not (os_release('neutron-server') == 'juno' and
            config('neutron-plugin') == 'vsp'):
-            nuage_vsp_juno_neutron_migration()
+            log('Not running neutron database migration as migrations'
+                'are handled by the neutron-server process or'
+                ' nova-cloud-controller charm.')
             return
-        log('Not running neutron database migration as migrations are handled '
-            'by the neutron-server process or nova-cloud-controller charm.')
-        return
 
     if is_elected_leader(CLUSTER_RES):
         allowed_units = relation_get('allowed_units')
@@ -126,43 +125,6 @@ def conditional_neutron_migration():
             return
     else:
         log('Not running neutron database migration, not leader')
-
-
-def nuage_vsp_juno_neutron_migration():
-    log('Nuage VSP with Juno Relase')
-    nuage_migration_db_path = '/usr/lib/python2.7/dist-packages/'\
-                              'neutron/db/migration/nuage'
-    nuage_migrate_hybrid_file_path = os.path.join(
-        nuage_migration_db_path, 'migrate_hybrid_juno.py')
-    nuage_config_file = neutron_plugin_attribute(config('neutron-plugin'),
-                                                 'config', 'neutron')
-    if os.path.exists(nuage_migration_db_path):
-        if os.path.exists(nuage_migrate_hybrid_file_path):
-            if os.path.exists(nuage_config_file):
-                log('Running Migartion Script for Juno Release')
-                check_output(
-                    [
-                        'bash', '-c',
-                        'cd {}; sudo python migrate_hybrid_juno.py'
-                        ' --config-file {}'
-                        ' --config-file {}'.format(
-                                                   nuage_migration_db_path,
-                                                   nuage_config_file,
-                                                   NEUTRON_CONF)
-                    ]
-                )
-            else:
-                e = nuage_config_file+' doesnot exist'
-                log(e, level=ERROR)
-                raise Exception(e)
-        else:
-            e = nuage_migrate_hybrid_file_path+' doesnot exists'
-            log(e, level=ERROR)
-            raise Exception(e)
-    else:
-        e = nuage_migration_db_path+' doesnot exists'
-        log(e, level=ERROR)
-        raise Exception(e)
 
 
 def configure_https():
