@@ -109,7 +109,7 @@ def conditional_neutron_migration():
     if os_release('neutron-server') < 'kilo':
         if not (os_release('neutron-server') == 'juno' and
            config('neutron-plugin') == 'vsp'):
-            log('Not running neutron database migration as migrations'
+            log('Not running neutron database migration as migrations '
                 'are handled by the neutron-server process or'
                 ' nova-cloud-controller charm.')
             return
