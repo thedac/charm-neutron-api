@@ -329,8 +329,8 @@ def nuage_vsp_juno_neutron_migration():
             if os.path.exists(nuage_config_file):
                 log('Running Migartion Script for Juno Release')
                 cmd = 'sudo python ' + nuage_migrate_hybrid_file_path + \
-                      '--config-file ' + NEUTRON_CONF + \
-                      '--config-file ' + nuage_config_file
+                      ' --config-file ' + NEUTRON_CONF + \
+                      ' --config-file ' + nuage_config_file
                 log(cmd)
                 subprocess.check_output(cmd)
             else:
