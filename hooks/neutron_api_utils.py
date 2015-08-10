@@ -332,7 +332,7 @@ def nuage_vsp_juno_neutron_migration():
                       ' --config-file ' + nuage_config_file + \
                       ' --config-file ' + NEUTRON_CONF
                 log(cmd)
-                subprocess.check_output(cmd,shell=True)
+                subprocess.check_output(cmd, shell=True)
             else:
                 e = nuage_config_file+' doesnot exist'
                 log(e)
