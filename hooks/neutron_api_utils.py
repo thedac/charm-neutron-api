@@ -176,6 +176,7 @@ def determine_packages(source=None):
 
     if config('neutron-plugin') == 'vsp':
         packages.append('python-nuagenetlib')
+        packages.append('nuage-neutron')
 
     if git_install_requested():
         packages.extend(BASE_GIT_PACKAGES)
