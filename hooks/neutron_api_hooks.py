@@ -9,7 +9,6 @@ from subprocess import (
 from charmhelpers.core.hookenv import (
     Hooks,
     UnregisteredHookError,
-    charm_dir,
     config,
     is_relation_made,
     local_unit,
