@@ -160,16 +160,21 @@ def api_port(service):
     return API_PORTS[service]
 
 
+def manage_plugin():
+    return config('manage-neutron-plugin-legacy-mode')
+
+
 def determine_packages(source=None):
     # currently all packages match service names
     packages = [] + BASE_PACKAGES
 
     for v in resource_map().values():
         packages.extend(v['services'])
-        pkgs = neutron_plugin_attribute(config('neutron-plugin'),
-                                        'server_packages',
-                                        'neutron')
-        packages.extend(pkgs)
+        if manage_plugin():
+            pkgs = neutron_plugin_attribute(config('neutron-plugin'),
+                                            'server_packages',
+                                            'neutron')
+            packages.extend(pkgs)
 
     if get_os_codename_install_source(source) >= 'kilo':
         packages.extend(KILO_PACKAGES)
@@ -211,24 +216,31 @@ def resource_map():
     else:
         resource_map.pop(APACHE_24_CONF)
 
-    # add neutron plugin requirements. nova-c-c only needs the neutron-server
-    # associated with configs, not the plugin agent.
-    plugin = config('neutron-plugin')
-    conf = neutron_plugin_attribute(plugin, 'config', 'neutron')
-    ctxts = (neutron_plugin_attribute(plugin, 'contexts', 'neutron')
-             or [])
-    services = neutron_plugin_attribute(plugin, 'server_services',
-                                        'neutron')
-    resource_map[conf] = {}
-    resource_map[conf]['services'] = services
-    resource_map[conf]['contexts'] = ctxts
-    resource_map[conf]['contexts'].append(
-        neutron_api_context.NeutronCCContext())
+    if manage_plugin():
+        # add neutron plugin requirements. nova-c-c only needs the
+        # neutron-server associated with configs, not the plugin agent.
+        plugin = config('neutron-plugin')
+        conf = neutron_plugin_attribute(plugin, 'config', 'neutron')
+        ctxts = (neutron_plugin_attribute(plugin, 'contexts', 'neutron')
+                 or [])
+        services = neutron_plugin_attribute(plugin, 'server_services',
+                                            'neutron')
+        resource_map[conf] = {}
+        resource_map[conf]['services'] = services
+        resource_map[conf]['contexts'] = ctxts
+        resource_map[conf]['contexts'].append(
+            neutron_api_context.NeutronCCContext())
 
-    # update for postgres
-    resource_map[conf]['contexts'].append(
-        context.PostgresqlDBContext(database=config('database')))
+        # update for postgres
+        resource_map[conf]['contexts'].append(
+            context.PostgresqlDBContext(database=config('database')))
 
+    else:
+        resource_map[NEUTRON_CONF]['contexts'].append(
+            neutron_api_context.NeutronApiSDNContext()
+        )
+        resource_map[NEUTRON_DEFAULT]['contexts'] = \
+            [neutron_api_context.NeutronApiSDNConfigFileContext()]
     return resource_map
 
 
