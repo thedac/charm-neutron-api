@@ -447,7 +447,7 @@ class NeutronApiSDNContextTest(CharmTestCase):
     def test_init(self):
         napisdn_ctxt = context.NeutronApiSDNContext()
         self.assertEquals(
-            napisdn_ctxt.interface,
+            napisdn_ctxt.interfaces,
             'neutron-plugin-api-subordinate'
         )
         self.assertEquals(napisdn_ctxt.service, 'neutron-api')
