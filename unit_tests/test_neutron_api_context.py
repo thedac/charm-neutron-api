@@ -1,3 +1,4 @@
+import json
 from test_utils import CharmTestCase
 from mock import patch
 import neutron_api_context as context
@@ -456,3 +457,135 @@ class NeutronCCContextTest(CharmTestCase):
         }
         for key in expect.iterkeys():
             self.assertEquals(napi_ctxt[key], expect[key])
+
+
+class NeutronApiSDNContextTest(CharmTestCase):
+
+    def setUp(self):
+        super(NeutronApiSDNContextTest, self).setUp(context, TO_PATCH)
+        self.relation_get.side_effect = self.test_relation.get
+
+    def tearDown(self):
+        super(NeutronApiSDNContextTest, self).tearDown()
+
+    def test_init(self):
+        napisdn_ctxt = context.NeutronApiSDNContext()
+        self.assertEquals(
+            napisdn_ctxt.interfaces,
+            ['neutron-plugin-api-subordinate']
+        )
+        self.assertEquals(napisdn_ctxt.services, ['neutron-api'])
+        self.assertEquals(
+            napisdn_ctxt.config_file,
+            '/etc/neutron/neutron.conf'
+        )
+
+    @patch.object(charmhelpers.contrib.openstack.context, 'log')
+    @patch.object(charmhelpers.contrib.openstack.context, 'relation_get')
+    @patch.object(charmhelpers.contrib.openstack.context, 'related_units')
+    @patch.object(charmhelpers.contrib.openstack.context, 'relation_ids')
+    def ctxt_check(self, rel_settings, expect, _rids, _runits, _rget, _log):
+        self.test_relation.set(rel_settings)
+        _runits.return_value = ['unit1']
+        _rids.return_value = ['rid2']
+        _rget.side_effect = self.test_relation.get
+        self.relation_ids.return_value = ['rid2']
+        self.related_units.return_value = ['unit1']
+        napisdn_ctxt = context.NeutronApiSDNContext()()
+        self.assertEquals(napisdn_ctxt, expect)
+
+    def test_defaults(self):
+        self.ctxt_check(
+            {'neutron-plugin': 'ovs'},
+            {
+                'core_plugin': 'neutron.plugins.ml2.plugin.Ml2Plugin',
+                'neutron_plugin_config': ('/etc/neutron/plugins/ml2/'
+                                          'ml2_conf.ini'),
+                'service_plugins': 'router,firewall,lbaas,vpnaas,metering',
+                'restart_trigger': '',
+                'neutron_plugin': 'ovs',
+                'sections': {},
+            }
+        )
+
+    def test_overrides(self):
+        self.ctxt_check(
+            {
+                'neutron-plugin': 'ovs',
+                'core-plugin': 'neutron.plugins.ml2.plugin.MidoPlumODL',
+                'neutron-plugin-config': '/etc/neutron/plugins/fl/flump.ini',
+                'service-plugins': 'router,unicorn,rainbows',
+                'restart-trigger': 'restartnow',
+            },
+            {
+                'core_plugin': 'neutron.plugins.ml2.plugin.MidoPlumODL',
+                'neutron_plugin_config': '/etc/neutron/plugins/fl/flump.ini',
+                'service_plugins': 'router,unicorn,rainbows',
+                'restart_trigger': 'restartnow',
+                'neutron_plugin': 'ovs',
+                'sections': {},
+            }
+        )
+
+    def test_subordinateconfig(self):
+        principle_config = {
+            "neutron-api": {
+                "/etc/neutron/neutron.conf": {
+                    "sections": {
+                        'DEFAULT': [
+                            ('neutronboost', True)
+                        ],
+                    }
+                }
+            }
+        }
+        self.ctxt_check(
+            {
+                'neutron-plugin': 'ovs',
+                'subordinate_configuration': json.dumps(principle_config),
+            },
+            {
+                'core_plugin': 'neutron.plugins.ml2.plugin.Ml2Plugin',
+                'neutron_plugin_config': ('/etc/neutron/plugins/ml2/'
+                                          'ml2_conf.ini'),
+                'service_plugins': 'router,firewall,lbaas,vpnaas,metering',
+                'restart_trigger': '',
+                'neutron_plugin': 'ovs',
+                'sections': {u'DEFAULT': [[u'neutronboost', True]]},
+            }
+        )
+
+    def test_empty(self):
+        self.ctxt_check(
+            {},
+            {'sections': {}},
+        )
+
+
+class NeutronApiSDNConfigFileContextTest(CharmTestCase):
+
+    def setUp(self):
+        super(NeutronApiSDNConfigFileContextTest, self).setUp(
+            context, TO_PATCH)
+        self.relation_get.side_effect = self.test_relation.get
+
+    def tearDown(self):
+        super(NeutronApiSDNConfigFileContextTest, self).tearDown()
+
+    def test_configset(self):
+        self.test_relation.set({
+            'neutron-plugin-config': '/etc/neutron/superplugin.ini'
+        })
+        self.relation_ids.return_value = ['rid2']
+        self.related_units.return_value = ['unit1']
+        napisdn_ctxt = context.NeutronApiSDNConfigFileContext()()
+        self.assertEquals(napisdn_ctxt, {
+            'config': '/etc/neutron/superplugin.ini'
+        })
+
+    def test_default(self):
+        self.relation_ids.return_value = []
+        napisdn_ctxt = context.NeutronApiSDNConfigFileContext()()
+        self.assertEquals(napisdn_ctxt, {
+            'config': '/etc/neutron/plugins/ml2/ml2_conf.ini'
+        })
