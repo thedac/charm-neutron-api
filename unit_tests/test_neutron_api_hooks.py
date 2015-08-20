@@ -81,7 +81,7 @@ def _mock_nuage_npa(plugin, attr, net_manager=None):
             'services': [],
             'packages': [],
             'server_packages': ['neutron-server',
-                                'python-neutron-plugin-nuage'],
+                                'neutron-plugin-nuage'],
             'server_services': ['neutron-server']
         },
     }

@@ -536,7 +536,8 @@ def zeromq_configuration_relation_joined(relid=None):
                  users="neutron")
 
 
-@hooks.hook('zeromq-configuration-relation-changed')
+@hooks.hook('zeromq-configuration-relation-changed',
+            'neutron-plugin-api-subordinate-relation-changed')
 @restart_on_change(restart_map(), stopstart=True)
 def zeromq_configuration_relation_changed():
     CONFIGS.write_all()

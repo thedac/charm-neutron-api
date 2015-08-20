@@ -411,3 +411,9 @@ options:
     description: |
       A comma-separated list of nagios servicegroups.
       If left empty, the nagios_context will be used as the servicegroup
+  manage-neutron-plugin-legacy-mode:
+    type: boolean
+    default: True
+    description: |
+      If True neutron-server will install neutron packages for the plugin
+      configured.
