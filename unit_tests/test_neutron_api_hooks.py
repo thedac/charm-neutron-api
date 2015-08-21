@@ -731,7 +731,6 @@ class NeutronAPIHooksTests(CharmTestCase):
         )
 
     def test_etcd_peer_joined(self):
-        self._call_hook('etcd-peer-relation-joined')
+        self._call_hook('etcd-proxy-relation-joined')
         self.assertTrue(self.CONFIGS.register.called)
         self.CONFIGS.write.assert_called_with('/etc/init/etcd.conf')
-        self.force_etcd_restart.assert_called_once_with()

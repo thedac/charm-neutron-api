@@ -37,8 +37,8 @@ requires:
   zeromq-configuration:
     interface: zeromq-configuration
     scope: container
-  etcd-peer:
-    interface: http
+  etcd-proxy:
+    interface: etcd-proxy
 peers:
   cluster:
     interface: neutron-api-ha
