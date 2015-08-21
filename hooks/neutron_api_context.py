@@ -237,27 +237,22 @@ class HAProxyContext(context.HAProxyContext):
 
 
 class EtcdContext(context.OSContextGenerator):
-    interfaces = ['etcd-peer']
+    interfaces = ['etcd-proxy']
 
     def __call__(self):
-        peers = []
         ctxt = {'cluster': ''}
+        cluster_string = ''
 
         if not config('neutron-plugin') == 'Calico':
             return ctxt
 
-        for rid in relation_ids('etcd-peer'):
+        for rid in relation_ids('etcd-proxy'):
             for unit in related_units(rid):
                 rdata = relation_get(rid=rid, unit=unit)
-                peers.append({
-                    'ip': rdata.get('ip'),
-                    'port': rdata.get('port'),
-                    'name': rdata.get('name'),
-                })
+                cluster_string = rdata.get('cluster')
+                if cluster_string:
+                    break
 
-        cluster_string = ','.join(
-            '{name}=http://{ip}:{port}'.format(**p) for p in peers
-        )
         ctxt['cluster'] = cluster_string
 
         return ctxt
