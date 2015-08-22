@@ -83,32 +83,61 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
         """Configure all of the services."""
         neutron_api_config = {}
         if self.git:
-            branch = 'stable/' + self._get_openstack_release_string()
             amulet_http_proxy = os.environ.get('AMULET_HTTP_PROXY')
-            openstack_origin_git = {
-                'repositories': [
-                    {'name': 'requirements',
-                     'repository': 'git://github.com/openstack/requirements',
-                     'branch': branch},
-                    {'name': 'neutron',
-                     'repository': 'git://github.com/openstack/neutron',
-                     'branch': branch},
-                ],
-                'directory': '/mnt/openstack-git',
-                'http_proxy': amulet_http_proxy,
-                'https_proxy': amulet_http_proxy,
-            }
-            neutron_api_config['openstack-origin-git'] = yaml.dump(
-                openstack_origin_git)
+
+            branch = 'stable/' + self._get_openstack_release_string()
+
+            if self._get_openstack_release() >= self.trusty_kilo:
+                openstack_origin_git = {
+                    'repositories': [
+                        {'name': 'requirements',
+                         'repository': 'git://github.com/openstack/requirements',
+                         'branch': branch},
+                        {'name': 'neutron-fwaas',
+                         'repository': 'git://github.com/openstack/neutron-fwaas',
+                         'branch': branch},
+                        {'name': 'neutron-lbaas',
+                         'repository': 'git://github.com/openstack/neutron-lbaas',
+                         'branch': branch},
+                        {'name': 'neutron-vpnaas',
+                         'repository': 'git://github.com/openstack/neutron-vpnaas',
+                         'branch': branch},
+                        {'name': 'neutron',
+                         'repository': 'git://github.com/openstack/neutron',
+                         'branch': branch},
+                    ],
+                    'directory': '/mnt/openstack-git',
+                    'http_proxy': amulet_http_proxy,
+                    'https_proxy': amulet_http_proxy,
+                }
+            else:
+                reqs_repo = 'git://github.com/openstack/requirements'
+                neutron_repo = 'git://github.com/openstack/neutron'
+                if self._get_openstack_release() == self.trusty_icehouse:
+                    reqs_repo = 'git://github.com/coreycb/requirements'
+                    neutron_repo = 'git://github.com/coreycb/neutron'
+
+                openstack_origin_git = {
+                    'repositories': [
+                        {'name': 'requirements',
+                         'repository': reqs_repo,
+                         'branch': branch},
+                        {'name': 'neutron',
+                         'repository': neutron_repo,
+                         'branch': branch},
+                    ],
+                    'directory': '/mnt/openstack-git',
+                    'http_proxy': amulet_http_proxy,
+                    'https_proxy': amulet_http_proxy,
+                }
+            neutron_api_config['openstack-origin-git'] = yaml.dump(openstack_origin_git)
         keystone_config = {'admin-password': 'openstack',
                            'admin-token': 'ubuntutesting'}
         nova_cc_config = {'network-manager': 'Quantum',
                           'quantum-security-groups': 'yes'}
-        configs = {
-            'neutron-api': neutron_api_config,
-            'keystone': keystone_config,
-            'nova-cloud-controller': nova_cc_config
-        }
+        configs = {'neutron-api': neutron_api_config,
+                   'keystone': keystone_config,
+                   'nova-cloud-controller': nova_cc_config}
         super(NeutronAPIBasicDeployment, self)._configure_services(configs)
 
     def _initialize_tests(self):
@@ -122,6 +151,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
         self.neutron_api_sentry = self.d.sentry.unit['neutron-api/0']
         self.neutron_ovs_sentry = self.d.sentry.unit['neutron-openvswitch/0']
         self.nova_compute_sentry = self.d.sentry.unit['nova-compute/0']
+
         u.log.debug('openstack release val: {}'.format(
             self._get_openstack_release()))
         u.log.debug('openstack release str: {}'.format(
@@ -388,7 +418,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
         expected = {
             'DEFAULT': {
                 'verbose': 'False',
-# True on Kilo!?:
+                # True on Kilo!?:
                 'debug': 'False',
                 'bind_port': '9686',
                 'nova_url': cc_relation['nova_url'],
@@ -513,6 +543,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
             u.log.debug("Checking that service restarted: {}".format(s))
             if not u.validate_service_config_changed(sentry, mtime, s,
                                                      conf_file,
+                                                     pgrep_full=True,
                                                      sleep_time=sleep_time):
                 self.d.configure(juju_service, set_default)
                 msg = "service {} didn't restart after config change".format(s)

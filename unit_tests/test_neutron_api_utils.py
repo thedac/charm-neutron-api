@@ -33,6 +33,7 @@ TO_PATCH = [
     'os_release',
     'pip_install',
     'subprocess',
+    'is_elected_leader',
 ]
 
 openstack_origin_git = \
@@ -103,27 +104,56 @@ class TestNeutronAPIUtils(CharmTestCase):
         expect.extend(nutils.KILO_PACKAGES)
         self.assertItemsEqual(pkg_list, expect)
 
+    @patch.object(nutils, 'git_install_requested')
+    def test_determine_packages_noplugin(self, git_requested):
+        git_requested.return_value = False
+        self.test_config.set('manage-neutron-plugin-legacy-mode', False)
+        pkg_list = nutils.determine_packages()
+        expect = deepcopy(nutils.BASE_PACKAGES)
+        expect.extend(['neutron-server'])
+        self.assertItemsEqual(pkg_list, expect)
+
     def test_determine_ports(self):
         port_list = nutils.determine_ports()
         self.assertItemsEqual(port_list, [9696])
 
+    @patch.object(nutils, 'manage_plugin')
     @patch('os.path.exists')
-    def test_resource_map(self, _path_exists):
+    def test_resource_map(self, _path_exists, _manage_plugin):
         _path_exists.return_value = False
+        _manage_plugin.return_value = True
         _map = nutils.resource_map()
         confs = [nutils.NEUTRON_CONF, nutils.NEUTRON_DEFAULT,
                  nutils.APACHE_CONF]
         [self.assertIn(q_conf, _map.keys()) for q_conf in confs]
         self.assertTrue(nutils.APACHE_24_CONF not in _map.keys())
 
+    @patch.object(nutils, 'manage_plugin')
     @patch('os.path.exists')
-    def test_resource_map_apache24(self, _path_exists):
+    def test_resource_map_apache24(self, _path_exists, _manage_plugin):
         _path_exists.return_value = True
+        _manage_plugin.return_value = True
         _map = nutils.resource_map()
         confs = [nutils.NEUTRON_CONF, nutils.NEUTRON_DEFAULT,
                  nutils.APACHE_24_CONF]
         [self.assertIn(q_conf, _map.keys()) for q_conf in confs]
         self.assertTrue(nutils.APACHE_CONF not in _map.keys())
+
+    @patch.object(nutils, 'manage_plugin')
+    @patch('os.path.exists')
+    def test_resource_map_noplugin(self, _path_exists, _manage_plugin):
+        _path_exists.return_value = True
+        _manage_plugin.return_value = False
+        _map = nutils.resource_map()
+        found_sdn_ctxt = False
+        found_sdnconfig_ctxt = False
+        for ctxt in _map[nutils.NEUTRON_CONF]['contexts']:
+            if isinstance(ctxt, ncontext.NeutronApiSDNContext):
+                found_sdn_ctxt = True
+        for ctxt in _map[nutils.NEUTRON_DEFAULT]['contexts']:
+            if isinstance(ctxt, ncontext.NeutronApiSDNConfigFileContext):
+                found_sdnconfig_ctxt = True
+        self.assertTrue(found_sdn_ctxt and found_sdnconfig_ctxt)
 
     @patch('os.path.exists')
     def test_restart_map(self, mock_path_exists):
@@ -190,6 +220,7 @@ class TestNeutronAPIUtils(CharmTestCase):
     def test_do_openstack_upgrade_juno(self, git_requested,
                                        stamp_neutron_db, migrate_neutron_db):
         git_requested.return_value = False
+        self.is_elected_leader.return_value = True
         self.config.side_effect = self.test_config.get
         self.test_config.set('openstack-origin', 'cloud:trusty-juno')
         self.os_release.return_value = 'icehouse'
@@ -227,6 +258,7 @@ class TestNeutronAPIUtils(CharmTestCase):
                                        stamp_neutron_db, migrate_neutron_db,
                                        gsrc):
         git_requested.return_value = False
+        self.is_elected_leader.return_value = True
         self.os_release.return_value = 'juno'
         self.config.side_effect = self.test_config.get
         self.test_config.set('openstack-origin', 'cloud:trusty-kilo')
@@ -255,6 +287,46 @@ class TestNeutronAPIUtils(CharmTestCase):
         configs.set_release.assert_called_with(openstack_release='kilo')
         stamp_neutron_db.assert_called_with('juno')
         migrate_neutron_db.assert_called_with()
+
+    @patch.object(charmhelpers.contrib.openstack.utils,
+                  'get_os_codename_install_source')
+    @patch.object(nutils, 'migrate_neutron_database')
+    @patch.object(nutils, 'stamp_neutron_database')
+    @patch.object(nutils, 'git_install_requested')
+    def test_do_openstack_upgrade_kilo_notleader(self, git_requested,
+                                                 stamp_neutron_db,
+                                                 migrate_neutron_db,
+                                                 gsrc):
+        git_requested.return_value = False
+        self.is_elected_leader.return_value = False
+        self.os_release.return_value = 'juno'
+        self.config.side_effect = self.test_config.get
+        self.test_config.set('openstack-origin', 'cloud:trusty-kilo')
+        gsrc.return_value = 'kilo'
+        self.get_os_codename_install_source.return_value = 'kilo'
+        configs = MagicMock()
+        nutils.do_openstack_upgrade(configs)
+        self.os_release.assert_called_with('neutron-server')
+        self.log.assert_called()
+        self.configure_installation_source.assert_called_with(
+            'cloud:trusty-kilo'
+        )
+        self.apt_update.assert_called_with(fatal=True)
+        dpkg_opts = [
+            '--option', 'Dpkg::Options::=--force-confnew',
+            '--option', 'Dpkg::Options::=--force-confdef',
+        ]
+        self.apt_upgrade.assert_called_with(options=dpkg_opts,
+                                            fatal=True,
+                                            dist=True)
+        pkgs = nutils.determine_packages()
+        pkgs.sort()
+        self.apt_install.assert_called_with(packages=pkgs,
+                                            options=dpkg_opts,
+                                            fatal=True)
+        configs.set_release.assert_called_with(openstack_release='kilo')
+        self.assertFalse(stamp_neutron_db.called)
+        self.assertFalse(migrate_neutron_db.called)
 
     @patch.object(ncontext, 'IdentityServiceContext')
     @patch('neutronclient.v2_0.client.Client')
@@ -477,3 +549,13 @@ class TestNeutronAPIUtils(CharmTestCase):
                'upgrade',
                'head']
         self.subprocess.check_output.assert_called_with(cmd)
+
+    def test_manage_plugin_true(self):
+        self.test_config.set('manage-neutron-plugin-legacy-mode', True)
+        manage = nutils.manage_plugin()
+        self.assertTrue(manage)
+
+    def test_manage_plugin_false(self):
+        self.test_config.set('manage-neutron-plugin-legacy-mode', False)
+        manage = nutils.manage_plugin()
+        self.assertFalse(manage)
