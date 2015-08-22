@@ -48,6 +48,7 @@ from charmhelpers.core.host import (
 )
 
 from charmhelpers.core.templating import render
+from charmhelpers.contrib.hahelpers.cluster import is_elected_leader
 
 import neutron_api_context
 
@@ -80,6 +81,7 @@ BASE_GIT_PACKAGES = [
     'libxslt1-dev',
     'libyaml-dev',
     'python-dev',
+    'python-neutronclient',  # required for get_neutron_client() import
     'python-pip',
     'python-setuptools',
     'zlib1g-dev',
@@ -158,16 +160,21 @@ def api_port(service):
     return API_PORTS[service]
 
 
+def manage_plugin():
+    return config('manage-neutron-plugin-legacy-mode')
+
+
 def determine_packages(source=None):
     # currently all packages match service names
     packages = [] + BASE_PACKAGES
 
     for v in resource_map().values():
         packages.extend(v['services'])
-        pkgs = neutron_plugin_attribute(config('neutron-plugin'),
-                                        'server_packages',
-                                        'neutron')
-        packages.extend(pkgs)
+        if manage_plugin():
+            pkgs = neutron_plugin_attribute(config('neutron-plugin'),
+                                            'server_packages',
+                                            'neutron')
+            packages.extend(pkgs)
 
     if get_os_codename_install_source(source) >= 'kilo':
         packages.extend(KILO_PACKAGES)
@@ -209,24 +216,31 @@ def resource_map():
     else:
         resource_map.pop(APACHE_24_CONF)
 
-    # add neutron plugin requirements. nova-c-c only needs the neutron-server
-    # associated with configs, not the plugin agent.
-    plugin = config('neutron-plugin')
-    conf = neutron_plugin_attribute(plugin, 'config', 'neutron')
-    ctxts = (neutron_plugin_attribute(plugin, 'contexts', 'neutron')
-             or [])
-    services = neutron_plugin_attribute(plugin, 'server_services',
-                                        'neutron')
-    resource_map[conf] = {}
-    resource_map[conf]['services'] = services
-    resource_map[conf]['contexts'] = ctxts
-    resource_map[conf]['contexts'].append(
-        neutron_api_context.NeutronCCContext())
+    if manage_plugin():
+        # add neutron plugin requirements. nova-c-c only needs the
+        # neutron-server associated with configs, not the plugin agent.
+        plugin = config('neutron-plugin')
+        conf = neutron_plugin_attribute(plugin, 'config', 'neutron')
+        ctxts = (neutron_plugin_attribute(plugin, 'contexts', 'neutron')
+                 or [])
+        services = neutron_plugin_attribute(plugin, 'server_services',
+                                            'neutron')
+        resource_map[conf] = {}
+        resource_map[conf]['services'] = services
+        resource_map[conf]['contexts'] = ctxts
+        resource_map[conf]['contexts'].append(
+            neutron_api_context.NeutronCCContext())
 
-    # update for postgres
-    resource_map[conf]['contexts'].append(
-        context.PostgresqlDBContext(database=config('database')))
+        # update for postgres
+        resource_map[conf]['contexts'].append(
+            context.PostgresqlDBContext(database=config('database')))
 
+    else:
+        resource_map[NEUTRON_CONF]['contexts'].append(
+            neutron_api_context.NeutronApiSDNContext()
+        )
+        resource_map[NEUTRON_DEFAULT]['contexts'] = \
+            [neutron_api_context.NeutronApiSDNConfigFileContext()]
     return resource_map
 
 
@@ -292,7 +306,7 @@ def do_openstack_upgrade(configs):
     # set CONFIGS to load templates from new release
     configs.set_release(openstack_release=new_os_rel)
     # Before kilo it's nova-cloud-controllers job
-    if new_os_rel >= 'kilo':
+    if is_elected_leader(CLUSTER_RES) and new_os_rel >= 'kilo':
         stamp_neutron_database(cur_os_rel)
         migrate_neutron_database()
 
