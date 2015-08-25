@@ -91,16 +91,16 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
                 openstack_origin_git = {
                     'repositories': [
                         {'name': 'requirements',
-                         'repository': 'git://github.com/openstack/requirements',
+                         'repository': 'git://github.com/openstack/requirements',  # noqa
                          'branch': branch},
                         {'name': 'neutron-fwaas',
-                         'repository': 'git://github.com/openstack/neutron-fwaas',
+                         'repository': 'git://github.com/openstack/neutron-fwaas',  # noqa
                          'branch': branch},
                         {'name': 'neutron-lbaas',
-                         'repository': 'git://github.com/openstack/neutron-lbaas',
+                         'repository': 'git://github.com/openstack/neutron-lbaas',  # noqa
                          'branch': branch},
                         {'name': 'neutron-vpnaas',
-                         'repository': 'git://github.com/openstack/neutron-vpnaas',
+                         'repository': 'git://github.com/openstack/neutron-vpnaas',  # noqa
                          'branch': branch},
                         {'name': 'neutron',
                          'repository': 'git://github.com/openstack/neutron',
@@ -130,7 +130,9 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
                     'http_proxy': amulet_http_proxy,
                     'https_proxy': amulet_http_proxy,
                 }
-            neutron_api_config['openstack-origin-git'] = yaml.dump(openstack_origin_git)
+            neutron_api_config['openstack-origin-git'] = \
+                yaml.dump(openstack_origin_git)
+
         keystone_config = {'admin-password': 'openstack',
                            'admin-token': 'ubuntutesting'}
         nova_cc_config = {'network-manager': 'Quantum',
@@ -147,7 +149,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
         self.keystone_sentry = self.d.sentry.unit['keystone/0']
         self.rabbitmq_sentry = self.d.sentry.unit['rabbitmq-server/0']
         self.nova_cc_sentry = self.d.sentry.unit['nova-cloud-controller/0']
-        self.neutron_sentry = self.d.sentry.unit['neutron-gateway/0']
+        self.neutron_gw_sentry = self.d.sentry.unit['neutron-gateway/0']
         self.neutron_api_sentry = self.d.sentry.unit['neutron-api/0']
         self.neutron_ovs_sentry = self.d.sentry.unit['neutron-openvswitch/0']
         self.nova_compute_sentry = self.d.sentry.unit['nova-compute/0']
@@ -188,7 +190,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
             self.mysql_sentry: ['mysql'],
             self.keystone_sentry: ['keystone'],
             self.nova_cc_sentry: nova_cc_services,
-            self.neutron_sentry: neutron_services,
+            self.neutron_gw_sentry: neutron_services,
             self.neutron_api_sentry: neutron_api_services,
         }
 
@@ -318,7 +320,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
         unit = self.neutron_api_sentry
         relation = ['neutron-plugin-api',
                     'neutron-openvswitch:neutron-plugin-api']
-#
+
         u.log.debug(unit.relation(relation[0], relation[1]))
         expected = {
             'auth_host': u.valid_ip,
@@ -409,16 +411,15 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
         nova_auth_url = '{}://{}:{}/v2.0'.format(rel_napi_ks['auth_protocol'],
                                                  rel_napi_ks['auth_host'],
                                                  rel_napi_ks['auth_port'])
-        rel_napi_my = self.mysql_sentry.relation('shared-db',
+        rel_napi_db = self.mysql_sentry.relation('shared-db',
                                                  'neutron-api:shared-db')
         db_conn = 'mysql://neutron:{}@{}/neutron'.format(
-            rel_napi_my['password'], rel_napi_my['db_host'])
+            rel_napi_db['password'], rel_napi_db['db_host'])
 
         conf = '/etc/neutron/neutron.conf'
         expected = {
             'DEFAULT': {
                 'verbose': 'False',
-                # True on Kilo!?:
                 'debug': 'False',
                 'bind_port': '9686',
                 'nova_url': cc_relation['nova_url'],
@@ -538,16 +539,17 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
         mtime = u.get_sentry_time(sentry)
         self.d.configure(juju_service, set_alternate)
 
-        sleep_time = 60
         for s, conf_file in services.iteritems():
             u.log.debug("Checking that service restarted: {}".format(s))
             if not u.validate_service_config_changed(sentry, mtime, s,
                                                      conf_file,
                                                      pgrep_full=True,
-                                                     sleep_time=sleep_time):
+                                                     retry_count=4,
+                                                     retry_sleep_time=20,
+                                                     sleep_time=20):
                 self.d.configure(juju_service, set_default)
                 msg = "service {} didn't restart after config change".format(s)
                 amulet.raise_status(amulet.FAIL, msg=msg)
-            sleep_time = 0
 
         self.d.configure(juju_service, set_default)
+        u.log.debug('OK')
