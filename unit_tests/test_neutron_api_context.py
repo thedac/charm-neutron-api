@@ -272,6 +272,9 @@ class NeutronCCContextTest(CharmTestCase):
         self.test_config.set('nsx-tz-uuid', 'tzuuid')
         self.test_config.set('nsx-l3-uuid', 'l3uuid')
         self.test_config.set('nsx-controllers', 'ctrl1 ctrl2')
+        self.test_config.set('plumgrid-username', 'plumgrid')
+        self.test_config.set('plumgrid-password', 'plumgrid')
+        self.test_config.set('plumgrid-virtual-ip', '192.168.100.250')
 
     def tearDown(self):
         super(NeutronCCContextTest, self).tearDown()
