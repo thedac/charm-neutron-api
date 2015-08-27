@@ -543,7 +543,6 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
             u.log.debug("Checking that service restarted: {}".format(s))
             if not u.validate_service_config_changed(sentry, mtime, s,
                                                      conf_file,
-                                                     pgrep_full=True,
                                                      retry_count=4,
                                                      retry_sleep_time=20,
                                                      sleep_time=20):
