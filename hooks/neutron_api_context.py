@@ -162,6 +162,10 @@ class NeutronCCContext(context.NeutronContext):
                     ','.join(config('nsx-controllers').split())
                 ctxt['nsx_controllers_list'] = \
                     config('nsx-controllers').split()
+        if config('neutron-plugin') == 'plumgrid':
+            ctxt['pg_username'] = config('plumgrid-username')
+            ctxt['pg_password'] = config('plumgrid-password')
+            ctxt['virtual_ip'] = config('plumgrid-virtual-ip')
         ctxt['l2_population'] = self.neutron_l2_population
         ctxt['enable_dvr'] = self.neutron_dvr
         ctxt['l3_ha'] = self.neutron_l3ha
