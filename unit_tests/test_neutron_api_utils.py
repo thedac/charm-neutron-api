@@ -227,7 +227,7 @@ class TestNeutronAPIUtils(CharmTestCase):
         self.get_os_codename_install_source.return_value = 'juno'
         configs = MagicMock()
         nutils.do_openstack_upgrade(configs)
-        self.os_release.assert_called_with('neutron-server')
+        self.os_release.assert_called_with('neutron-common')
         self.log.assert_called()
         self.configure_installation_source.assert_called_with(
             'cloud:trusty-juno'
@@ -266,7 +266,7 @@ class TestNeutronAPIUtils(CharmTestCase):
         self.get_os_codename_install_source.return_value = 'kilo'
         configs = MagicMock()
         nutils.do_openstack_upgrade(configs)
-        self.os_release.assert_called_with('neutron-server')
+        self.os_release.assert_called_with('neutron-common')
         self.log.assert_called()
         self.configure_installation_source.assert_called_with(
             'cloud:trusty-kilo'
@@ -306,7 +306,7 @@ class TestNeutronAPIUtils(CharmTestCase):
         self.get_os_codename_install_source.return_value = 'kilo'
         configs = MagicMock()
         nutils.do_openstack_upgrade(configs)
-        self.os_release.assert_called_with('neutron-server')
+        self.os_release.assert_called_with('neutron-common')
         self.log.assert_called()
         self.configure_installation_source.assert_called_with(
             'cloud:trusty-kilo'

@@ -245,7 +245,7 @@ def resource_map():
 
 
 def register_configs(release=None):
-    release = release or os_release('neutron-server')
+    release = release or os_release('neutron-common')
     configs = templating.OSConfigRenderer(templates_dir=TEMPLATES,
                                           openstack_release=release)
     for cfg, rscs in resource_map().iteritems():
@@ -283,7 +283,7 @@ def do_openstack_upgrade(configs):
 
     :param configs: The charms main OSConfigRenderer object.
     """
-    cur_os_rel = os_release('neutron-server')
+    cur_os_rel = os_release('neutron-common')
     new_src = config('openstack-origin')
     new_os_rel = get_os_codename_install_source(new_src)
 
