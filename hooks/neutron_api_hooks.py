@@ -98,7 +98,7 @@ CONFIGS = register_configs()
 
 
 def conditional_neutron_migration():
-    if os_release('neutron-server') < 'kilo':
+    if os_release('neutron-common') < 'kilo':
         log('Not running neutron database migration as migrations are handled '
             'by the neutron-server process or nova-cloud-controller charm.')
         return
@@ -180,7 +180,7 @@ def config_changed():
         if config_value_changed('openstack-origin-git'):
             git_install(config('openstack-origin-git'))
     else:
-        if openstack_upgrade_available('neutron-server'):
+        if openstack_upgrade_available('neutron-common'):
             do_openstack_upgrade(CONFIGS)
 
     apt_install(filter_installed_packages(
