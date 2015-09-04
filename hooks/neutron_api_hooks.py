@@ -60,6 +60,8 @@ from neutron_api_utils import (
     services,
     setup_ipv6,
     get_topics,
+    additional_install_locations,
+    force_etcd_restart,
 )
 from neutron_api_context import (
     get_dvr,
@@ -67,6 +69,7 @@ from neutron_api_context import (
     get_l2population,
     get_overlay_network_type,
     IdentityServiceContext,
+    EtcdContext,
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
@@ -143,6 +146,9 @@ def configure_https():
 def install():
     execd_preinstall()
     configure_installation_source(config('openstack-origin'))
+    additional_install_locations(
+        config('neutron-plugin'), config('openstack-origin')
+    )
 
     apt_update()
     apt_install(determine_packages(config('openstack-origin')),
@@ -183,6 +189,10 @@ def config_changed():
         if openstack_upgrade_available('neutron-common'):
             do_openstack_upgrade(CONFIGS)
 
+    additional_install_locations(
+        config('neutron-plugin'),
+        config('openstack-origin')
+    )
     apt_install(filter_installed_packages(
                 determine_packages(config('openstack-origin'))),
                 fatal=True)
@@ -352,6 +362,7 @@ def neutron_plugin_api_relation_joined(rid=None):
             'enable-dvr': get_dvr(),
             'enable-l3ha': get_l3ha(),
             'overlay-network-type': get_overlay_network_type(),
+            'addr': unit_get('private-address'),
         }
 
         # Provide this value to relations since it needs to be set in multiple
@@ -498,6 +509,20 @@ def update_nrpe_config():
     nrpe.add_init_service_checks(nrpe_setup, services(), current_unit)
     nrpe.add_haproxy_checks(nrpe_setup, current_unit)
     nrpe_setup.write()
+
+
+@hooks.hook('etcd-proxy-relation-joined')
+@hooks.hook('etcd-proxy-relation-changed')
+def etcd_proxy_force_restart(relation_id=None):
+    # note(cory.benfield): Mostly etcd does not require active management,
+    # but occasionally it does require a full config nuking. This does not
+    # play well with the standard neutron-api config management, so we
+    # treat etcd like the special snowflake it insists on being.
+    CONFIGS.register('/etc/init/etcd.conf', [EtcdContext()])
+    CONFIGS.write('/etc/init/etcd.conf')
+
+    if 'etcd-proxy' in CONFIGS.complete_contexts():
+        force_etcd_restart()
 
 
 def main():

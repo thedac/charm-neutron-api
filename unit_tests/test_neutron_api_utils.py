@@ -24,6 +24,7 @@ TO_PATCH = [
     'apt_install',
     'apt_update',
     'apt_upgrade',
+    'add_source',
     'b64encode',
     'config',
     'configure_installation_source',
@@ -34,6 +35,9 @@ TO_PATCH = [
     'pip_install',
     'subprocess',
     'is_elected_leader',
+    'service_stop',
+    'service_start',
+    'glob',
 ]
 
 openstack_origin_git = \
@@ -559,3 +563,30 @@ class TestNeutronAPIUtils(CharmTestCase):
         self.test_config.set('manage-neutron-plugin-legacy-mode', False)
         manage = nutils.manage_plugin()
         self.assertFalse(manage)
+
+    def test_additional_install_locations_calico(self):
+        self.get_os_codename_install_source.return_value = 'icehouse'
+        nutils.additional_install_locations('Calico', '')
+        self.add_source.assert_called_with('ppa:project-calico/icehouse')
+
+    def test_unusual_calico_install_location(self):
+        self.test_config.set('calico-origin', 'ppa:testppa/project-calico')
+        nutils.additional_install_locations('Calico', '')
+        self.add_source.assert_called_with('ppa:testppa/project-calico')
+
+    def test_follows_openstack_origin(self):
+        self.get_os_codename_install_source.return_value = 'juno'
+        nutils.additional_install_locations('Calico', 'cloud:trusty-juno')
+        self.add_source.assert_called_with('ppa:project-calico/juno')
+
+    @patch('shutil.rmtree')
+    def test_force_etcd_restart(self, rmtree):
+        self.glob.glob.return_value = [
+            '/var/lib/etcd/one', '/var/lib/etcd/two'
+        ]
+        nutils.force_etcd_restart()
+        self.service_stop.assert_called_once_with('etcd')
+        self.glob.glob.assert_called_once_with('/var/lib/etcd/*')
+        rmtree.assert_any_call('/var/lib/etcd/one')
+        rmtree.assert_any_call('/var/lib/etcd/two')
+        self.service_start.assert_called_once_with('etcd')

@@ -99,6 +99,7 @@ options:
       .
         ovs - OpenvSwitch Plugin
         nsx - VMWare NSX
+        Calico - Project Calico Networking
       .
   overlay-network-type:
     default: gre
@@ -388,3 +389,12 @@ options:
     description: |
       If True neutron-server will install neutron packages for the plugin
       configured.
+  # Calico plugin configuration
+  calico-origin:
+    default:
+    type: string
+    description: |
+      Repository from which to install Calico packages. If set, must be
+      a PPA URL, of the form ppa:somecustom/ppa. Changing this value
+      after installation will force an immediate software upgrade.
+  # End of Calico plugin configuration
