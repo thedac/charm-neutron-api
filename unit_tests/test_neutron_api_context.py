@@ -438,6 +438,53 @@ class NeutronCCContextTest(CharmTestCase):
             self.assertEquals(napi_ctxt[key], expect[key])
 
 
+class EtcdContextTest(CharmTestCase):
+
+    def setUp(self):
+        super(EtcdContextTest, self).setUp(context, TO_PATCH)
+        self.relation_get.side_effect = self.test_relation.get
+        self.config.side_effect = self.test_config.get
+        self.test_config.set('neutron-plugin', 'Calico')
+
+    def tearDown(self):
+        super(EtcdContextTest, self).tearDown()
+
+    def test_etcd_no_related_units(self):
+        self.related_units.return_value = []
+        ctxt = context.EtcdContext()()
+        expect = {'cluster': ''}
+
+        self.assertEquals(expect, ctxt)
+
+    def test_some_related_units(self):
+        self.related_units.return_value = ['unit1']
+        self.relation_ids.return_value = ['rid2', 'rid3']
+        result = (
+            'testname=http://172.18.18.18:8888,'
+            'testname=http://172.18.18.18:8888'
+        )
+        self.test_relation.set({'cluster': result})
+
+        ctxt = context.EtcdContext()()
+        expect = {'cluster': result}
+
+        self.assertEquals(expect, ctxt)
+
+    def test_early_exit(self):
+        self.test_config.set('neutron-plugin', 'notCalico')
+
+        self.related_units.return_value = ['unit1']
+        self.relation_ids.return_value = ['rid2', 'rid3']
+        self.test_relation.set({'ip': '172.18.18.18',
+                                'port': 8888,
+                                'name': 'testname'})
+
+        ctxt = context.EtcdContext()()
+        expect = {'cluster': ''}
+
+        self.assertEquals(expect, ctxt)
+
+
 class NeutronApiSDNContextTest(CharmTestCase):
 
     def setUp(self):

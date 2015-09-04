@@ -240,6 +240,28 @@ class HAProxyContext(context.HAProxyContext):
         return ctxt
 
 
+class EtcdContext(context.OSContextGenerator):
+    interfaces = ['etcd-proxy']
+
+    def __call__(self):
+        ctxt = {'cluster': ''}
+        cluster_string = ''
+
+        if not config('neutron-plugin') == 'Calico':
+            return ctxt
+
+        for rid in relation_ids('etcd-proxy'):
+            for unit in related_units(rid):
+                rdata = relation_get(rid=rid, unit=unit)
+                cluster_string = rdata.get('cluster')
+                if cluster_string:
+                    break
+
+        ctxt['cluster'] = cluster_string
+
+        return ctxt
+
+
 class NeutronApiSDNContext(context.SubordinateConfigContext):
     interfaces = 'neutron-plugin-api-subordinate'
 

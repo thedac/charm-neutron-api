@@ -4,6 +4,7 @@ from functools import partial
 import os
 import shutil
 import subprocess
+import glob
 from base64 import b64encode
 from charmhelpers.contrib.openstack import context, templating
 from charmhelpers.contrib.openstack.neutron import (
@@ -38,11 +39,13 @@ from charmhelpers.fetch import (
 )
 
 from charmhelpers.core.host import (
+    lsb_release,
     adduser,
     add_group,
     add_user_to_group,
     mkdir,
-    lsb_release,
+    service_stop,
+    service_start,
     service_restart,
     write_file,
 )
@@ -158,6 +161,37 @@ BASE_RESOURCE_MAP = OrderedDict([
 
 def api_port(service):
     return API_PORTS[service]
+
+
+def additional_install_locations(plugin, source):
+    '''
+    Add any required additional package locations for the charm, based
+    on the Neutron plugin being used. This will also force an immediate
+    package upgrade.
+    '''
+    if plugin == 'Calico':
+        if config('calico-origin'):
+            calico_source = config('calico-origin')
+        else:
+            release = get_os_codename_install_source(source)
+            calico_source = 'ppa:project-calico/%s' % release
+
+        add_source(calico_source)
+
+        apt_update()
+        apt_upgrade()
+
+
+def force_etcd_restart():
+    '''
+    If etcd has been reconfigured we need to force it to fully restart.
+    This is necessary because etcd has some config flags that it ignores
+    after the first time it starts, so we need to make it forget them.
+    '''
+    service_stop('etcd')
+    for directory in glob.glob('/var/lib/etcd/*'):
+        shutil.rmtree(directory)
+    service_start('etcd')
 
 
 def manage_plugin():

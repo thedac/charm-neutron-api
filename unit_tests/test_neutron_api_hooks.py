@@ -62,6 +62,7 @@ TO_PATCH = [
     'update_nrpe_config',
     'service_reload',
     'IdentityServiceContext',
+    'force_etcd_restart',
 ]
 NEUTRON_CONF_DIR = "/etc/neutron"
 
@@ -440,12 +441,14 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.assertTrue(self.CONFIGS.write.called_with(NEUTRON_CONF))
 
     def test_neutron_plugin_api_relation_joined_nol2(self):
+        self.unit_get.return_value = '172.18.18.18'
         self.IdentityServiceContext.return_value = \
             DummyContext(return_value={})
         _relation_data = {
             'neutron-security-groups': False,
             'enable-dvr': False,
             'enable-l3ha': False,
+            'addr': '172.18.18.18',
             'l2-population': False,
             'overlay-network-type': 'vxlan',
             'service_protocol': None,
@@ -470,12 +473,14 @@ class NeutronAPIHooksTests(CharmTestCase):
         )
 
     def test_neutron_plugin_api_relation_joined_dvr(self):
+        self.unit_get.return_value = '172.18.18.18'
         self.IdentityServiceContext.return_value = \
             DummyContext(return_value={})
         _relation_data = {
             'neutron-security-groups': False,
             'enable-dvr': True,
             'enable-l3ha': False,
+            'addr': '172.18.18.18',
             'l2-population': True,
             'overlay-network-type': 'vxlan',
             'service_protocol': None,
@@ -500,12 +505,14 @@ class NeutronAPIHooksTests(CharmTestCase):
         )
 
     def test_neutron_plugin_api_relation_joined_l3ha(self):
+        self.unit_get.return_value = '172.18.18.18'
         self.IdentityServiceContext.return_value = \
             DummyContext(return_value={})
         _relation_data = {
             'neutron-security-groups': False,
             'enable-dvr': False,
             'enable-l3ha': True,
+            'addr': '172.18.18.18',
             'l2-population': False,
             'overlay-network-type': 'vxlan',
             'service_protocol': None,
@@ -530,11 +537,13 @@ class NeutronAPIHooksTests(CharmTestCase):
         )
 
     def test_neutron_plugin_api_relation_joined_w_mtu(self):
+        self.unit_get.return_value = '172.18.18.18'
         self.IdentityServiceContext.return_value = \
             DummyContext(return_value={})
         self.test_config.set('network-device-mtu', 1500)
         _relation_data = {
             'neutron-security-groups': False,
+            'addr': '172.18.18.18',
             'l2-population': False,
             'overlay-network-type': 'vxlan',
             'network-device-mtu': 1500,
@@ -750,3 +759,8 @@ class NeutronAPIHooksTests(CharmTestCase):
             'Not running neutron database migration as migrations are handled '
             'by the neutron-server process or nova-cloud-controller charm.'
         )
+
+    def test_etcd_peer_joined(self):
+        self._call_hook('etcd-proxy-relation-joined')
+        self.assertTrue(self.CONFIGS.register.called)
+        self.CONFIGS.write.assert_called_with('/etc/init/etcd.conf')
