@@ -481,8 +481,8 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
 
         expected = {
             'ml2': {
-                'type_drivers': 'gre,vlan,flat',
-                'tenant_network_types': 'gre,vlan,flat',
+                'type_drivers': 'gre,vlan,flat,local',
+                'tenant_network_types': 'gre,vlan,flat,local',
             },
             'ml2_type_gre': {
                 'tunnel_id_ranges': '1:1000'
