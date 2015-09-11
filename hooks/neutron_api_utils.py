@@ -28,6 +28,7 @@ from charmhelpers.contrib.python.packages import (
 from charmhelpers.core.hookenv import (
     config,
     log,
+    relation_ids,
 )
 
 from charmhelpers.fetch import (
@@ -46,6 +47,11 @@ from charmhelpers.core.host import (
     service_restart,
     write_file,
 )
+
+from charmhelpers.contrib.hahelpers.cluster import (
+    get_hacluster_config,
+)
+
 
 from charmhelpers.core.templating import render
 from charmhelpers.contrib.hahelpers.cluster import is_elected_leader
@@ -495,3 +501,16 @@ def git_post_install(projects_yaml):
            neutron_api_context, perms=0o644)
 
     service_restart('neutron-server')
+
+
+def check_ha_settings(configs):
+    if relation_ids('ha'):
+        try:
+            get_hacluster_config()
+            return 'active', 'hacluster configs complete.'
+        except:
+            return ('blocked',
+                    'hacluster missing configuration: '
+                    'vip, vip_iface, vip_cidr')
+    else:
+        return 'unknown', 'No ha clustering'
