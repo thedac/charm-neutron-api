@@ -132,7 +132,6 @@ class TestNeutronAPIUtils(CharmTestCase):
         [self.assertIn(q_conf, _map.keys()) for q_conf in confs]
         self.assertTrue(nutils.APACHE_24_CONF not in _map.keys())
 
-
     @patch.object(nutils, 'manage_plugin')
     @patch('os.path.exists')
     def test_resource_map_liberty(self, _path_exists, _manage_plugin):
