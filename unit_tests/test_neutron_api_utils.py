@@ -134,6 +134,19 @@ class TestNeutronAPIUtils(CharmTestCase):
 
     @patch.object(nutils, 'manage_plugin')
     @patch('os.path.exists')
+    def test_resource_map_liberty(self, _path_exists, _manage_plugin):
+        _path_exists.return_value = False
+        _manage_plugin.return_value = True
+        self.os_release.return_value = 'liberty'
+        _map = nutils.resource_map()
+        confs = [nutils.NEUTRON_CONF, nutils.NEUTRON_DEFAULT,
+                 nutils.APACHE_CONF, nutils.NEUTRON_LBAAS_CONF,
+                 nutils.NEUTRON_VPNAAS_CONF]
+        [self.assertIn(q_conf, _map.keys()) for q_conf in confs]
+        self.assertTrue(nutils.APACHE_24_CONF not in _map.keys())
+
+    @patch.object(nutils, 'manage_plugin')
+    @patch('os.path.exists')
     def test_resource_map_apache24(self, _path_exists, _manage_plugin):
         _path_exists.return_value = True
         _manage_plugin.return_value = True
@@ -232,7 +245,7 @@ class TestNeutronAPIUtils(CharmTestCase):
         configs = MagicMock()
         nutils.do_openstack_upgrade(configs)
         self.os_release.assert_called_with('neutron-common')
-        self.log.assert_called()
+        self.assertTrue(self.log.called)
         self.configure_installation_source.assert_called_with(
             'cloud:trusty-juno'
         )
@@ -271,7 +284,7 @@ class TestNeutronAPIUtils(CharmTestCase):
         configs = MagicMock()
         nutils.do_openstack_upgrade(configs)
         self.os_release.assert_called_with('neutron-common')
-        self.log.assert_called()
+        self.assertTrue(self.log.called)
         self.configure_installation_source.assert_called_with(
             'cloud:trusty-kilo'
         )
@@ -311,7 +324,7 @@ class TestNeutronAPIUtils(CharmTestCase):
         configs = MagicMock()
         nutils.do_openstack_upgrade(configs)
         self.os_release.assert_called_with('neutron-common')
-        self.log.assert_called()
+        self.assertTrue(self.log.called)
         self.configure_installation_source.assert_called_with(
             'cloud:trusty-kilo'
         )

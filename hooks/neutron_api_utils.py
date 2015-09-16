@@ -114,6 +114,8 @@ API_PORTS = {
 NEUTRON_CONF_DIR = "/etc/neutron"
 
 NEUTRON_CONF = '%s/neutron.conf' % NEUTRON_CONF_DIR
+NEUTRON_LBAAS_CONF = '%s/neutron_lbaas.conf' % NEUTRON_CONF_DIR
+NEUTRON_VPNAAS_CONF = '%s/neutron_vpnaas.conf' % NEUTRON_CONF_DIR
 HAPROXY_CONF = '/etc/haproxy/haproxy.cfg'
 APACHE_CONF = '/etc/apache2/sites-available/openstack_https_frontend'
 APACHE_24_CONF = '/etc/apache2/sites-available/openstack_https_frontend.conf'
@@ -155,6 +157,17 @@ BASE_RESOURCE_MAP = OrderedDict([
         'contexts': [context.HAProxyContext(singlenode_mode=True),
                      neutron_api_context.HAProxyContext()],
         'services': ['haproxy'],
+    }),
+])
+
+LIBERTY_RESOURCE_MAP = OrderedDict([
+    (NEUTRON_LBAAS_CONF, {
+        'services': ['neutron-server'],
+        'contexts': [],
+    }),
+    (NEUTRON_VPNAAS_CONF, {
+        'services': ['neutron-server'],
+        'contexts': [],
     }),
 ])
 
@@ -238,12 +251,16 @@ def determine_ports():
     return list(set(ports))
 
 
-def resource_map():
+def resource_map(release=None):
     '''
     Dynamically generate a map of resources that will be managed for a single
     hook execution.
     '''
+    release = release or os_release('neutron-common')
+
     resource_map = deepcopy(BASE_RESOURCE_MAP)
+    if release >= 'liberty':
+        resource_map.update(LIBERTY_RESOURCE_MAP)
 
     if os.path.exists('/etc/apache2/conf-available'):
         resource_map.pop(APACHE_CONF)
