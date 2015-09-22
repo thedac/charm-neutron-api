@@ -142,7 +142,7 @@ def configure_https():
         identity_joined(rid=rid)
 
 
-@hooks.hook()
+@hooks.hook('install.real')
 def install():
     execd_preinstall()
     configure_installation_source(config('openstack-origin'))
