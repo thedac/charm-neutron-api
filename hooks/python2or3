@@ -6,8 +6,8 @@
 declare -a DEPS=('apt' 'netaddr' 'netifaces' 'pip' 'yaml')
 
 check_and_install() {
-    pkg = ${1}-${2}
-    if ! dpkg -l ${pkg}; then
+    pkg="${1}-${2}"
+    if ! dpkg -s ${pkg} 2>&1 > /dev/null; then
         apt-get -y install ${pkg}
     fi
 }
