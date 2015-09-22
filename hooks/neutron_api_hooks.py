@@ -1,4 +1,4 @@
-#!./hooks/python2or3
+#!/usr/bin/python
 
 import sys
 import uuid
