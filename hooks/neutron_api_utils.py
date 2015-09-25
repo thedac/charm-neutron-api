@@ -19,6 +19,7 @@ from charmhelpers.contrib.openstack.utils import (
     git_pip_venv_dir,
     git_yaml_value,
     configure_installation_source,
+    set_os_workload_status,
 )
 
 from charmhelpers.contrib.python.packages import (
@@ -29,6 +30,7 @@ from charmhelpers.core.hookenv import (
     config,
     log,
     relation_ids,
+    status_get,
 )
 
 from charmhelpers.fetch import (
@@ -503,14 +505,16 @@ def git_post_install(projects_yaml):
     service_restart('neutron-server')
 
 
-def check_ha_settings(configs):
+def check_optional_relations(configs):
     if relation_ids('ha'):
         try:
             get_hacluster_config()
-            return 'active', 'hacluster configs complete.'
         except:
             return ('blocked',
                     'hacluster missing configuration: '
                     'vip, vip_iface, vip_cidr')
+        required_interfaces = {'ha': ['cluster']}
+        set_os_workload_status(configs, required_interfaces)
+        return status_get()
     else:
-        return 'unknown', 'No ha clustering'
+        return 'unknown', 'No optional relations'
