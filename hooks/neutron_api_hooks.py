@@ -63,7 +63,9 @@ from neutron_api_utils import (
     services,
     setup_ipv6,
     get_topics,
-    check_optional_relations
+    check_optional_relations,
+    additional_install_locations,
+    force_etcd_restart,
 )
 from neutron_api_context import (
     get_dvr,
@@ -71,6 +73,7 @@ from neutron_api_context import (
     get_l2population,
     get_overlay_network_type,
     IdentityServiceContext,
+    EtcdContext,
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
@@ -102,7 +105,7 @@ CONFIGS = register_configs()
 
 
 def conditional_neutron_migration():
-    if os_release('neutron-server') < 'kilo':
+    if os_release('neutron-common') < 'kilo':
         log('Not running neutron database migration as migrations are handled '
             'by the neutron-server process or nova-cloud-controller charm.')
         return
@@ -143,6 +146,7 @@ def configure_https():
         identity_joined(rid=rid)
 
 
+@hooks.hook('install.real')
 @hooks.hook()
 @os_workload_status(CONFIGS, REQUIRED_INTERFACES,
                     charm_func=check_optional_relations)
@@ -150,6 +154,9 @@ def install():
     status_set('maintenance', 'Executing pre-install')
     execd_preinstall()
     configure_installation_source(config('openstack-origin'))
+    additional_install_locations(
+        config('neutron-plugin'), config('openstack-origin')
+    )
 
     status_set('maintenance', 'Installing apt packages')
     apt_update()
@@ -194,10 +201,14 @@ def config_changed():
             status_set('maintenance', 'Running Git install')
             git_install(config('openstack-origin-git'))
     else:
-        if openstack_upgrade_available('neutron-server'):
+        if openstack_upgrade_available('neutron-common'):
             status_set('maintenance', 'Running openstack upgrade')
             do_openstack_upgrade(CONFIGS)
 
+    additional_install_locations(
+        config('neutron-plugin'),
+        config('openstack-origin')
+    )
     status_set('maintenance', 'Installing apt packages')
     apt_install(filter_installed_packages(
                 determine_packages(config('openstack-origin'))),
@@ -388,6 +399,7 @@ def neutron_plugin_api_relation_joined(rid=None):
             'enable-dvr': get_dvr(),
             'enable-l3ha': get_l3ha(),
             'overlay-network-type': get_overlay_network_type(),
+            'addr': unit_get('private-address'),
         }
 
         # Provide this value to relations since it needs to be set in multiple
@@ -521,7 +533,8 @@ def zeromq_configuration_relation_joined(relid=None):
                  users="neutron")
 
 
-@hooks.hook('zeromq-configuration-relation-changed')
+@hooks.hook('zeromq-configuration-relation-changed',
+            'neutron-plugin-api-subordinate-relation-changed')
 @os_workload_status(CONFIGS, REQUIRED_INTERFACES,
                     charm_func=check_optional_relations)
 @restart_on_change(restart_map(), stopstart=True)
@@ -541,6 +554,20 @@ def update_nrpe_config():
     nrpe.add_init_service_checks(nrpe_setup, services(), current_unit)
     nrpe.add_haproxy_checks(nrpe_setup, current_unit)
     nrpe_setup.write()
+
+
+@hooks.hook('etcd-proxy-relation-joined')
+@hooks.hook('etcd-proxy-relation-changed')
+def etcd_proxy_force_restart(relation_id=None):
+    # note(cory.benfield): Mostly etcd does not require active management,
+    # but occasionally it does require a full config nuking. This does not
+    # play well with the standard neutron-api config management, so we
+    # treat etcd like the special snowflake it insists on being.
+    CONFIGS.register('/etc/init/etcd.conf', [EtcdContext()])
+    CONFIGS.write('/etc/init/etcd.conf')
+
+    if 'etcd-proxy' in CONFIGS.complete_contexts():
+        force_etcd_restart()
 
 
 def main():

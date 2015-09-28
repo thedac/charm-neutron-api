@@ -4,6 +4,7 @@ from functools import partial
 import os
 import shutil
 import subprocess
+import glob
 from base64 import b64encode
 from charmhelpers.contrib.openstack import context, templating
 from charmhelpers.contrib.openstack.neutron import (
@@ -41,11 +42,13 @@ from charmhelpers.fetch import (
 )
 
 from charmhelpers.core.host import (
+    lsb_release,
     adduser,
     add_group,
     add_user_to_group,
     mkdir,
-    lsb_release,
+    service_stop,
+    service_start,
     service_restart,
     write_file,
 )
@@ -119,6 +122,8 @@ API_PORTS = {
 NEUTRON_CONF_DIR = "/etc/neutron"
 
 NEUTRON_CONF = '%s/neutron.conf' % NEUTRON_CONF_DIR
+NEUTRON_LBAAS_CONF = '%s/neutron_lbaas.conf' % NEUTRON_CONF_DIR
+NEUTRON_VPNAAS_CONF = '%s/neutron_vpnaas.conf' % NEUTRON_CONF_DIR
 HAPROXY_CONF = '/etc/haproxy/haproxy.cfg'
 APACHE_CONF = '/etc/apache2/sites-available/openstack_https_frontend'
 APACHE_24_CONF = '/etc/apache2/sites-available/openstack_https_frontend.conf'
@@ -171,9 +176,55 @@ REQUIRED_INTERFACES = {
     'identity': ['identity-service'],
 }
 
+LIBERTY_RESOURCE_MAP = OrderedDict([
+    (NEUTRON_LBAAS_CONF, {
+        'services': ['neutron-server'],
+        'contexts': [],
+    }),
+    (NEUTRON_VPNAAS_CONF, {
+        'services': ['neutron-server'],
+        'contexts': [],
+    }),
+])
+
 
 def api_port(service):
     return API_PORTS[service]
+
+
+def additional_install_locations(plugin, source):
+    '''
+    Add any required additional package locations for the charm, based
+    on the Neutron plugin being used. This will also force an immediate
+    package upgrade.
+    '''
+    if plugin == 'Calico':
+        if config('calico-origin'):
+            calico_source = config('calico-origin')
+        else:
+            release = get_os_codename_install_source(source)
+            calico_source = 'ppa:project-calico/%s' % release
+
+        add_source(calico_source)
+
+        apt_update()
+        apt_upgrade()
+
+
+def force_etcd_restart():
+    '''
+    If etcd has been reconfigured we need to force it to fully restart.
+    This is necessary because etcd has some config flags that it ignores
+    after the first time it starts, so we need to make it forget them.
+    '''
+    service_stop('etcd')
+    for directory in glob.glob('/var/lib/etcd/*'):
+        shutil.rmtree(directory)
+    service_start('etcd')
+
+
+def manage_plugin():
+    return config('manage-neutron-plugin-legacy-mode')
 
 
 def determine_packages(source=None):
@@ -182,10 +233,11 @@ def determine_packages(source=None):
 
     for v in resource_map().values():
         packages.extend(v['services'])
-        pkgs = neutron_plugin_attribute(config('neutron-plugin'),
-                                        'server_packages',
-                                        'neutron')
-        packages.extend(pkgs)
+        if manage_plugin():
+            pkgs = neutron_plugin_attribute(config('neutron-plugin'),
+                                            'server_packages',
+                                            'neutron')
+            packages.extend(pkgs)
 
     if get_os_codename_install_source(source) >= 'kilo':
         packages.extend(KILO_PACKAGES)
@@ -215,41 +267,52 @@ def determine_ports():
     return list(set(ports))
 
 
-def resource_map():
+def resource_map(release=None):
     '''
     Dynamically generate a map of resources that will be managed for a single
     hook execution.
     '''
+    release = release or os_release('neutron-common')
+
     resource_map = deepcopy(BASE_RESOURCE_MAP)
+    if release >= 'liberty':
+        resource_map.update(LIBERTY_RESOURCE_MAP)
 
     if os.path.exists('/etc/apache2/conf-available'):
         resource_map.pop(APACHE_CONF)
     else:
         resource_map.pop(APACHE_24_CONF)
 
-    # add neutron plugin requirements. nova-c-c only needs the neutron-server
-    # associated with configs, not the plugin agent.
-    plugin = config('neutron-plugin')
-    conf = neutron_plugin_attribute(plugin, 'config', 'neutron')
-    ctxts = (neutron_plugin_attribute(plugin, 'contexts', 'neutron')
-             or [])
-    services = neutron_plugin_attribute(plugin, 'server_services',
-                                        'neutron')
-    resource_map[conf] = {}
-    resource_map[conf]['services'] = services
-    resource_map[conf]['contexts'] = ctxts
-    resource_map[conf]['contexts'].append(
-        neutron_api_context.NeutronCCContext())
+    if manage_plugin():
+        # add neutron plugin requirements. nova-c-c only needs the
+        # neutron-server associated with configs, not the plugin agent.
+        plugin = config('neutron-plugin')
+        conf = neutron_plugin_attribute(plugin, 'config', 'neutron')
+        ctxts = (neutron_plugin_attribute(plugin, 'contexts', 'neutron')
+                 or [])
+        services = neutron_plugin_attribute(plugin, 'server_services',
+                                            'neutron')
+        resource_map[conf] = {}
+        resource_map[conf]['services'] = services
+        resource_map[conf]['contexts'] = ctxts
+        resource_map[conf]['contexts'].append(
+            neutron_api_context.NeutronCCContext())
 
-    # update for postgres
-    resource_map[conf]['contexts'].append(
-        context.PostgresqlDBContext(database=config('database')))
+        # update for postgres
+        resource_map[conf]['contexts'].append(
+            context.PostgresqlDBContext(database=config('database')))
 
+    else:
+        resource_map[NEUTRON_CONF]['contexts'].append(
+            neutron_api_context.NeutronApiSDNContext()
+        )
+        resource_map[NEUTRON_DEFAULT]['contexts'] = \
+            [neutron_api_context.NeutronApiSDNConfigFileContext()]
     return resource_map
 
 
 def register_configs(release=None):
-    release = release or os_release('neutron-server')
+    release = release or os_release('neutron-common')
     configs = templating.OSConfigRenderer(templates_dir=TEMPLATES,
                                           openstack_release=release)
     for cfg, rscs in resource_map().iteritems():
@@ -287,7 +350,7 @@ def do_openstack_upgrade(configs):
 
     :param configs: The charms main OSConfigRenderer object.
     """
-    cur_os_rel = os_release('neutron-server')
+    cur_os_rel = os_release('neutron-common')
     new_src = config('openstack-origin')
     new_os_rel = get_os_codename_install_source(new_src)
 
@@ -359,12 +422,11 @@ def setup_ipv6():
         raise Exception("IPv6 is not supported in the charms for Ubuntu "
                         "versions less than Trusty 14.04")
 
-    # NOTE(xianghui): Need to install haproxy(1.5.3) from trusty-backports
-    # to support ipv6 address, so check is required to make sure not
-    # breaking other versions, IPv6 only support for >= Trusty
-    if ubuntu_rel == 'trusty':
-        add_source('deb http://archive.ubuntu.com/ubuntu trusty-backports'
-                   ' main')
+    # Need haproxy >= 1.5.3 for ipv6 so for Trusty if we are <= Kilo we need to
+    # use trusty-backports otherwise we can use the UCA.
+    if ubuntu_rel == 'trusty' and os_release('neutron-server') < 'liberty':
+        add_source('deb http://archive.ubuntu.com/ubuntu trusty-backports '
+                   'main')
         apt_update()
         apt_install('haproxy/trusty-backports', fatal=True)
 
