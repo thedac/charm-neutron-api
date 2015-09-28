@@ -369,6 +369,8 @@ def neutron_api_relation_changed():
 
 
 @hooks.hook('neutron-plugin-api-relation-joined')
+@os_workload_status(CONFIGS, REQUIRED_INTERFACES,
+                    charm_func=check_optional_relations)
 def neutron_plugin_api_relation_joined(rid=None):
     if config('neutron-plugin') == 'nsx':
         relation_data = {

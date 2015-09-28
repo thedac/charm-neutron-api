@@ -506,14 +506,20 @@ def git_post_install(projects_yaml):
 
 
 def check_optional_relations(configs):
+    required_interfaces = {}
     if relation_ids('ha'):
+        required_interfaces['ha'] = ['cluster']
         try:
             get_hacluster_config()
         except:
             return ('blocked',
                     'hacluster missing configuration: '
                     'vip, vip_iface, vip_cidr')
-        required_interfaces = {'ha': ['cluster']}
+
+    if relation_ids('neutron-plugin-api'):
+        required_interfaces['neutron-plugin-api'] = ['neutron-plugin-api']
+
+    if required_interfaces:
         set_os_workload_status(configs, required_interfaces)
         return status_get()
     else:
