@@ -99,6 +99,7 @@ options:
       .
         ovs - OpenvSwitch Plugin
         nsx - VMWare NSX
+        Calico - Project Calico Networking
       .
   overlay-network-type:
     default: gre
@@ -368,3 +369,32 @@ options:
     description: |
       A comma-separated list of nagios servicegroups.
       If left empty, the nagios_context will be used as the servicegroup
+  # PLUMgrid Plugin configuration
+  plumgrid-username:
+    default: plumgrid
+    type: string
+    description: Username to access PLUMgrid Director
+  plumgrid-password:
+    default: plumgrid
+    type: string
+    description: Password to access PLUMgrid Director
+  plumgrid-virtual-ip:
+    default:
+    type: string
+    description: IP address of PLUMgrid Director
+  # end of PLUMgrid configuration
+  manage-neutron-plugin-legacy-mode:
+    type: boolean
+    default: True
+    description: |
+      If True neutron-server will install neutron packages for the plugin
+      configured.
+  # Calico plugin configuration
+  calico-origin:
+    default:
+    type: string
+    description: |
+      Repository from which to install Calico packages. If set, must be
+      a PPA URL, of the form ppa:somecustom/ppa. Changing this value
+      after installation will force an immediate software upgrade.
+  # End of Calico plugin configuration

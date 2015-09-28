@@ -162,6 +162,10 @@ class NeutronCCContext(context.NeutronContext):
                     ','.join(config('nsx-controllers').split())
                 ctxt['nsx_controllers_list'] = \
                     config('nsx-controllers').split()
+        if config('neutron-plugin') == 'plumgrid':
+            ctxt['pg_username'] = config('plumgrid-username')
+            ctxt['pg_password'] = config('plumgrid-password')
+            ctxt['virtual_ip'] = config('plumgrid-virtual-ip')
         ctxt['l2_population'] = self.neutron_l2_population
         ctxt['enable_dvr'] = self.neutron_dvr
         ctxt['l3_ha'] = self.neutron_l3ha
@@ -234,3 +238,85 @@ class HAProxyContext(context.HAProxyContext):
         # for haproxy.conf
         ctxt['service_ports'] = port_mapping
         return ctxt
+
+
+class EtcdContext(context.OSContextGenerator):
+    interfaces = ['etcd-proxy']
+
+    def __call__(self):
+        ctxt = {'cluster': ''}
+        cluster_string = ''
+
+        if not config('neutron-plugin') == 'Calico':
+            return ctxt
+
+        for rid in relation_ids('etcd-proxy'):
+            for unit in related_units(rid):
+                rdata = relation_get(rid=rid, unit=unit)
+                cluster_string = rdata.get('cluster')
+                if cluster_string:
+                    break
+
+        ctxt['cluster'] = cluster_string
+
+        return ctxt
+
+
+class NeutronApiSDNContext(context.SubordinateConfigContext):
+    interfaces = 'neutron-plugin-api-subordinate'
+
+    def __init__(self):
+        super(NeutronApiSDNContext, self).__init__(
+            interface='neutron-plugin-api-subordinate',
+            service='neutron-api',
+            config_file='/etc/neutron/neutron.conf')
+
+    def __call__(self):
+        ctxt = super(NeutronApiSDNContext, self).__call__()
+        defaults = {
+            'core-plugin': {
+                'templ_key': 'core_plugin',
+                'value': 'neutron.plugins.ml2.plugin.Ml2Plugin',
+            },
+            'neutron-plugin-config': {
+                'templ_key': 'neutron_plugin_config',
+                'value': '/etc/neutron/plugins/ml2/ml2_conf.ini',
+            },
+            'service-plugins': {
+                'templ_key': 'service_plugins',
+                'value': 'router,firewall,lbaas,vpnaas,metering',
+            },
+            'restart-trigger': {
+                'templ_key': 'restart_trigger',
+                'value': '',
+            },
+        }
+        for rid in relation_ids('neutron-plugin-api-subordinate'):
+            for unit in related_units(rid):
+                rdata = relation_get(rid=rid, unit=unit)
+                plugin = rdata.get('neutron-plugin')
+                if not plugin:
+                    continue
+                ctxt['neutron_plugin'] = plugin
+                for key in defaults.keys():
+                    remote_value = rdata.get(key)
+                    ctxt_key = defaults[key]['templ_key']
+                    if remote_value:
+                        ctxt[ctxt_key] = remote_value
+                    else:
+                        ctxt[ctxt_key] = defaults[key]['value']
+                return ctxt
+        return ctxt
+
+
+class NeutronApiSDNConfigFileContext(context.OSContextGenerator):
+    interfaces = ['neutron-plugin-api-subordinate']
+
+    def __call__(self):
+        for rid in relation_ids('neutron-plugin-api-subordinate'):
+            for unit in related_units(rid):
+                rdata = relation_get(rid=rid, unit=unit)
+                neutron_server_plugin_conf = rdata.get('neutron-plugin-config')
+                if neutron_server_plugin_conf:
+                    return {'config': neutron_server_plugin_conf}
+        return {'config': '/etc/neutron/plugins/ml2/ml2_conf.ini'}

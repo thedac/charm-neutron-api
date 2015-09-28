@@ -50,6 +50,8 @@ from charmhelpers.core.sysctl import create as sysctl_create
 from charmhelpers.core.strutils import bool_from_string
 
 from charmhelpers.core.host import (
+    get_bond_master,
+    is_phy_iface,
     list_nics,
     get_nic_hwaddr,
     mkdir,
@@ -203,7 +205,7 @@ class OSContextGenerator(object):
         """Check for missing data for the required context data.
         Set self.missing_data if it exists and return False.
         Set self.complete if no missing data and return True.
-        """ 
+        """
         # Fresh start
         self.complete = False
         self.missing_data = []
@@ -528,13 +530,15 @@ class CephContext(OSContextGenerator):
 
         log('Generating template context for ceph', level=DEBUG)
         mon_hosts = []
-        auth = None
-        key = None
-        use_syslog = str(config('use-syslog')).lower()
+        ctxt = {
+            'use_syslog': str(config('use-syslog')).lower()
+        }
         for rid in relation_ids('ceph'):
             for unit in related_units(rid):
-                auth = relation_get('auth', rid=rid, unit=unit)
-                key = relation_get('key', rid=rid, unit=unit)
+                if not ctxt.get('auth'):
+                    ctxt['auth'] = relation_get('auth', rid=rid, unit=unit)
+                if not ctxt.get('key'):
+                    ctxt['key'] = relation_get('key', rid=rid, unit=unit)
                 ceph_pub_addr = relation_get('ceph-public-address', rid=rid,
                                              unit=unit)
                 unit_priv_addr = relation_get('private-address', rid=rid,
@@ -543,10 +547,7 @@ class CephContext(OSContextGenerator):
                 ceph_addr = format_ipv6_addr(ceph_addr) or ceph_addr
                 mon_hosts.append(ceph_addr)
 
-        ctxt = {'mon_hosts': ' '.join(sorted(mon_hosts)),
-                'auth': auth,
-                'key': key,
-                'use_syslog': use_syslog}
+        ctxt['mon_hosts'] = ' '.join(sorted(mon_hosts))
 
         if not os.path.isdir('/etc/ceph'):
             os.mkdir('/etc/ceph')
@@ -938,6 +939,18 @@ class NeutronContext(OSContextGenerator):
                 'neutron_url': '%s://%s:%s' % (proto, host, '9696')}
         return ctxt
 
+    def pg_ctxt(self):
+        driver = neutron_plugin_attribute(self.plugin, 'driver',
+                                          self.network_manager)
+        config = neutron_plugin_attribute(self.plugin, 'config',
+                                          self.network_manager)
+        ovs_ctxt = {'core_plugin': driver,
+                    'neutron_plugin': 'plumgrid',
+                    'neutron_security_groups': self.neutron_security_groups,
+                    'local_ip': unit_private_ip(),
+                    'config': config}
+        return ovs_ctxt
+
     def __call__(self):
         if self.network_manager not in ['quantum', 'neutron']:
             return {}
@@ -957,6 +970,8 @@ class NeutronContext(OSContextGenerator):
             ctxt.update(self.calico_ctxt())
         elif self.plugin == 'vsp':
             ctxt.update(self.nuage_ctxt())
+        elif self.plugin == 'plumgrid':
+            ctxt.update(self.pg_ctxt())
 
         alchemy_flags = config('neutron-alchemy-flags')
         if alchemy_flags:
@@ -968,7 +983,6 @@ class NeutronContext(OSContextGenerator):
 
 
 class NeutronPortContext(OSContextGenerator):
-    NIC_PREFIXES = ['eth', 'bond']
 
     def resolve_ports(self, ports):
         """Resolve NICs not yet bound to bridge(s)
@@ -980,7 +994,18 @@ class NeutronPortContext(OSContextGenerator):
 
         hwaddr_to_nic = {}
         hwaddr_to_ip = {}
-        for nic in list_nics(self.NIC_PREFIXES):
+        for nic in list_nics():
+            # Ignore virtual interfaces (bond masters will be identified from
+            # their slaves)
+            if not is_phy_iface(nic):
+                continue
+
+            _nic = get_bond_master(nic)
+            if _nic:
+                log("Replacing iface '%s' with bond master '%s'" % (nic, _nic),
+                    level=DEBUG)
+                nic = _nic
+
             hwaddr = get_nic_hwaddr(nic)
             hwaddr_to_nic[hwaddr] = nic
             addresses = get_ipv4_addr(nic, fatal=False)
@@ -1006,7 +1031,8 @@ class NeutronPortContext(OSContextGenerator):
                 # trust it to be the real external network).
                 resolved.append(entry)
 
-        return resolved
+        # Ensure no duplicates
+        return list(set(resolved))
 
 
 class OSConfigFlagContext(OSContextGenerator):
@@ -1325,15 +1351,19 @@ class DataPortContext(NeutronPortContext):
     def __call__(self):
         ports = config('data-port')
         if ports:
+            # Map of {port/mac:bridge}
             portmap = parse_data_port_mappings(ports)
-            ports = portmap.values()
+            ports = portmap.keys()
+            # Resolve provided ports or mac addresses and filter out those
+            # already attached to a bridge.
             resolved = self.resolve_ports(ports)
+            # FIXME: is this necessary?
             normalized = {get_nic_hwaddr(port): port for port in resolved
                           if port not in ports}
             normalized.update({port: port for port in resolved
                                if port in ports})
             if resolved:
-                return {bridge: normalized[port] for bridge, port in
+                return {bridge: normalized[port] for port, bridge in
                         six.iteritems(portmap) if port in normalized.keys()}
 
         return None
