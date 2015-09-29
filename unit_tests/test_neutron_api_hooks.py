@@ -244,6 +244,16 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.assertTrue(_zmq_joined.called)
         self.assertTrue(_id_cluster_joined.called)
 
+    @patch.object(hooks, 'git_install_requested')
+    def test_config_changed_with_openstack_upgrade_action(self, git_requested):
+        git_requested.return_value = False
+        self.openstack_upgrade_available.return_value = True
+        self.test_config.set('action-managed-upgrade', True)
+
+        self._call_hook('config-changed')
+
+        self.assertFalse(self.do_openstack_upgrade.called)
+
     def test_amqp_joined(self):
         self._call_hook('amqp-relation-joined')
         self.relation_set.assert_called_with(
