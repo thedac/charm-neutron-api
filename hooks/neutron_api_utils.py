@@ -172,7 +172,7 @@ BASE_RESOURCE_MAP = OrderedDict([
 # list has a complete context.
 REQUIRED_INTERFACES = {
     'database': ['shared-db', 'pgsql-db'],
-    'message': ['amqp', 'zeromq-configuration'],
+    'messaging': ['amqp', 'zeromq-configuration'],
     'identity': ['identity-service'],
 }
 
