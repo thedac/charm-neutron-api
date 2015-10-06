@@ -17,6 +17,7 @@ from charmhelpers.core.hookenv import (
     relation_get,
     relation_ids,
     relation_set,
+    status_set,
     open_port,
     unit_get,
 )
@@ -36,16 +37,18 @@ from charmhelpers.fetch import (
 from charmhelpers.contrib.openstack.utils import (
     config_value_changed,
     configure_installation_source,
+    os_workload_status,
     git_install_requested,
     openstack_upgrade_available,
     os_requires_version,
     os_release,
-    sync_db_with_multi_ipv6_addresses
+    sync_db_with_multi_ipv6_addresses,
 )
 
 from neutron_api_utils import (
     CLUSTER_RES,
     NEUTRON_CONF,
+    REQUIRED_INTERFACES,
     api_port,
     determine_packages,
     determine_ports,
@@ -60,6 +63,7 @@ from neutron_api_utils import (
     services,
     setup_ipv6,
     get_topics,
+    check_optional_relations,
     additional_install_locations,
     force_etcd_restart,
 )
@@ -143,17 +147,23 @@ def configure_https():
 
 
 @hooks.hook('install.real')
+@hooks.hook()
+@os_workload_status(CONFIGS, REQUIRED_INTERFACES,
+                    charm_func=check_optional_relations)
 def install():
+    status_set('maintenance', 'Executing pre-install')
     execd_preinstall()
     configure_installation_source(config('openstack-origin'))
     additional_install_locations(
         config('neutron-plugin'), config('openstack-origin')
     )
 
+    status_set('maintenance', 'Installing apt packages')
     apt_update()
     apt_install(determine_packages(config('openstack-origin')),
                 fatal=True)
 
+    status_set('maintenance', 'Git install')
     git_install(config('openstack-origin-git'))
 
     [open_port(port) for port in determine_ports()]
@@ -161,6 +171,8 @@ def install():
 
 @hooks.hook('upgrade-charm')
 @hooks.hook('config-changed')
+@os_workload_status(CONFIGS, REQUIRED_INTERFACES,
+                    charm_func=check_optional_relations)
 @restart_on_change(restart_map(), stopstart=True)
 def config_changed():
     # If neutron is ready to be queried then check for incompatability between
@@ -169,14 +181,16 @@ def config_changed():
         if l3ha_router_present() and not get_l3ha():
             e = ('Cannot disable Router HA while ha enabled routers exist.'
                  ' Please remove any ha routers')
-            log(e, level=ERROR)
+            status_set('blocked', e)
             raise Exception(e)
         if dvr_router_present() and not get_dvr():
             e = ('Cannot disable dvr while dvr enabled routers exist. Please'
                  ' remove any distributed routers')
             log(e, level=ERROR)
+            status_set('blocked', e)
             raise Exception(e)
     if config('prefer-ipv6'):
+        status_set('maintenance', 'configuring ipv6')
         setup_ipv6()
         sync_db_with_multi_ipv6_addresses(config('database'),
                                           config('database-user'))
@@ -184,15 +198,18 @@ def config_changed():
     global CONFIGS
     if git_install_requested():
         if config_value_changed('openstack-origin-git'):
+            status_set('maintenance', 'Running Git install')
             git_install(config('openstack-origin-git'))
     elif not config('action-managed-upgrade'):
         if openstack_upgrade_available('neutron-common'):
+            status_set('maintenance', 'Running openstack upgrade')
             do_openstack_upgrade(CONFIGS)
 
     additional_install_locations(
         config('neutron-plugin'),
         config('openstack-origin')
     )
+    status_set('maintenance', 'Installing apt packages')
     apt_install(filter_installed_packages(
                 determine_packages(config('openstack-origin'))),
                 fatal=True)
@@ -213,6 +230,8 @@ def config_changed():
 
 
 @hooks.hook('amqp-relation-joined')
+@os_workload_status(CONFIGS, REQUIRED_INTERFACES,
+                    charm_func=check_optional_relations)
 def amqp_joined(relation_id=None):
     relation_set(relation_id=relation_id,
                  username=config('rabbit-user'), vhost=config('rabbit-vhost'))
@@ -220,6 +239,8 @@ def amqp_joined(relation_id=None):
 
 @hooks.hook('amqp-relation-changed')
 @hooks.hook('amqp-relation-departed')
+@os_workload_status(CONFIGS, REQUIRED_INTERFACES,
+                    charm_func=check_optional_relations)
 @restart_on_change(restart_map())
 def amqp_changed():
     if 'amqp' not in CONFIGS.complete_contexts():
@@ -229,6 +250,8 @@ def amqp_changed():
 
 
 @hooks.hook('shared-db-relation-joined')
+@os_workload_status(CONFIGS, REQUIRED_INTERFACES,
+                    charm_func=check_optional_relations)
 def db_joined():
     if is_relation_made('pgsql-db'):
         # error, postgresql is used
@@ -248,6 +271,8 @@ def db_joined():
 
 
 @hooks.hook('pgsql-db-relation-joined')
+@os_workload_status(CONFIGS, REQUIRED_INTERFACES,
+                    charm_func=check_optional_relations)
 def pgsql_neutron_db_joined():
     if is_relation_made('shared-db'):
         # raise error
@@ -260,6 +285,8 @@ def pgsql_neutron_db_joined():
 
 
 @hooks.hook('shared-db-relation-changed')
+@os_workload_status(CONFIGS, REQUIRED_INTERFACES,
+                    charm_func=check_optional_relations)
 @restart_on_change(restart_map())
 def db_changed():
     if 'shared-db' not in CONFIGS.complete_contexts():
@@ -270,6 +297,8 @@ def db_changed():
 
 
 @hooks.hook('pgsql-db-relation-changed')
+@os_workload_status(CONFIGS, REQUIRED_INTERFACES,
+                    charm_func=check_optional_relations)
 @restart_on_change(restart_map())
 def postgresql_neutron_db_changed():
     CONFIGS.write(NEUTRON_CONF)
@@ -280,11 +309,15 @@ def postgresql_neutron_db_changed():
             'identity-service-relation-broken',
             'shared-db-relation-broken',
             'pgsql-db-relation-broken')
+@os_workload_status(CONFIGS, REQUIRED_INTERFACES,
+                    charm_func=check_optional_relations)
 def relation_broken():
     CONFIGS.write_all()
 
 
 @hooks.hook('identity-service-relation-joined')
+@os_workload_status(CONFIGS, REQUIRED_INTERFACES,
+                    charm_func=check_optional_relations)
 def identity_joined(rid=None, relation_trigger=False):
     public_url = '{}:{}'.format(canonical_url(CONFIGS, PUBLIC),
                                 api_port('neutron-server'))
@@ -306,6 +339,8 @@ def identity_joined(rid=None, relation_trigger=False):
 
 
 @hooks.hook('identity-service-relation-changed')
+@os_workload_status(CONFIGS, REQUIRED_INTERFACES,
+                    charm_func=check_optional_relations)
 @restart_on_change(restart_map())
 def identity_changed():
     if 'identity-service' not in CONFIGS.complete_contexts():
@@ -345,6 +380,8 @@ def neutron_api_relation_changed():
 
 
 @hooks.hook('neutron-plugin-api-relation-joined')
+@os_workload_status(CONFIGS, REQUIRED_INTERFACES,
+                    charm_func=check_optional_relations)
 def neutron_plugin_api_relation_joined(rid=None):
     if config('neutron-plugin') == 'nsx':
         relation_data = {
@@ -416,6 +453,8 @@ def cluster_changed():
 
 
 @hooks.hook('ha-relation-joined')
+@os_workload_status(CONFIGS, REQUIRED_INTERFACES,
+                    charm_func=check_optional_relations)
 def ha_joined():
     cluster_config = get_hacluster_config()
     resources = {
@@ -468,6 +507,8 @@ def ha_joined():
 
 
 @hooks.hook('ha-relation-changed')
+@os_workload_status(CONFIGS, REQUIRED_INTERFACES,
+                    charm_func=check_optional_relations)
 def ha_changed():
     clustered = relation_get('clustered')
     if not clustered or clustered in [None, 'None', '']:
@@ -483,6 +524,8 @@ def ha_changed():
 
 
 @hooks.hook('zeromq-configuration-relation-joined')
+@os_workload_status(CONFIGS, REQUIRED_INTERFACES,
+                    charm_func=check_optional_relations)
 @os_requires_version('kilo', 'neutron-server')
 def zeromq_configuration_relation_joined(relid=None):
     relation_set(relation_id=relid,
@@ -492,6 +535,8 @@ def zeromq_configuration_relation_joined(relid=None):
 
 @hooks.hook('zeromq-configuration-relation-changed',
             'neutron-plugin-api-subordinate-relation-changed')
+@os_workload_status(CONFIGS, REQUIRED_INTERFACES,
+                    charm_func=check_optional_relations)
 @restart_on_change(restart_map(), stopstart=True)
 def zeromq_configuration_relation_changed():
     CONFIGS.write_all()

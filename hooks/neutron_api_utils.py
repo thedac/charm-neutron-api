@@ -20,6 +20,7 @@ from charmhelpers.contrib.openstack.utils import (
     git_pip_venv_dir,
     git_yaml_value,
     configure_installation_source,
+    set_os_workload_status,
 )
 
 from charmhelpers.contrib.python.packages import (
@@ -29,6 +30,8 @@ from charmhelpers.contrib.python.packages import (
 from charmhelpers.core.hookenv import (
     config,
     log,
+    relation_ids,
+    status_get,
 )
 
 from charmhelpers.fetch import (
@@ -49,6 +52,11 @@ from charmhelpers.core.host import (
     service_restart,
     write_file,
 )
+
+from charmhelpers.contrib.hahelpers.cluster import (
+    get_hacluster_config,
+)
+
 
 from charmhelpers.core.templating import render
 from charmhelpers.contrib.hahelpers.cluster import is_elected_leader
@@ -159,6 +167,14 @@ BASE_RESOURCE_MAP = OrderedDict([
         'services': ['haproxy'],
     }),
 ])
+
+# The interface is said to be satisfied if anyone of the interfaces in the
+# list has a complete context.
+REQUIRED_INTERFACES = {
+    'database': ['shared-db', 'pgsql-db'],
+    'messaging': ['amqp', 'zeromq-configuration'],
+    'identity': ['identity-service'],
+}
 
 LIBERTY_RESOURCE_MAP = OrderedDict([
     (NEUTRON_LBAAS_CONF, {
@@ -549,3 +565,24 @@ def git_post_install(projects_yaml):
            neutron_api_context, perms=0o644)
 
     service_restart('neutron-server')
+
+
+def check_optional_relations(configs):
+    required_interfaces = {}
+    if relation_ids('ha'):
+        required_interfaces['ha'] = ['cluster']
+        try:
+            get_hacluster_config()
+        except:
+            return ('blocked',
+                    'hacluster missing configuration: '
+                    'vip, vip_iface, vip_cidr')
+
+    if relation_ids('neutron-plugin-api'):
+        required_interfaces['neutron-plugin-api'] = ['neutron-plugin-api']
+
+    if required_interfaces:
+        set_os_workload_status(configs, required_interfaces)
+        return status_get()
+    else:
+        return 'unknown', 'No optional relations'
