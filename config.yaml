@@ -110,19 +110,6 @@ options:
         gre
         vxlan
       .
-  neutron-plugin-ppa-key:
-    type: string
-    default:
-    description: Optional PPA key to Neutron Plugin containing Debian packages.
-  neutron-plugin-repository-url:
-    type: string
-    default:
-    description: Optional URL to Neutron Plugin containing Debian packages.
-  neutron-plugin-tarball-url:
-    type: string
-    default:
-    description: Optional URL to Neutron Plugin containing python packages.
-      Multiple types can be provided - field is space delimited.
   flat-network-providers:
     type: string
     default:
@@ -305,8 +292,8 @@ options:
     default: csp
     description: Name of the organization in Nuage VSD
   vsd-auth-ssl:
-    type: string
-    default: "True"
+    type: boolean
+    default: True
     description: SSL authentication of the Nuage VSD Server
   vsd-base-uri:
     type: string
@@ -320,6 +307,10 @@ options:
     type: string
     default: juju-enterprise
     description: Name of the Organization or Enterprise to create in Nuage VSD
+  nuage-tarball-url:
+    type: string
+    default:
+    description: Optional URL to tarball containing Nuage python packages.
   # end of Nuage VSD configuration
   l2-population:
     type: boolean
@@ -417,3 +408,13 @@ options:
     description: |
       If True neutron-server will install neutron packages for the plugin
       configured.
+  # Additional software source configuration
+  extra-key:
+    type: string
+    default:
+    description: Optional key for archive containing additional packages.
+  extra-source:
+    type: string
+    default:
+    description: Optional source for archive containing additional packages.
+

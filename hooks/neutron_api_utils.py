@@ -181,7 +181,7 @@ def determine_packages(source=None):
 
     if config('neutron-plugin') == 'vsp':
         packages.append('python-nuagenetlib')
-        nuage_tar_package_location = config('neutron-plugin-tarball-url')
+        nuage_tar_package_location = config('nuage-tarball-url')
         if nuage_tar_package_location is None:
             packages.append('nuage-neutron')
 

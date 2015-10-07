@@ -138,7 +138,7 @@ class NeutronAPIHooksTests(CharmTestCase):
     def test_nuage_install_hook(self, git_requested):
         git_requested.return_value = False
         self.test_config.set('neutron-plugin', 'vsp')
-        self.test_config.set('neutron-plugin-repository-url',
+        self.test_config.set('extra-source',
                              "deb http://10.14.4.1/nuage trusty main")
         _pkgs = ['foo', 'bar', 'python-nuagenetlib']
         _expected_pkgs = list(_pkgs)
