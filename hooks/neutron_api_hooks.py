@@ -156,19 +156,12 @@ def install():
     configure_installation_source(config('openstack-origin'))
     packages = determine_packages(config('openstack-origin'))
 
-    if config('neutron-plugin') == 'vsp':
-        source = config('neutron-plugin-repository-url')
-        if source is not None:
-            key = None
-            if config('neutron-plugin-ppa-key') is not None:
-                key = config('neutron-plugin-ppa-key')
-            add_source(config('neutron-plugin-repository-url'), key)
-
+    add_source(config('extra-source'), config('extra-key'))
     apt_update()
     apt_install(packages, fatal=True)
 
     if config('neutron-plugin') == 'vsp':
-        source = config('neutron-plugin-tarball-url')
+        source = config('nuage-tarball-url')
         if source is not None:
             try:
                 handler = ArchiveUrlFetchHandler()
