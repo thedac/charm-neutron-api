@@ -529,6 +529,7 @@ class NeutronApiSDNContextTest(CharmTestCase):
                                           'ml2_conf.ini'),
                 'service_plugins': 'router,firewall,lbaas,vpnaas,metering',
                 'restart_trigger': '',
+                'quota_driver': '',
                 'neutron_plugin': 'ovs',
                 'sections': {},
             }
@@ -542,12 +543,14 @@ class NeutronApiSDNContextTest(CharmTestCase):
                 'neutron-plugin-config': '/etc/neutron/plugins/fl/flump.ini',
                 'service-plugins': 'router,unicorn,rainbows',
                 'restart-trigger': 'restartnow',
+                'quota-driver': 'quotadriver',
             },
             {
                 'core_plugin': 'neutron.plugins.ml2.plugin.MidoPlumODL',
                 'neutron_plugin_config': '/etc/neutron/plugins/fl/flump.ini',
                 'service_plugins': 'router,unicorn,rainbows',
                 'restart_trigger': 'restartnow',
+                'quota_driver': 'quotadriver',
                 'neutron_plugin': 'ovs',
                 'sections': {},
             }
@@ -576,6 +579,7 @@ class NeutronApiSDNContextTest(CharmTestCase):
                                           'ml2_conf.ini'),
                 'service_plugins': 'router,firewall,lbaas,vpnaas,metering',
                 'restart_trigger': '',
+                'quota_driver': '',
                 'neutron_plugin': 'ovs',
                 'sections': {u'DEFAULT': [[u'neutronboost', True]]},
             }
