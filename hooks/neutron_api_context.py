@@ -290,6 +290,10 @@ class NeutronApiSDNContext(context.SubordinateConfigContext):
                 'templ_key': 'restart_trigger',
                 'value': '',
             },
+            'quota-driver': {
+                'templ_key': 'quota_driver',
+                'value': '',
+            },
         }
         for rid in relation_ids('neutron-plugin-api-subordinate'):
             for unit in related_units(rid):
