@@ -578,9 +578,6 @@ def check_optional_relations(configs):
                     'hacluster missing configuration: '
                     'vip, vip_iface, vip_cidr')
 
-    if relation_ids('neutron-plugin-api'):
-        required_interfaces['neutron-plugin-api'] = ['neutron-plugin-api']
-
     if required_interfaces:
         set_os_workload_status(configs, required_interfaces)
         return status_get()
