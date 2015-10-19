@@ -1,11 +1,5 @@
-#!/usr/bin/python
-"""
-Basic neutron-api functional test.
-"""
-
 import amulet
 import os
-import time
 import yaml
 
 from charmhelpers.contrib.openstack.amulet.deployment import (
@@ -35,6 +29,11 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
         self._add_relations()
         self._configure_services()
         self._deploy()
+
+        u.log.info('Waiting on extended status checks...')
+        exclude_services = ['mysql']
+        self._auto_wait_for_status(exclude_services=exclude_services)
+
         self._initialize_tests()
 
     def _add_services(self):
@@ -48,6 +47,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
         other_services = [{'name': 'mysql'},
                           {'name': 'rabbitmq-server'},
                           {'name': 'keystone'},
+                          {'name': 'glance'},  # to satisfy workload status
                           {'name': 'neutron-openvswitch'},
                           {'name': 'nova-cloud-controller'},
                           {'name': 'neutron-gateway'},
@@ -68,6 +68,19 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
             'nova-compute:neutron-plugin': 'neutron-openvswitch:'
                                            'neutron-plugin',
             'nova-cloud-controller:shared-db': 'mysql:shared-db',
+            'neutron-gateway:amqp': 'rabbitmq-server:amqp',
+            'nova-cloud-controller:amqp': 'rabbitmq-server:amqp',
+            'nova-compute:amqp': 'rabbitmq-server:amqp',
+            'neutron-openvswitch:amqp': 'rabbitmq-server:amqp',
+            'nova-cloud-controller:identity-service': 'keystone:'
+                                                      'identity-service',
+            'nova-cloud-controller:cloud-compute': 'nova-compute:'
+                                                   'cloud-compute',
+            'glance:identity-service': 'keystone:identity-service',
+            'glance:shared-db': 'mysql:shared-db',
+            'glance:amqp': 'rabbitmq-server:amqp',
+            'nova-compute:image-service': 'glance:image-service',
+            'nova-cloud-controller:image-service': 'glance:image-service',
         }
 
         # NOTE(beisner): relate this separately due to the resulting
@@ -158,8 +171,6 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
             self._get_openstack_release()))
         u.log.debug('openstack release str: {}'.format(
             self._get_openstack_release_string()))
-        # Let things settle a bit before moving forward
-        time.sleep(30)
 
     def test_100_services(self):
         """Verify the expected services are running on the corresponding
@@ -225,13 +236,6 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
             'private-address': u.valid_ip,
             'password': u.not_null
         }
-
-        if self._get_openstack_release() == self.precise_icehouse:
-            # Precise
-            expected['allowed_units'] = 'nova-cloud-controller/0 neutron-api/0'
-        else:
-            # Not Precise
-            expected['allowed_units'] = 'neutron-api/0'
 
         ret = u.validate_relation_data(unit, relation, expected)
         if ret:
