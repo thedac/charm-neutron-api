@@ -277,6 +277,9 @@ class NeutronCCContextTest(CharmTestCase):
         self.test_config.set('vsd-organization', 'foo')
         self.test_config.set('vsd-base-uri', '/nuage/api/v1_0')
         self.test_config.set('vsd-netpart-name', 'foo-enterprise')
+        self.test_config.set('plumgrid-username', 'plumgrid')
+        self.test_config.set('plumgrid-password', 'plumgrid')
+        self.test_config.set('plumgrid-virtual-ip', '192.168.100.250')
 
     def tearDown(self):
         super(NeutronCCContextTest, self).tearDown()
@@ -459,6 +462,53 @@ class NeutronCCContextTest(CharmTestCase):
             self.assertEquals(napi_ctxt[key], expect[key])
 
 
+class EtcdContextTest(CharmTestCase):
+
+    def setUp(self):
+        super(EtcdContextTest, self).setUp(context, TO_PATCH)
+        self.relation_get.side_effect = self.test_relation.get
+        self.config.side_effect = self.test_config.get
+        self.test_config.set('neutron-plugin', 'Calico')
+
+    def tearDown(self):
+        super(EtcdContextTest, self).tearDown()
+
+    def test_etcd_no_related_units(self):
+        self.related_units.return_value = []
+        ctxt = context.EtcdContext()()
+        expect = {'cluster': ''}
+
+        self.assertEquals(expect, ctxt)
+
+    def test_some_related_units(self):
+        self.related_units.return_value = ['unit1']
+        self.relation_ids.return_value = ['rid2', 'rid3']
+        result = (
+            'testname=http://172.18.18.18:8888,'
+            'testname=http://172.18.18.18:8888'
+        )
+        self.test_relation.set({'cluster': result})
+
+        ctxt = context.EtcdContext()()
+        expect = {'cluster': result}
+
+        self.assertEquals(expect, ctxt)
+
+    def test_early_exit(self):
+        self.test_config.set('neutron-plugin', 'notCalico')
+
+        self.related_units.return_value = ['unit1']
+        self.relation_ids.return_value = ['rid2', 'rid3']
+        self.test_relation.set({'ip': '172.18.18.18',
+                                'port': 8888,
+                                'name': 'testname'})
+
+        ctxt = context.EtcdContext()()
+        expect = {'cluster': ''}
+
+        self.assertEquals(expect, ctxt)
+
+
 class NeutronApiSDNContextTest(CharmTestCase):
 
     def setUp(self):
@@ -503,6 +553,7 @@ class NeutronApiSDNContextTest(CharmTestCase):
                                           'ml2_conf.ini'),
                 'service_plugins': 'router,firewall,lbaas,vpnaas,metering',
                 'restart_trigger': '',
+                'quota_driver': '',
                 'neutron_plugin': 'ovs',
                 'sections': {},
             }
@@ -516,12 +567,14 @@ class NeutronApiSDNContextTest(CharmTestCase):
                 'neutron-plugin-config': '/etc/neutron/plugins/fl/flump.ini',
                 'service-plugins': 'router,unicorn,rainbows',
                 'restart-trigger': 'restartnow',
+                'quota-driver': 'quotadriver',
             },
             {
                 'core_plugin': 'neutron.plugins.ml2.plugin.MidoPlumODL',
                 'neutron_plugin_config': '/etc/neutron/plugins/fl/flump.ini',
                 'service_plugins': 'router,unicorn,rainbows',
                 'restart_trigger': 'restartnow',
+                'quota_driver': 'quotadriver',
                 'neutron_plugin': 'ovs',
                 'sections': {},
             }
@@ -550,6 +603,7 @@ class NeutronApiSDNContextTest(CharmTestCase):
                                           'ml2_conf.ini'),
                 'service_plugins': 'router,firewall,lbaas,vpnaas,metering',
                 'restart_trigger': '',
+                'quota_driver': '',
                 'neutron_plugin': 'ovs',
                 'sections': {u'DEFAULT': [[u'neutronboost', True]]},
             }

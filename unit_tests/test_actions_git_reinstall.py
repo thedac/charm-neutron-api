@@ -1,5 +1,6 @@
 from mock import patch, MagicMock
 
+patch('charmhelpers.core.hookenv.status_set').start()
 with patch('charmhelpers.core.hookenv.config') as config:
     config.return_value = 'neutron'
     import neutron_api_utils as utils  # noqa

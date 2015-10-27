@@ -64,6 +64,7 @@ TO_PATCH = [
     'service_reload',
     'neutron_plugin_attribute',
     'IdentityServiceContext',
+    'force_etcd_restart',
 ]
 NEUTRON_CONF_DIR = "/etc/neutron"
 
@@ -285,6 +286,16 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.assertTrue(_zmq_joined.called)
         self.assertTrue(_id_cluster_joined.called)
 
+    @patch.object(hooks, 'git_install_requested')
+    def test_config_changed_with_openstack_upgrade_action(self, git_requested):
+        git_requested.return_value = False
+        self.openstack_upgrade_available.return_value = True
+        self.test_config.set('action-managed-upgrade', True)
+
+        self._call_hook('config-changed')
+
+        self.assertFalse(self.do_openstack_upgrade.called)
+
     def test_amqp_joined(self):
         self._call_hook('amqp-relation-joined')
         self.relation_set.assert_called_with(
@@ -492,12 +503,14 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.assertTrue(self.CONFIGS.write.called_with(NEUTRON_CONF))
 
     def test_neutron_plugin_api_relation_joined_nol2(self):
+        self.unit_get.return_value = '172.18.18.18'
         self.IdentityServiceContext.return_value = \
             DummyContext(return_value={})
         _relation_data = {
             'neutron-security-groups': False,
             'enable-dvr': False,
             'enable-l3ha': False,
+            'addr': '172.18.18.18',
             'l2-population': False,
             'overlay-network-type': 'vxlan',
             'service_protocol': None,
@@ -522,12 +535,14 @@ class NeutronAPIHooksTests(CharmTestCase):
         )
 
     def test_neutron_plugin_api_relation_joined_dvr(self):
+        self.unit_get.return_value = '172.18.18.18'
         self.IdentityServiceContext.return_value = \
             DummyContext(return_value={})
         _relation_data = {
             'neutron-security-groups': False,
             'enable-dvr': True,
             'enable-l3ha': False,
+            'addr': '172.18.18.18',
             'l2-population': True,
             'overlay-network-type': 'vxlan',
             'service_protocol': None,
@@ -552,12 +567,14 @@ class NeutronAPIHooksTests(CharmTestCase):
         )
 
     def test_neutron_plugin_api_relation_joined_l3ha(self):
+        self.unit_get.return_value = '172.18.18.18'
         self.IdentityServiceContext.return_value = \
             DummyContext(return_value={})
         _relation_data = {
             'neutron-security-groups': False,
             'enable-dvr': False,
             'enable-l3ha': True,
+            'addr': '172.18.18.18',
             'l2-population': False,
             'overlay-network-type': 'vxlan',
             'service_protocol': None,
@@ -582,11 +599,13 @@ class NeutronAPIHooksTests(CharmTestCase):
         )
 
     def test_neutron_plugin_api_relation_joined_w_mtu(self):
+        self.unit_get.return_value = '172.18.18.18'
         self.IdentityServiceContext.return_value = \
             DummyContext(return_value={})
         self.test_config.set('network-device-mtu', 1500)
         _relation_data = {
             'neutron-security-groups': False,
+            'addr': '172.18.18.18',
             'l2-population': False,
             'overlay-network-type': 'vxlan',
             'network-device-mtu': 1500,
@@ -745,9 +764,8 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.relation_ids.side_effect = self._fake_relids
         _id_rel_joined = self.patch('identity_joined')
         hooks.configure_https()
-        calls = [call('a2dissite', 'openstack_https_frontend'),
-                 call('service', 'apache2', 'reload')]
-        self.check_call.assert_called_has_calls(calls)
+        self.check_call.assert_called_with(['a2ensite',
+                                            'openstack_https_frontend'])
         self.assertTrue(_id_rel_joined.called)
 
     def test_configure_https_nohttps(self):
@@ -755,9 +773,8 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.relation_ids.side_effect = self._fake_relids
         _id_rel_joined = self.patch('identity_joined')
         hooks.configure_https()
-        calls = [call('a2dissite', 'openstack_https_frontend'),
-                 call('service', 'apache2', 'reload')]
-        self.check_call.assert_called_has_calls(calls)
+        self.check_call.assert_called_with(['a2dissite',
+                                            'openstack_https_frontend'])
         self.assertTrue(_id_rel_joined.called)
 
     def test_conditional_neutron_migration_icehouse(self):
@@ -802,3 +819,8 @@ class NeutronAPIHooksTests(CharmTestCase):
             'Not running neutron database migration as migrations are handled '
             'by the neutron-server process or nova-cloud-controller charm.'
         )
+
+    def test_etcd_peer_joined(self):
+        self._call_hook('etcd-proxy-relation-joined')
+        self.assertTrue(self.CONFIGS.register.called)
+        self.CONFIGS.write.assert_called_with('/etc/init/etcd.conf')
