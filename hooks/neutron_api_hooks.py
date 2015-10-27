@@ -19,6 +19,7 @@ from charmhelpers.core.hookenv import (
     relation_get,
     relation_ids,
     relation_set,
+    status_set,
     open_port,
     unit_get,
 )
@@ -39,16 +40,18 @@ from charmhelpers.fetch import (
 from charmhelpers.contrib.openstack.utils import (
     config_value_changed,
     configure_installation_source,
+    set_os_workload_status,
     git_install_requested,
     openstack_upgrade_available,
     os_requires_version,
     os_release,
-    sync_db_with_multi_ipv6_addresses
+    sync_db_with_multi_ipv6_addresses,
 )
 
 from neutron_api_utils import (
     CLUSTER_RES,
     NEUTRON_CONF,
+    REQUIRED_INTERFACES,
     api_port,
     determine_packages,
     determine_ports,
@@ -63,6 +66,9 @@ from neutron_api_utils import (
     services,
     setup_ipv6,
     get_topics,
+    check_optional_relations,
+    additional_install_locations,
+    force_etcd_restart,
 )
 from neutron_api_context import (
     get_dvr,
@@ -70,6 +76,7 @@ from neutron_api_context import (
     get_l2population,
     get_overlay_network_type,
     IdentityServiceContext,
+    EtcdContext,
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
@@ -150,14 +157,20 @@ def configure_https():
         identity_joined(rid=rid)
 
 
+@hooks.hook('install.real')
 @hooks.hook()
 def install():
+    status_set('maintenance', 'Executing pre-install')
     execd_preinstall()
     configure_installation_source(config('openstack-origin'))
-    packages = determine_packages(config('openstack-origin'))
+    additional_install_locations(
+        config('neutron-plugin'), config('openstack-origin')
+    )
 
     add_source(config('extra-source'), config('extra-key'))
+    status_set('maintenance', 'Installing apt packages')
     apt_update()
+    packages = determine_packages(config('openstack-origin'))
     apt_install(packages, fatal=True)
 
     if config('neutron-plugin') == 'vsp':
@@ -183,6 +196,7 @@ def install():
                 log('install failed with error: {}'.format(e.message))
                 raise Exception(e)
 
+    status_set('maintenance', 'Git install')
     git_install(config('openstack-origin-git'))
 
     [open_port(port) for port in determine_ports()]
@@ -213,14 +227,16 @@ def config_changed():
         if l3ha_router_present() and not get_l3ha():
             e = ('Cannot disable Router HA while ha enabled routers exist.'
                  ' Please remove any ha routers')
-            log(e, level=ERROR)
+            status_set('blocked', e)
             raise Exception(e)
         if dvr_router_present() and not get_dvr():
             e = ('Cannot disable dvr while dvr enabled routers exist. Please'
                  ' remove any distributed routers')
             log(e, level=ERROR)
+            status_set('blocked', e)
             raise Exception(e)
     if config('prefer-ipv6'):
+        status_set('maintenance', 'configuring ipv6')
         setup_ipv6()
         sync_db_with_multi_ipv6_addresses(config('database'),
                                           config('database-user'))
@@ -228,11 +244,18 @@ def config_changed():
     global CONFIGS
     if git_install_requested():
         if config_value_changed('openstack-origin-git'):
+            status_set('maintenance', 'Running Git install')
             git_install(config('openstack-origin-git'))
-    else:
-        if openstack_upgrade_available('neutron-server'):
+    elif not config('action-managed-upgrade'):
+        if openstack_upgrade_available('neutron-common'):
+            status_set('maintenance', 'Running openstack upgrade')
             do_openstack_upgrade(CONFIGS)
 
+    additional_install_locations(
+        config('neutron-plugin'),
+        config('openstack-origin')
+    )
+    status_set('maintenance', 'Installing apt packages')
     apt_install(filter_installed_packages(
                 determine_packages(config('openstack-origin'))),
                 fatal=True)
@@ -402,6 +425,7 @@ def neutron_plugin_api_relation_joined(rid=None):
             'enable-dvr': get_dvr(),
             'enable-l3ha': get_l3ha(),
             'overlay-network-type': get_overlay_network_type(),
+            'addr': unit_get('private-address'),
         }
 
         # Provide this value to relations since it needs to be set in multiple
@@ -550,11 +574,27 @@ def update_nrpe_config():
     nrpe_setup.write()
 
 
+@hooks.hook('etcd-proxy-relation-joined')
+@hooks.hook('etcd-proxy-relation-changed')
+def etcd_proxy_force_restart(relation_id=None):
+    # note(cory.benfield): Mostly etcd does not require active management,
+    # but occasionally it does require a full config nuking. This does not
+    # play well with the standard neutron-api config management, so we
+    # treat etcd like the special snowflake it insists on being.
+    CONFIGS.register('/etc/init/etcd.conf', [EtcdContext()])
+    CONFIGS.write('/etc/init/etcd.conf')
+
+    if 'etcd-proxy' in CONFIGS.complete_contexts():
+        force_etcd_restart()
+
+
 def main():
     try:
         hooks.execute(sys.argv)
     except UnregisteredHookError as e:
         log('Unknown hook {} - skipping.'.format(e))
+    set_os_workload_status(CONFIGS, REQUIRED_INTERFACES,
+                           charm_func=check_optional_relations)
 
 
 if __name__ == '__main__':

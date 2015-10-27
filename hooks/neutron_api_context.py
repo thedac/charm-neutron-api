@@ -162,6 +162,10 @@ class NeutronCCContext(context.NeutronContext):
                     ','.join(config('nsx-controllers').split())
                 ctxt['nsx_controllers_list'] = \
                     config('nsx-controllers').split()
+        if config('neutron-plugin') == 'plumgrid':
+            ctxt['pg_username'] = config('plumgrid-username')
+            ctxt['pg_password'] = config('plumgrid-password')
+            ctxt['virtual_ip'] = config('plumgrid-virtual-ip')
         ctxt['l2_population'] = self.neutron_l2_population
         ctxt['enable_dvr'] = self.neutron_dvr
         ctxt['l3_ha'] = self.neutron_l3ha
@@ -251,6 +255,28 @@ class HAProxyContext(context.HAProxyContext):
         return ctxt
 
 
+class EtcdContext(context.OSContextGenerator):
+    interfaces = ['etcd-proxy']
+
+    def __call__(self):
+        ctxt = {'cluster': ''}
+        cluster_string = ''
+
+        if not config('neutron-plugin') == 'Calico':
+            return ctxt
+
+        for rid in relation_ids('etcd-proxy'):
+            for unit in related_units(rid):
+                rdata = relation_get(rid=rid, unit=unit)
+                cluster_string = rdata.get('cluster')
+                if cluster_string:
+                    break
+
+        ctxt['cluster'] = cluster_string
+
+        return ctxt
+
+
 class NeutronApiSDNContext(context.SubordinateConfigContext):
     interfaces = 'neutron-plugin-api-subordinate'
 
@@ -277,6 +303,10 @@ class NeutronApiSDNContext(context.SubordinateConfigContext):
             },
             'restart-trigger': {
                 'templ_key': 'restart_trigger',
+                'value': '',
+            },
+            'quota-driver': {
+                'templ_key': 'quota_driver',
                 'value': '',
             },
         }

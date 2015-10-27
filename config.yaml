@@ -100,6 +100,7 @@ options:
         ovs - OpenvSwitch Plugin
         vsp - Nuage Networks VSP
         nsx - VMWare NSX
+        Calico - Project Calico Networking
       .
   overlay-network-type:
     default: gre
@@ -110,6 +111,7 @@ options:
         gre
         vxlan
       .
+      Multiple types can be provided - field is space delimited.
   flat-network-providers:
     type: string
     default:
@@ -402,6 +404,20 @@ options:
     description: |
       A comma-separated list of nagios servicegroups.
       If left empty, the nagios_context will be used as the servicegroup
+  # PLUMgrid Plugin configuration
+  plumgrid-username:
+    default: plumgrid
+    type: string
+    description: Username to access PLUMgrid Director
+  plumgrid-password:
+    default: plumgrid
+    type: string
+    description: Password to access PLUMgrid Director
+  plumgrid-virtual-ip:
+    default:
+    type: string
+    description: IP address of PLUMgrid Director
+  # end of PLUMgrid configuration
   manage-neutron-plugin-legacy-mode:
     type: boolean
     default: True
@@ -418,3 +434,22 @@ options:
     default:
     description: Optional source for archive containing additional packages.
 
+  # Calico plugin configuration
+  calico-origin:
+    default:
+    type: string
+    description: |
+      Repository from which to install Calico packages. If set, must be
+      a PPA URL, of the form ppa:somecustom/ppa. Changing this value
+      after installation will force an immediate software upgrade.
+  # End of Calico plugin configuration
+  action-managed-upgrade:
+    type: boolean
+    default: False
+    description: |
+      If True enables openstack upgrades for this charm via juju actions.
+      You will still need to set openstack-origin to the new repository but
+      instead of an upgrade running automatically across all units, it will
+      wait for you to execute the openstack-upgrade action for this charm on
+      each unit. If False it will revert to existing behavior of upgrading
+      all units on config change.
