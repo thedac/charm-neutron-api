@@ -217,7 +217,7 @@ class HAProxyContextTest(CharmTestCase):
     @patch('__builtin__.__import__')
     @patch('__builtin__.open')
     def test_context_peers(self, _open, _import, _log, _rids, _runits, _rget,
-                           _uget, _lunit, _config,  _get_address_in_network,
+                           _uget, _lunit, _config, _get_address_in_network,
                            _get_netmask_for_address):
         unit_addresses = {
             'neutron-api-0': '10.10.10.10',
