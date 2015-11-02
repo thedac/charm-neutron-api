@@ -466,7 +466,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
                 'service_port': rel_napi_ks['service_port'],
                 'auth_host': rel_napi_ks['auth_host'],
                 'auth_port': rel_napi_ks['auth_port'],
-                'auth_protocol':  rel_napi_ks['auth_protocol']
+                'auth_protocol': rel_napi_ks['auth_protocol']
             })
 
         for section, pairs in expected.iteritems():
