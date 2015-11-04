@@ -9,6 +9,7 @@ include:
     - contrib.network.ovs
     - contrib.storage.linux
     - payload.execd
+    - payload.archive
     - contrib.network.ip
     - contrib.python.packages
     - contrib.charmsupport

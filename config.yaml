@@ -98,6 +98,7 @@ options:
       Neutron plugin to use for network management; supports
       .
         ovs - OpenvSwitch Plugin
+        vsp - Nuage Networks VSP
         nsx - VMWare NSX
         Calico - Project Calico Networking
       .
@@ -279,6 +280,40 @@ options:
     description: |
       SSL CA to use with the certificate and key provided - this is only
       required if you are providing a privately signed ssl_cert and ssl_key.
+  # Neutron Nuage plugin (VSD) configuration
+  vsd-server:
+    type: string
+    default:
+    description: Nuage VSD Server
+  vsd-auth:
+    type: string
+    default: "csproot:csproot"
+    description: Username Password to connect to Nuage VSD Server
+  vsd-organization:
+    type: string
+    default: csp
+    description: Name of the organization in Nuage VSD
+  vsd-auth-ssl:
+    type: boolean
+    default: True
+    description: SSL authentication of the Nuage VSD Server
+  vsd-base-uri:
+    type: string
+    default: "/nuage/api/v3_0"
+    description: Nuage VSD API endpoint URI
+  vsd-auth-resource:
+    type: string
+    default: "/me"
+    description: Nuage VSD authentication resource
+  vsd-netpart-name:
+    type: string
+    default: juju-enterprise
+    description: Name of the Organization or Enterprise to create in Nuage VSD
+  nuage-tarball-url:
+    type: string
+    default:
+    description: Optional URL to tarball containing Nuage python packages.
+  # end of Nuage VSD configuration
   l2-population:
     type: boolean
     default: True
@@ -389,6 +424,16 @@ options:
     description: |
       If True neutron-server will install neutron packages for the plugin
       configured.
+  # Additional software source configuration
+  extra-key:
+    type: string
+    default:
+    description: Optional key for archive containing additional packages.
+  extra-source:
+    type: string
+    default:
+    description: Optional source for archive containing additional packages.
+
   # Calico plugin configuration
   calico-origin:
     default:
