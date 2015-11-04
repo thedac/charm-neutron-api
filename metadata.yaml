@@ -34,6 +34,8 @@ requires:
   ha:
     interface: hacluster
     scope: container
+  vsd-rest-api:
+    interface: vsd-rest-api
   zeromq-configuration:
     interface: zeromq-configuration
     scope: container

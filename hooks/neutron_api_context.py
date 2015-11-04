@@ -176,6 +176,21 @@ class NeutronCCContext(context.NeutronContext):
                 config('min-l3-agents-per-router')
         ctxt['overlay_network_type'] = self.neutron_overlay_network_type
         ctxt['external_network'] = config('neutron-external-network')
+        if config('neutron-plugin') in ['vsp']:
+            _config = config()
+            for k, v in _config.iteritems():
+                if k.startswith('vsd'):
+                    ctxt[k.replace('-', '_')] = v
+            for rid in relation_ids('vsd-rest-api'):
+                for unit in related_units(rid):
+                    rdata = relation_get(rid=rid, unit=unit)
+                    vsd_ip = rdata.get('vsd-ip-address')
+                    log('relation data:vsd-ip-address: {}'.format(vsd_ip))
+                    if vsd_ip is not None:
+                        ctxt['vsd_server'] = '{}:8443'.format(vsd_ip)
+            if 'vsd_server' not in ctxt:
+                ctxt['vsd_server'] = '1.1.1.1:8443'
+
         ctxt['verbose'] = config('verbose')
         ctxt['debug'] = config('debug')
         ctxt['neutron_bind_port'] = \
