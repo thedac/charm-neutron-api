@@ -242,6 +242,12 @@ def determine_packages(source=None):
     if get_os_codename_install_source(source) >= 'kilo':
         packages.extend(KILO_PACKAGES)
 
+    if config('neutron-plugin') == 'vsp':
+        packages.append('python-nuagenetlib')
+        nuage_tar_package_location = config('nuage-tarball-url')
+        if nuage_tar_package_location is None:
+            packages.append('nuage-neutron')
+
     if git_install_requested():
         packages.extend(BASE_GIT_PACKAGES)
         # don't include packages that will be installed from git
@@ -392,18 +398,53 @@ def stamp_neutron_database(release):
     subprocess.check_output(cmd)
 
 
+def nuage_vsp_juno_neutron_migration():
+    log('Nuage VSP with Juno Relase')
+    nuage_migration_db_path = '/usr/lib/python2.7/dist-packages/'\
+                              'neutron/db/migration/nuage'
+    nuage_migrate_hybrid_file_path = os.path.join(
+        nuage_migration_db_path, 'migrate_hybrid_juno.py')
+    nuage_config_file = neutron_plugin_attribute(config('neutron-plugin'),
+                                                 'config', 'neutron')
+    if os.path.exists(nuage_migration_db_path):
+        if os.path.exists(nuage_migrate_hybrid_file_path):
+            if os.path.exists(nuage_config_file):
+                log('Running Migartion Script for Juno Release')
+                cmd = 'sudo python ' + nuage_migrate_hybrid_file_path + \
+                      ' --config-file ' + nuage_config_file + \
+                      ' --config-file ' + NEUTRON_CONF
+                log(cmd)
+                subprocess.check_output(cmd, shell=True)
+            else:
+                e = nuage_config_file+' doesnot exist'
+                log(e)
+                raise Exception(e)
+        else:
+            e = nuage_migrate_hybrid_file_path+' doesnot exists'
+            log(e)
+            raise Exception(e)
+    else:
+        e = nuage_migration_db_path+' doesnot exists'
+        log(e)
+        raise Exception(e)
+
+
 def migrate_neutron_database():
     '''Initializes a new database or upgrades an existing database.'''
     log('Migrating the neutron database.')
-    plugin = config('neutron-plugin')
-    cmd = ['neutron-db-manage',
-           '--config-file', NEUTRON_CONF,
-           '--config-file', neutron_plugin_attribute(plugin,
-                                                     'config',
-                                                     'neutron'),
-           'upgrade',
-           'head']
-    subprocess.check_output(cmd)
+    if(os_release('neutron-server') == 'juno' and
+       config('neutron-plugin') == 'vsp'):
+        nuage_vsp_juno_neutron_migration()
+    else:
+        plugin = config('neutron-plugin')
+        cmd = ['neutron-db-manage',
+               '--config-file', NEUTRON_CONF,
+               '--config-file', neutron_plugin_attribute(plugin,
+                                                         'config',
+                                                         'neutron'),
+               'upgrade',
+               'head']
+        subprocess.check_output(cmd)
 
 
 def get_topics():

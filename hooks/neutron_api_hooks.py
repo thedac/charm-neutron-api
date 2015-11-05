@@ -2,8 +2,10 @@
 
 import sys
 import uuid
+import os
 from subprocess import (
     check_call,
+    check_output,
 )
 
 from charmhelpers.core.hookenv import (
@@ -30,6 +32,7 @@ from charmhelpers.core.host import (
 
 from charmhelpers.fetch import (
     apt_install,
+    add_source,
     apt_update,
     filter_installed_packages,
 )
@@ -88,6 +91,10 @@ from charmhelpers.contrib.openstack.ip import (
     PUBLIC, INTERNAL, ADMIN
 )
 
+from charmhelpers.contrib.openstack.neutron import (
+    neutron_plugin_attribute,
+)
+
 from charmhelpers.contrib.network.ip import (
     get_iface_for_address,
     get_netmask_for_address,
@@ -97,6 +104,7 @@ from charmhelpers.contrib.network.ip import (
 )
 
 from charmhelpers.contrib.openstack.context import ADDRESS_TYPES
+from charmhelpers.fetch.archiveurl import ArchiveUrlFetchHandler
 
 from charmhelpers.contrib.charmsupport import nrpe
 
@@ -105,10 +113,13 @@ CONFIGS = register_configs()
 
 
 def conditional_neutron_migration():
-    if os_release('neutron-common') < 'kilo':
-        log('Not running neutron database migration as migrations are handled '
-            'by the neutron-server process or nova-cloud-controller charm.')
-        return
+    if os_release('neutron-server') < 'kilo':
+        if not (os_release('neutron-server') == 'juno' and
+           config('neutron-plugin') == 'vsp'):
+            log('Not running neutron database migration as migrations '
+                'are handled by the neutron-server process or'
+                ' nova-cloud-controller charm.')
+            return
 
     if is_elected_leader(CLUSTER_RES):
         allowed_units = relation_get('allowed_units')
@@ -156,15 +167,54 @@ def install():
         config('neutron-plugin'), config('openstack-origin')
     )
 
+    add_source(config('extra-source'), config('extra-key'))
     status_set('maintenance', 'Installing apt packages')
     apt_update()
-    apt_install(determine_packages(config('openstack-origin')),
-                fatal=True)
+    packages = determine_packages(config('openstack-origin'))
+    apt_install(packages, fatal=True)
+
+    if config('neutron-plugin') == 'vsp':
+        source = config('nuage-tarball-url')
+        if source is not None:
+            try:
+                handler = ArchiveUrlFetchHandler()
+                packages = ['nuage-neutron']
+                path = handler.install(source)
+                for package in packages:
+                    package_path = os.path.join(path, package)
+                    if os.path.exists(package_path):
+                        log('install {0} from: {1}'.format(package,
+                                                           package_path))
+                        check_output(
+                            [
+                                'bash', '-c',
+                                'cd {}; sudo python setup.py install'.format(
+                                    package_path)
+                            ]
+                        )
+            except Exception as e:
+                log('install failed with error: {}'.format(e.message))
+                raise Exception(e)
 
     status_set('maintenance', 'Git install')
     git_install(config('openstack-origin-git'))
 
     [open_port(port) for port in determine_ports()]
+
+
+@hooks.hook('vsd-rest-api-relation-changed')
+@restart_on_change(restart_map(), stopstart=True)
+def vsd_changed(relation_id=None, remote_unit=None):
+    if config('neutron-plugin') == 'vsp':
+        vsd_ip_address = relation_get('vsd-ip-address')
+        if not vsd_ip_address:
+            return
+        vsd_address = '{}:8443'.format(vsd_ip_address)
+        nuage_config_file = neutron_plugin_attribute(config('neutron-plugin'),
+                                                     'config', 'neutron')
+        log('vsd-rest-api-relation-changed: ip address:{}'.format(vsd_address))
+        log('vsd-rest-api-relation-changed:{}'.format(nuage_config_file))
+        CONFIGS.write(nuage_config_file)
 
 
 @hooks.hook('upgrade-charm')

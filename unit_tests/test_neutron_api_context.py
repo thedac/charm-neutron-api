@@ -217,7 +217,7 @@ class HAProxyContextTest(CharmTestCase):
     @patch('__builtin__.__import__')
     @patch('__builtin__.open')
     def test_context_peers(self, _open, _import, _log, _rids, _runits, _rget,
-                           _uget, _lunit, _config,  _get_address_in_network,
+                           _uget, _lunit, _config, _get_address_in_network,
                            _get_netmask_for_address):
         unit_addresses = {
             'neutron-api-0': '10.10.10.10',
@@ -272,6 +272,11 @@ class NeutronCCContextTest(CharmTestCase):
         self.test_config.set('nsx-tz-uuid', 'tzuuid')
         self.test_config.set('nsx-l3-uuid', 'l3uuid')
         self.test_config.set('nsx-controllers', 'ctrl1 ctrl2')
+        self.test_config.set('vsd-server', '192.168.2.202')
+        self.test_config.set('vsd-auth', 'fooadmin:password')
+        self.test_config.set('vsd-organization', 'foo')
+        self.test_config.set('vsd-base-uri', '/nuage/api/v1_0')
+        self.test_config.set('vsd-netpart-name', 'foo-enterprise')
         self.test_config.set('plumgrid-username', 'plumgrid')
         self.test_config.set('plumgrid-password', 'plumgrid')
         self.test_config.set('plumgrid-virtual-ip', '192.168.100.250')
@@ -433,6 +438,25 @@ class NeutronCCContextTest(CharmTestCase):
             'nsx_password': 'hardpass',
             'nsx_tz_uuid': 'tzuuid',
             'nsx_username': 'bob',
+        }
+        for key in expect.iterkeys():
+            self.assertEquals(napi_ctxt[key], expect[key])
+
+    @patch.object(context.NeutronCCContext, 'network_manager')
+    @patch.object(context.NeutronCCContext, 'plugin')
+    @patch('__builtin__.__import__')
+    def test_neutroncc_context_nuage(self, _import, plugin, nm):
+        plugin.return_value = 'vsp'
+        self.related_units.return_value = ['vsdunit1']
+        self.relation_ids.return_value = ['vsdrid2']
+        self.test_config.set('neutron-plugin', 'vsp')
+        napi_ctxt = context.NeutronCCContext()()
+        expect = {
+            'vsd_server': '192.168.2.202',
+            'vsd_auth': 'fooadmin:password',
+            'vsd_organization': 'foo',
+            'vsd_base_uri': '/nuage/api/v1_0',
+            'vsd_netpart_name': 'foo-enterprise',
         }
         for key in expect.iterkeys():
             self.assertEquals(napi_ctxt[key], expect[key])
