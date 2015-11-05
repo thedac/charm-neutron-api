@@ -408,3 +408,7 @@ options:
       wait for you to execute the openstack-upgrade action for this charm on
       each unit. If False it will revert to existing behavior of upgrading
       all units on config change.
+  enable-ml2-port-security:
+    type: boolean
+    default: False
+    description: If True enables port security extension for ML2 plugin.
