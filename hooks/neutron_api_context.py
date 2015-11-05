@@ -309,6 +309,10 @@ class NeutronApiSDNContext(context.SubordinateConfigContext):
                 'templ_key': 'quota_driver',
                 'value': '',
             },
+            'enable-ml2-port-security': {
+                'templ_key': 'enable_ml2_port_security',
+                'value': '',
+            },
         }
         for rid in relation_ids('neutron-plugin-api-subordinate'):
             for unit in related_units(rid):
