@@ -107,6 +107,10 @@ class NeutronCCContext(context.NeutronContext):
         return config('neutron-security-groups')
 
     @property
+    def enable_ml2_port_security(self):
+        return config('enable-ml2-port-security')
+
+    @property
     def neutron_l2_population(self):
         return get_l2population()
 
