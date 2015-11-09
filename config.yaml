@@ -456,4 +456,4 @@ options:
   enable-ml2-port-security:
     type: boolean
     default: False
-    description: If True enables port security extension for ML2 plugin.
+    description: Enable port security extension for ML2 plugin (>= kilo).
