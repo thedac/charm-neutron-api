@@ -107,10 +107,6 @@ class NeutronCCContext(context.NeutronContext):
         return config('neutron-security-groups')
 
     @property
-    def enable_ml2_port_security(self):
-        return config('enable-ml2-port-security')
-
-    @property
     def neutron_l2_population(self):
         return get_l2population()
 
@@ -225,6 +221,8 @@ class NeutronCCContext(context.NeutronContext):
         if vlan_ranges:
             ctxt['vlan_ranges'] = ','.join(vlan_ranges.split())
 
+        ctxt['enable_ml2_port_security'] = config('enable-ml2-port-security')
+
         return ctxt
 
 
@@ -311,10 +309,6 @@ class NeutronApiSDNContext(context.SubordinateConfigContext):
             },
             'quota-driver': {
                 'templ_key': 'quota_driver',
-                'value': '',
-            },
-            'enable-ml2-port-security': {
-                'templ_key': 'enable_ml2_port_security',
                 'value': '',
             },
         }
