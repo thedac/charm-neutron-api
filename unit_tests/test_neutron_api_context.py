@@ -280,6 +280,7 @@ class NeutronCCContextTest(CharmTestCase):
         self.test_config.set('plumgrid-username', 'plumgrid')
         self.test_config.set('plumgrid-password', 'plumgrid')
         self.test_config.set('plumgrid-virtual-ip', '192.168.100.250')
+        self.test_config.set('enable-ml2-port-security', True)
 
     def tearDown(self):
         super(NeutronCCContextTest, self).tearDown()
@@ -310,6 +311,7 @@ class NeutronCCContextTest(CharmTestCase):
             'quota_subnet': 10,
             'quota_vip': 10,
             'vlan_ranges': 'physnet1:1000:2000',
+            'enable_ml2_port_security': True
         }
         napi_ctxt = context.NeutronCCContext()
         with patch.object(napi_ctxt, '_ensure_packages'):
@@ -344,6 +346,7 @@ class NeutronCCContextTest(CharmTestCase):
             'quota_vip': 10,
             'vlan_ranges': 'physnet1:1000:2000',
             'network_providers': 'physnet2,physnet3',
+            'enable_ml2_port_security': True
         }
         napi_ctxt = context.NeutronCCContext()
         with patch.object(napi_ctxt, '_ensure_packages'):
@@ -382,6 +385,7 @@ class NeutronCCContextTest(CharmTestCase):
             'quota_subnet': 10,
             'quota_vip': 10,
             'vlan_ranges': 'physnet1:1000:2000',
+            'enable_ml2_port_security': True
         }
         napi_ctxt = context.NeutronCCContext()
         with patch.object(napi_ctxt, '_ensure_packages'):
