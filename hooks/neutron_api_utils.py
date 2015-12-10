@@ -294,8 +294,8 @@ def resource_map(release=None):
         # neutron-server associated with configs, not the plugin agent.
         plugin = config('neutron-plugin')
         conf = neutron_plugin_attribute(plugin, 'config', 'neutron')
-        ctxts = (neutron_plugin_attribute(plugin, 'contexts', 'neutron')
-                 or [])
+        ctxts = (neutron_plugin_attribute(plugin, 'contexts', 'neutron') or
+                 [])
         services = neutron_plugin_attribute(plugin, 'server_services',
                                             'neutron')
         resource_map[conf] = {}
