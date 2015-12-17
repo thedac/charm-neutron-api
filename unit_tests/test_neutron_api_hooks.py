@@ -128,7 +128,7 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.configure_installation_source.assert_called_with(
             'distro'
         )
-        self.apt_update.assert_called_with()
+        self.apt_update.assert_called_with(fatal=True)
         self.apt_install.assert_has_calls([
             call(_pkgs, fatal=True),
         ])
@@ -151,7 +151,7 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.configure_installation_source.assert_called_with(
             'distro'
         )
-        self.apt_update.assert_called_with()
+        self.apt_update.assert_called_with(fatal=True)
         self.apt_install.assert_has_calls([
             call(_expected_pkgs, fatal=True),
         ])
@@ -184,7 +184,7 @@ class NeutronAPIHooksTests(CharmTestCase):
         self._call_hook('install')
         self.assertTrue(self.execd_preinstall.called)
         self.configure_installation_source.assert_called_with(repo)
-        self.apt_update.assert_called_with()
+        self.apt_update.assert_called_with(fatal=True)
         self.apt_install.assert_has_calls([
             call(_pkgs, fatal=True),
         ])

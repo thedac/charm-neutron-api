@@ -207,8 +207,8 @@ def additional_install_locations(plugin, source):
 
         add_source(calico_source)
 
-        apt_update()
-        apt_upgrade()
+        apt_update(fatal=True)
+        apt_upgrade(fatal=True)
 
 
 def force_etcd_restart():
