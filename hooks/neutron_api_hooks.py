@@ -169,7 +169,7 @@ def install():
 
     add_source(config('extra-source'), config('extra-key'))
     status_set('maintenance', 'Installing apt packages')
-    apt_update()
+    apt_update(fatal=True)
     packages = determine_packages(config('openstack-origin'))
     apt_install(packages, fatal=True)
 
