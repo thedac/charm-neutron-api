@@ -214,11 +214,12 @@ class HAProxyContextTest(CharmTestCase):
     @patch.object(charmhelpers.contrib.openstack.context, 'related_units')
     @patch.object(charmhelpers.contrib.openstack.context, 'relation_ids')
     @patch.object(charmhelpers.contrib.openstack.context, 'log')
+    @patch.object(charmhelpers.contrib.openstack.context, 'kv')
     @patch('__builtin__.__import__')
     @patch('__builtin__.open')
-    def test_context_peers(self, _open, _import, _log, _rids, _runits, _rget,
-                           _uget, _lunit, _config, _get_address_in_network,
-                           _get_netmask_for_address):
+    def test_context_peers(self, _open, _import, _kv, _log, _rids, _runits,
+                           _rget, _uget, _lunit, _config,
+                           _get_address_in_network, _get_netmask_for_address):
         unit_addresses = {
             'neutron-api-0': '10.10.10.10',
             'neutron-api-1': '10.10.10.11',
@@ -231,13 +232,15 @@ class HAProxyContextTest(CharmTestCase):
         _config.return_value = None
         _get_address_in_network.return_value = None
         _get_netmask_for_address.return_value = '255.255.255.0'
+        _kv().get.return_value = 'abcdefghijklmnopqrstuvwxyz123456'
         service_ports = {'neutron-server': [9696, 9686]}
         self.maxDiff = None
         ctxt_data = {
             'local_host': '127.0.0.1',
             'haproxy_host': '0.0.0.0',
             'local_host': '127.0.0.1',
-            'stat_port': ':8888',
+            'stat_port': '8888',
+            'stat_password': 'abcdefghijklmnopqrstuvwxyz123456',
             'frontends': {
                 '10.10.10.11': {
                     'network': '10.10.10.11/255.255.255.0',
