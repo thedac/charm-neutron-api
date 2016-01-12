@@ -378,11 +378,16 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.test_config.set('region', 'region1')
         _neutron_url = 'http://127.0.0.1:9696'
         _endpoints = {
-            'quantum_service': 'quantum',
-            'quantum_region': 'region1',
-            'quantum_public_url': _neutron_url,
-            'quantum_admin_url': _neutron_url,
-            'quantum_internal_url': _neutron_url,
+            'neutron_service': 'neutron',
+            'neutron_region': 'region1',
+            'neutron_public_url': _neutron_url,
+            'neutron_admin_url': _neutron_url,
+            'neutron_internal_url': _neutron_url,
+            'quantum_service': None,
+            'quantum_region': None,
+            'quantum_public_url': None,
+            'quantum_admin_url': None,
+            'quantum_internal_url': None,
         }
         self._call_hook('identity-service-relation-joined')
         self.relation_set.assert_called_with(
@@ -407,11 +412,16 @@ class NeutronAPIHooksTests(CharmTestCase):
         self._call_hook('identity-service-relation-joined')
         _neutron_url = 'http://127.0.0.1:9696'
         _endpoints = {
-            'quantum_service': 'quantum',
-            'quantum_region': 'region1',
-            'quantum_public_url': 'http://neutron-api.example.com:9696',
-            'quantum_admin_url': _neutron_url,
-            'quantum_internal_url': _neutron_url,
+            'neutron_service': 'neutron',
+            'neutron_region': 'region1',
+            'neutron_public_url': 'http://neutron-api.example.com:9696',
+            'neutron_admin_url': _neutron_url,
+            'neutron_internal_url': _neutron_url,
+            'quantum_service': None,
+            'quantum_region': None,
+            'quantum_public_url': None,
+            'quantum_admin_url': None,
+            'quantum_internal_url': None,
         }
         self.relation_set.assert_called_with(
             relation_id=None,
