@@ -284,11 +284,11 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
         api_endpoint = 'http://{}:9696'.format(api_ip)
         expected = {
             'private-address': u.valid_ip,
-            'quantum_region': 'RegionOne',
-            'quantum_service': 'quantum',
-            'quantum_admin_url': api_endpoint,
-            'quantum_internal_url': api_endpoint,
-            'quantum_public_url': api_endpoint,
+            'neutron_region': 'RegionOne',
+            'neutron_service': 'neutron',
+            'neutron_admin_url': api_endpoint,
+            'neutron_internal_url': api_endpoint,
+            'neutron_public_url': api_endpoint,
         }
 
         ret = u.validate_relation_data(unit, relation, expected)
@@ -342,7 +342,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
             'service_port': '5000',
             'service_protocol': 'http',
             'service_tenant': 'services',
-            'service_username': 'quantum',
+            'service_username': 'neutron',
         }
         ret = u.validate_relation_data(unit, relation, expected)
         if ret:
@@ -436,7 +436,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
             'keystone_authtoken': {
                 'signing_dir': '/var/cache/neutron',
                 'admin_tenant_name': 'services',
-                'admin_user': 'quantum',
+                'admin_user': 'neutron',
                 'admin_password': rel_napi_ks['service_password'],
             },
             'database': {
