@@ -357,11 +357,16 @@ def identity_joined(rid=None, relation_trigger=False):
                                   api_port('neutron-server')
                                   )
     rel_settings = {
-        'quantum_service': 'quantum',
-        'quantum_region': config('region'),
-        'quantum_public_url': public_url,
-        'quantum_admin_url': admin_url,
-        'quantum_internal_url': internal_url,
+        'neutron_service': 'neutron',
+        'neutron_region': config('region'),
+        'neutron_public_url': public_url,
+        'neutron_admin_url': admin_url,
+        'neutron_internal_url': internal_url,
+        'quantum_service': None,
+        'quantum_region': None,
+        'quantum_public_url': None,
+        'quantum_admin_url': None,
+        'quantum_internal_url': None,
     }
     if relation_trigger:
         rel_settings['relation_trigger'] = str(uuid.uuid4())
@@ -395,7 +400,7 @@ def neutron_api_relation_joined(rid=None):
     else:
         relation_data['neutron-security-groups'] = "no"
     relation_set(relation_id=rid, **relation_data)
-    # Nova-cc may have grabbed the quantum endpoint so kick identity-service
+    # Nova-cc may have grabbed the neutron endpoint so kick identity-service
     # relation to register that its here
     for r_id in relation_ids('identity-service'):
         identity_joined(rid=r_id, relation_trigger=True)
