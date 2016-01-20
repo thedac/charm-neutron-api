@@ -185,7 +185,7 @@ options:
     type: int
     description: |
       Number of routers allowed per tenant. A negative value means unlimited.
-  quota-floatingip: 
+  quota-floatingip:
     default: 50
     type: int
     description: |
@@ -398,6 +398,13 @@ options:
     description: |
       Minimum number of l3 agents to host a router. Only used when enable-l3ha
       is True
+  dhcp-agents-per-network:
+    default: 2
+    type: int
+    description: |
+      The number of dhcp agents to be deployed per network.  This option is
+      only used if the 'enable-l3ha' option is True. Note that if the Calico
+      plugin is being used, this option has no effect.
   nagios_servicegroups:
     default: ""
     type: string
