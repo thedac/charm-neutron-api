@@ -399,7 +399,7 @@ options:
       Minimum number of l3 agents to host a router. Only used when enable-l3ha
       is True
   dhcp-agents-per-network:
-    default: 2
+    default: 1
     type: int
     description: |
       The number of dhcp agents to be deployed per network.  This option is
