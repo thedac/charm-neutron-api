@@ -284,6 +284,7 @@ class NeutronCCContextTest(CharmTestCase):
         self.test_config.set('plumgrid-password', 'plumgrid')
         self.test_config.set('plumgrid-virtual-ip', '192.168.100.250')
         self.test_config.set('enable-ml2-port-security', True)
+        self.test_config.set('dhcp-agents-per-network', 3)
 
     def tearDown(self):
         super(NeutronCCContextTest, self).tearDown()
@@ -297,6 +298,7 @@ class NeutronCCContextTest(CharmTestCase):
             'debug': True,
             'enable_dvr': False,
             'l3_ha': False,
+            'dhcp_agents_per_network': 3,
             'external_network': 'bob',
             'neutron_bind_port': self.api_port,
             'verbose': True,
@@ -331,6 +333,7 @@ class NeutronCCContextTest(CharmTestCase):
             'debug': True,
             'enable_dvr': False,
             'l3_ha': False,
+            'dhcp_agents_per_network': 3,
             'external_network': 'bob',
             'neutron_bind_port': self.api_port,
             'verbose': True,
@@ -376,6 +379,7 @@ class NeutronCCContextTest(CharmTestCase):
             'overlay_network_type': 'gre',
             'max_l3_agents_per_router': 2,
             'min_l3_agents_per_router': 2,
+            'dhcp_agents_per_network': 3,
             'quota_floatingip': 50,
             'quota_health_monitors': -1,
             'quota_member': -1,

@@ -174,6 +174,7 @@ class NeutronCCContext(context.NeutronContext):
                 config('max-l3-agents-per-router')
             ctxt['min_l3_agents_per_router'] = \
                 config('min-l3-agents-per-router')
+        ctxt['dhcp_agents_per_network'] = config('dhcp-agents-per-network')
         ctxt['overlay_network_type'] = self.neutron_overlay_network_type
         ctxt['external_network'] = config('neutron-external-network')
         if config('neutron-plugin') in ['vsp']:
