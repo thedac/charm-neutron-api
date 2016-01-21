@@ -402,9 +402,8 @@ options:
     default: 1
     type: int
     description: |
-      The number of dhcp agents to be deployed per network.  This option is
-      only used if the 'enable-l3ha' option is True. Note that if the Calico
-      plugin is being used, this option has no effect.
+      The number of dhcp agents to be deployed per network. Note that if the
+      Calico plugin is being used, this option has no effect.
   nagios_servicegroups:
     default: ""
     type: string
