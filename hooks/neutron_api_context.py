@@ -166,6 +166,12 @@ class NeutronCCContext(context.NeutronContext):
             ctxt['pg_username'] = config('plumgrid-username')
             ctxt['pg_password'] = config('plumgrid-password')
             ctxt['virtual_ip'] = config('plumgrid-virtual-ip')
+        elif config('neutron-plugin') == 'midonet':
+            ctxt.update(MidonetContext()())
+            identity_context = IdentityServiceContext(service='neutron',
+                                                      service_user='neutron')()
+            if identity_context is not None:
+                ctxt.update(identity_context)
         ctxt['l2_population'] = self.neutron_l2_population
         ctxt['enable_dvr'] = self.neutron_dvr
         ctxt['l3_ha'] = self.neutron_l3ha
@@ -342,3 +348,21 @@ class NeutronApiSDNConfigFileContext(context.OSContextGenerator):
                 if neutron_server_plugin_conf:
                     return {'config': neutron_server_plugin_conf}
         return {'config': '/etc/neutron/plugins/ml2/ml2_conf.ini'}
+
+
+class MidonetContext(context.OSContextGenerator):
+    def __init__(self, rel_name='midonet'):
+        self.rel_name = rel_name
+        self.interfaces = [rel_name]
+
+    def __call__(self):
+        for rid in relation_ids(self.rel_name):
+            for unit in related_units(rid):
+                rdata = relation_get(rid=rid, unit=unit)
+                ctxt = {
+                    'midonet_api_ip': rdata.get('host'),
+                    'midonet_api_port': rdata.get('port'),
+                }
+                if self.context_complete(ctxt):
+                    return ctxt
+        return {}

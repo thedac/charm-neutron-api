@@ -44,6 +44,8 @@ requires:
     scope: container
   etcd-proxy:
     interface: etcd-proxy
+  midonet:
+    interface: midonet
 peers:
   cluster:
     interface: neutron-api-ha

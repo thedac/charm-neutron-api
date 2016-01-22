@@ -283,6 +283,9 @@ class NeutronCCContextTest(CharmTestCase):
         self.test_config.set('plumgrid-username', 'plumgrid')
         self.test_config.set('plumgrid-password', 'plumgrid')
         self.test_config.set('plumgrid-virtual-ip', '192.168.100.250')
+        self.test_config.set('midonet-origin', 'mem-1.9')
+        self.test_config.set('mem-username', 'yousir')
+        self.test_config.set('mem-password', 'heslo')
         self.test_config.set('enable-ml2-port-security', True)
         self.test_config.set('dhcp-agents-per-network', 3)
 
@@ -654,3 +657,34 @@ class NeutronApiSDNConfigFileContextTest(CharmTestCase):
         self.assertEquals(napisdn_ctxt, {
             'config': '/etc/neutron/plugins/ml2/ml2_conf.ini'
         })
+
+
+class MidonetContextTest(CharmTestCase):
+
+    def setUp(self):
+        super(MidonetContextTest, self).setUp(context, TO_PATCH)
+        self.relation_get.side_effect = self.test_relation.get
+        self.config.side_effect = self.test_config.get
+        self.test_config.set('neutron-plugin', 'midonet')
+        self.test_config.set('midonet-origin', 'midonet-2015.06')
+
+    def tearDown(self):
+        super(MidonetContextTest, self).tearDown()
+
+    def test_midonet_no_related_units(self):
+        self.related_units.return_value = []
+        ctxt = context.MidonetContext()()
+        expect = {}
+
+        self.assertEquals(expect, ctxt)
+
+    def test_some_related_units(self):
+        self.related_units.return_value = ['unit1']
+        self.relation_ids.return_value = ['rid1']
+        self.test_relation.set({'host': '11.11.11.11',
+                                'port': '8080'})
+        ctxt = context.MidonetContext()()
+        expect = {'midonet_api_ip': '11.11.11.11',
+                  'midonet_api_port': '8080'}
+
+        self.assertEquals(expect, ctxt)

@@ -101,6 +101,7 @@ options:
         vsp - Nuage Networks VSP
         nsx - VMWare NSX
         Calico - Project Calico Networking
+        midonet - MidoNet
       .
   overlay-network-type:
     default: gre
@@ -487,3 +488,25 @@ options:
     description: |
        Connect timeout configuration in ms for haproxy, used in HA
        configurations. If not provided, default value of 5000ms is used.
+  midonet-origin:
+    default: midonet-2015.06
+    type: string
+    description: |
+      'mem-1.8', 'mem-1.9',
+      'midonet-2015.06'
+
+      NOTE: updating this setting to a source that is known to provide a later
+          version of MidoNet (do not change between MEM and MidoNet) will
+          trigger a software upgrade.
+  mem-username:
+    type: string
+    default:
+    description: |
+      The Midokura Enterprise MidoNet username credentials to access the
+      repository.
+  mem-password:
+    type: string
+    default:
+    description: |
+      The Midokura Enterprise MidoNet password credentials to access the
+      repository.
