@@ -426,12 +426,6 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
                 'verbose': 'False',
                 'debug': 'False',
                 'bind_port': '9686',
-                'nova_url': cc_relation['nova_url'],
-                'nova_region_name': 'RegionOne',
-                'nova_admin_username': rel_napi_ks['service_username'],
-                'nova_admin_tenant_id': rel_napi_ks['service_tenant_id'],
-                'nova_admin_password': rel_napi_ks['service_password'],
-                'nova_admin_auth_url': nova_auth_url,
             },
             'keystone_authtoken': {
                 'signing_dir': '/var/cache/neutron',
@@ -444,8 +438,29 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
             },
         }
 
+        if self._get_openstack_release() >= self.trusty_mitaka:
+            # Mitaka or later - nova bits
+            expected['nova'] = {
+                'auth_plugin': 'password',
+                'auth_url': nova_auth_url,
+                'region_name': 'RegionOne',
+                'username': rel_napi_ks['service_username'],
+                'password': rel_napi_ks['service_password'],
+                'tenant_id': rel_napi_ks['service_tenant_id'],
+            }
+        else:
+            # Liberty or earlier - nova bits
+            expected['DEFAULT'].update({
+                'nova_url': cc_relation['nova_url'],
+                'nova_region_name': 'RegionOne',
+                'nova_admin_username': rel_napi_ks['service_username'],
+                'nova_admin_tenant_id': rel_napi_ks['service_tenant_id'],
+                'nova_admin_password': rel_napi_ks['service_password'],
+                'nova_admin_auth_url': nova_auth_url,
+            })
+
         if self._get_openstack_release() >= self.trusty_kilo:
-            # Kilo or later
+            # Kilo or later - rabbit bits
             expected['oslo_messaging_rabbit'] = {
                 'rabbit_userid': 'neutron',
                 'rabbit_virtual_host': 'openstack',
@@ -453,7 +468,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
                 'rabbit_host': rabbitmq_relation['hostname']
             }
         else:
-            # Juno or earlier
+            # Juno or earlier - rabbit bits
             expected['DEFAULT'].update({
                 'rabbit_userid': 'neutron',
                 'rabbit_virtual_host': 'openstack',
