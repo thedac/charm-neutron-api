@@ -25,6 +25,7 @@ from charmhelpers.core.hookenv import (
 )
 
 from charmhelpers.core.host import (
+    mkdir,
     restart_on_change,
     service_reload,
     service_restart,
@@ -162,18 +163,18 @@ def configure_https():
 def install():
     status_set('maintenance', 'Executing pre-install')
     execd_preinstall()
-    configure_installation_source(config('openstack-origin'))
-    additional_install_locations(
-        config('neutron-plugin'), config('openstack-origin')
-    )
+    openstack_origin = config('openstack-origin')
+    configure_installation_source(openstack_origin)
+    neutron_plugin = config('neutron-plugin')
+    additional_install_locations(neutron_plugin, openstack_origin)
 
     add_source(config('extra-source'), config('extra-key'))
     status_set('maintenance', 'Installing apt packages')
     apt_update(fatal=True)
-    packages = determine_packages(config('openstack-origin'))
+    packages = determine_packages(openstack_origin)
     apt_install(packages, fatal=True)
 
-    if config('neutron-plugin') == 'vsp':
+    if neutron_plugin == 'vsp':
         source = config('nuage-tarball-url')
         if source is not None:
             try:
@@ -200,6 +201,10 @@ def install():
     git_install(config('openstack-origin-git'))
 
     [open_port(port) for port in determine_ports()]
+
+    if neutron_plugin == 'midonet':
+        mkdir('/etc/neutron/plugins/midonet', owner='neutron', group='neutron',
+              perms=0o755, force=False)
 
 
 @hooks.hook('vsd-rest-api-relation-changed')
@@ -591,6 +596,14 @@ def etcd_proxy_force_restart(relation_id=None):
 
     if 'etcd-proxy' in CONFIGS.complete_contexts():
         force_etcd_restart()
+
+
+@hooks.hook('midonet-relation-joined')
+@hooks.hook('midonet-relation-changed')
+@hooks.hook('midonet-relation-departed')
+@restart_on_change(restart_map())
+def midonet_changed():
+    CONFIGS.write_all()
 
 
 def main():
