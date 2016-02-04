@@ -397,6 +397,8 @@ def identity_changed():
     CONFIGS.write(NEUTRON_CONF)
     for r_id in relation_ids('neutron-api'):
         neutron_api_relation_joined(rid=r_id)
+    for r_id in relation_ids('neutron-plugin-api'):
+        neutron_plugin_api_relation_joined(rid=r_id)
     for r_id in relation_ids('neutron-plugin-api-subordinate'):
         neutron_plugin_api_subordinate_relation_joined(relid=r_id)
     configure_https()
