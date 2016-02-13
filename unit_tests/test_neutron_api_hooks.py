@@ -492,6 +492,17 @@ class NeutronAPIHooksTests(CharmTestCase):
         config_file = '/etc/neutron/plugins/nuage/nuage_plugin.ini'
         self.assertTrue(self.CONFIGS.write.called_with(config_file))
 
+    def test_vsd_api_relation_joined(self):
+        self.test_config.set('vsd-cms-name', '1234567890')
+        _relation_data = {
+            'vsd-cms-name': '1234567890',
+            }
+        self._call_hook('vsd-rest-api-relation-joined')
+        self.relation_set.assert_called_with(
+            relation_id=None,
+            **_relation_data
+        )
+
     def test_neutron_api_relation_changed(self):
         self.CONFIGS.complete_contexts.return_value = ['shared-db']
         self._call_hook('neutron-api-relation-changed')

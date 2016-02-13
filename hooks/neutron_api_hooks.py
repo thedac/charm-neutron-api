@@ -201,6 +201,13 @@ def install():
 
     [open_port(port) for port in determine_ports()]
 
+@hooks.hook('vsd-rest-api-relation-joined')
+def relation_set_vsd(rid=None):
+    relation_data = {
+        'vsd-cms-name': '{}'.format(config('vsd-cms-name'))
+    }
+    relation_set(relation_id=rid, **relation_data)
+
 
 @hooks.hook('vsd-rest-api-relation-changed')
 @restart_on_change(restart_map(), stopstart=True)
@@ -210,6 +217,7 @@ def vsd_changed(relation_id=None, remote_unit=None):
         if not vsd_ip_address:
             return
         vsd_address = '{}:8443'.format(vsd_ip_address)
+        cmd_id = relation_get('nuage-cms-id')
         nuage_config_file = neutron_plugin_attribute(config('neutron-plugin'),
                                                      'config', 'neutron')
         log('vsd-rest-api-relation-changed: ip address:{}'.format(vsd_address))

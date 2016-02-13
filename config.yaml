@@ -281,6 +281,9 @@ options:
       SSL CA to use with the certificate and key provided - this is only
       required if you are providing a privately signed ssl_cert and ssl_key.
   # Neutron Nuage plugin (VSD) configuration
+  vsd-cms-name:
+    type: string
+    description: Please give Maas env id so that it is unique per openstack env.
   vsd-server:
     type: string
     default:
