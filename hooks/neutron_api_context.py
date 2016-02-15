@@ -185,11 +185,12 @@ class NeutronCCContext(context.NeutronContext):
                 for unit in related_units(rid):
                     rdata = relation_get(rid=rid, unit=unit)
                     vsd_ip = rdata.get('vsd-ip-address')
-                    cmd_id_value = rdata.get('nuage-cms-id')
+                    cms_id_value = rdata.get('nuage-cms-id')
                     log('relation data:vsd-ip-address: {}'.format(vsd_ip))
+                    log('relation data:cms_id: {}'.format(cms_id_value))
                     if vsd_ip is not None:
                         ctxt['vsd_server'] = '{}:8443'.format(vsd_ip)
-                    if cmd_id_value is not None:
+                    if cms_id_value is not None:
                         ctxt['cms_id'] = '{}'.format(cms_id_value)
             if 'vsd_server' not in ctxt:
                 ctxt['vsd_server'] = '1.1.1.1:8443'
