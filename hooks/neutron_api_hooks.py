@@ -202,7 +202,7 @@ def install():
     [open_port(port) for port in determine_ports()]
 
 @hooks.hook('vsd-rest-api-relation-joined')
-def relation_set_vsd(rid=None):
+def relation_set_nuage_cms_name(rid=None):
     relation_data = {
         'vsd-cms-name': '{}'.format(config('vsd-cms-name'))
     }
@@ -222,6 +222,7 @@ def vsd_changed(relation_id=None, remote_unit=None):
                                                      'config', 'neutron')
         log('vsd-rest-api-relation-changed: ip address:{}'.format(vsd_address))
         log('vsd-rest-api-relation-changed:{}'.format(nuage_config_file))
+        log("nuage-vsd-api-relation-changed : cms_id:{}".format(cms_id))
         CONFIGS.write(nuage_config_file)
 
 
