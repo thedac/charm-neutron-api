@@ -281,6 +281,10 @@ options:
       SSL CA to use with the certificate and key provided - this is only
       required if you are providing a privately signed ssl_cert and ssl_key.
   # Neutron Nuage plugin (VSD) configuration
+  nuage-packages:
+    type: string
+    default: "nuage-openstack-neutron nuagenetlib"
+    description: Its [nuage-openstack-neutron nuagenetlib] for Nuage VSP >=3.2R4  and [nuage-neutron python-nuagenetlib] of Nuage VSP <=3.2R3
   vsd-cms-name:
     type: string
     description: Please give Maas env id so that it is unique per openstack env.

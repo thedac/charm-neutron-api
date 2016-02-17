@@ -243,10 +243,8 @@ def determine_packages(source=None):
         packages.extend(KILO_PACKAGES)
 
     if config('neutron-plugin') == 'vsp':
-        packages.append('python-nuagenetlib')
-        nuage_tar_package_location = config('nuage-tarball-url')
-        if nuage_tar_package_location is None:
-            packages.append('nuage-neutron')
+        nuage_pkgs = config('nuage-packages').split()
+        packages.append(nuage_pkgs)
 
     if git_install_requested():
         packages.extend(BASE_GIT_PACKAGES)
