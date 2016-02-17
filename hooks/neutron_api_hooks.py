@@ -201,7 +201,9 @@ def install():
 
     [open_port(port) for port in determine_ports()]
 
+
 @hooks.hook('vsd-rest-api-relation-joined')
+@restart_on_change(restart_map(), stopstart=True)
 def relation_set_nuage_cms_name(rid=None):
     relation_data = {
         'vsd-cms-name': '{}'.format(config('vsd-cms-name'))
