@@ -284,11 +284,11 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
         api_endpoint = 'http://{}:9696'.format(api_ip)
         expected = {
             'private-address': u.valid_ip,
-            'quantum_region': 'RegionOne',
-            'quantum_service': 'quantum',
-            'quantum_admin_url': api_endpoint,
-            'quantum_internal_url': api_endpoint,
-            'quantum_public_url': api_endpoint,
+            'neutron_region': 'RegionOne',
+            'neutron_service': 'neutron',
+            'neutron_admin_url': api_endpoint,
+            'neutron_internal_url': api_endpoint,
+            'neutron_public_url': api_endpoint,
         }
 
         ret = u.validate_relation_data(unit, relation, expected)
@@ -342,7 +342,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
             'service_port': '5000',
             'service_protocol': 'http',
             'service_tenant': 'services',
-            'service_username': 'quantum',
+            'service_username': 'neutron',
         }
         ret = u.validate_relation_data(unit, relation, expected)
         if ret:
@@ -426,17 +426,11 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
                 'verbose': 'False',
                 'debug': 'False',
                 'bind_port': '9686',
-                'nova_url': cc_relation['nova_url'],
-                'nova_region_name': 'RegionOne',
-                'nova_admin_username': rel_napi_ks['service_username'],
-                'nova_admin_tenant_id': rel_napi_ks['service_tenant_id'],
-                'nova_admin_password': rel_napi_ks['service_password'],
-                'nova_admin_auth_url': nova_auth_url,
             },
             'keystone_authtoken': {
                 'signing_dir': '/var/cache/neutron',
                 'admin_tenant_name': 'services',
-                'admin_user': 'quantum',
+                'admin_user': 'neutron',
                 'admin_password': rel_napi_ks['service_password'],
             },
             'database': {
@@ -444,8 +438,29 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
             },
         }
 
+        if self._get_openstack_release() >= self.trusty_mitaka:
+            # Mitaka or later - nova bits
+            expected['nova'] = {
+                'auth_plugin': 'password',
+                'auth_url': nova_auth_url,
+                'region_name': 'RegionOne',
+                'username': rel_napi_ks['service_username'],
+                'password': rel_napi_ks['service_password'],
+                'tenant_id': rel_napi_ks['service_tenant_id'],
+            }
+        else:
+            # Liberty or earlier - nova bits
+            expected['DEFAULT'].update({
+                'nova_url': cc_relation['nova_url'],
+                'nova_region_name': 'RegionOne',
+                'nova_admin_username': rel_napi_ks['service_username'],
+                'nova_admin_tenant_id': rel_napi_ks['service_tenant_id'],
+                'nova_admin_password': rel_napi_ks['service_password'],
+                'nova_admin_auth_url': nova_auth_url,
+            })
+
         if self._get_openstack_release() >= self.trusty_kilo:
-            # Kilo or later
+            # Kilo or later - rabbit bits
             expected['oslo_messaging_rabbit'] = {
                 'rabbit_userid': 'neutron',
                 'rabbit_virtual_host': 'openstack',
@@ -453,7 +468,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
                 'rabbit_host': rabbitmq_relation['hostname']
             }
         else:
-            # Juno or earlier
+            # Juno or earlier - rabbit bits
             expected['DEFAULT'].update({
                 'rabbit_userid': 'neutron',
                 'rabbit_virtual_host': 'openstack',
@@ -466,7 +481,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
                 'service_port': rel_napi_ks['service_port'],
                 'auth_host': rel_napi_ks['auth_host'],
                 'auth_port': rel_napi_ks['auth_port'],
-                'auth_protocol':  rel_napi_ks['auth_protocol']
+                'auth_protocol': rel_napi_ks['auth_protocol']
             })
 
         for section, pairs in expected.iteritems():

@@ -1,6 +1,6 @@
 name: neutron-api
-maintainer: Liam Young <liam@canonical.com>
-summary: "OpenStack Neutron API service"
+summary: OpenStack Networking API service
+maintainer: OpenStack Charmers <openstack-charmers@lists.ubuntu.com>
 description: |
   Neutron is a virtual network service for OpenStack, and a part of
   Netstack. Just like OpenStack Nova provides an API to dynamically
@@ -44,6 +44,8 @@ requires:
     scope: container
   etcd-proxy:
     interface: etcd-proxy
+  midonet:
+    interface: midonet
 peers:
   cluster:
     interface: neutron-api-ha

@@ -214,11 +214,12 @@ class HAProxyContextTest(CharmTestCase):
     @patch.object(charmhelpers.contrib.openstack.context, 'related_units')
     @patch.object(charmhelpers.contrib.openstack.context, 'relation_ids')
     @patch.object(charmhelpers.contrib.openstack.context, 'log')
+    @patch.object(charmhelpers.contrib.openstack.context, 'kv')
     @patch('__builtin__.__import__')
     @patch('__builtin__.open')
-    def test_context_peers(self, _open, _import, _log, _rids, _runits, _rget,
-                           _uget, _lunit, _config,  _get_address_in_network,
-                           _get_netmask_for_address):
+    def test_context_peers(self, _open, _import, _kv, _log, _rids, _runits,
+                           _rget, _uget, _lunit, _config,
+                           _get_address_in_network, _get_netmask_for_address):
         unit_addresses = {
             'neutron-api-0': '10.10.10.10',
             'neutron-api-1': '10.10.10.11',
@@ -231,13 +232,15 @@ class HAProxyContextTest(CharmTestCase):
         _config.return_value = None
         _get_address_in_network.return_value = None
         _get_netmask_for_address.return_value = '255.255.255.0'
+        _kv().get.return_value = 'abcdefghijklmnopqrstuvwxyz123456'
         service_ports = {'neutron-server': [9696, 9686]}
         self.maxDiff = None
         ctxt_data = {
             'local_host': '127.0.0.1',
             'haproxy_host': '0.0.0.0',
             'local_host': '127.0.0.1',
-            'stat_port': ':8888',
+            'stat_port': '8888',
+            'stat_password': 'abcdefghijklmnopqrstuvwxyz123456',
             'frontends': {
                 '10.10.10.11': {
                     'network': '10.10.10.11/255.255.255.0',
@@ -280,6 +283,11 @@ class NeutronCCContextTest(CharmTestCase):
         self.test_config.set('plumgrid-username', 'plumgrid')
         self.test_config.set('plumgrid-password', 'plumgrid')
         self.test_config.set('plumgrid-virtual-ip', '192.168.100.250')
+        self.test_config.set('midonet-origin', 'mem-1.9')
+        self.test_config.set('mem-username', 'yousir')
+        self.test_config.set('mem-password', 'heslo')
+        self.test_config.set('enable-ml2-port-security', True)
+        self.test_config.set('dhcp-agents-per-network', 3)
 
     def tearDown(self):
         super(NeutronCCContextTest, self).tearDown()
@@ -293,6 +301,7 @@ class NeutronCCContextTest(CharmTestCase):
             'debug': True,
             'enable_dvr': False,
             'l3_ha': False,
+            'dhcp_agents_per_network': 3,
             'external_network': 'bob',
             'neutron_bind_port': self.api_port,
             'verbose': True,
@@ -310,6 +319,7 @@ class NeutronCCContextTest(CharmTestCase):
             'quota_subnet': 10,
             'quota_vip': 10,
             'vlan_ranges': 'physnet1:1000:2000',
+            'enable_ml2_port_security': True
         }
         napi_ctxt = context.NeutronCCContext()
         with patch.object(napi_ctxt, '_ensure_packages'):
@@ -326,6 +336,7 @@ class NeutronCCContextTest(CharmTestCase):
             'debug': True,
             'enable_dvr': False,
             'l3_ha': False,
+            'dhcp_agents_per_network': 3,
             'external_network': 'bob',
             'neutron_bind_port': self.api_port,
             'verbose': True,
@@ -344,6 +355,7 @@ class NeutronCCContextTest(CharmTestCase):
             'quota_vip': 10,
             'vlan_ranges': 'physnet1:1000:2000',
             'network_providers': 'physnet2,physnet3',
+            'enable_ml2_port_security': True
         }
         napi_ctxt = context.NeutronCCContext()
         with patch.object(napi_ctxt, '_ensure_packages'):
@@ -370,6 +382,7 @@ class NeutronCCContextTest(CharmTestCase):
             'overlay_network_type': 'gre',
             'max_l3_agents_per_router': 2,
             'min_l3_agents_per_router': 2,
+            'dhcp_agents_per_network': 3,
             'quota_floatingip': 50,
             'quota_health_monitors': -1,
             'quota_member': -1,
@@ -382,6 +395,7 @@ class NeutronCCContextTest(CharmTestCase):
             'quota_subnet': 10,
             'quota_vip': 10,
             'vlan_ranges': 'physnet1:1000:2000',
+            'enable_ml2_port_security': True
         }
         napi_ctxt = context.NeutronCCContext()
         with patch.object(napi_ctxt, '_ensure_packages'):
@@ -643,3 +657,34 @@ class NeutronApiSDNConfigFileContextTest(CharmTestCase):
         self.assertEquals(napisdn_ctxt, {
             'config': '/etc/neutron/plugins/ml2/ml2_conf.ini'
         })
+
+
+class MidonetContextTest(CharmTestCase):
+
+    def setUp(self):
+        super(MidonetContextTest, self).setUp(context, TO_PATCH)
+        self.relation_get.side_effect = self.test_relation.get
+        self.config.side_effect = self.test_config.get
+        self.test_config.set('neutron-plugin', 'midonet')
+        self.test_config.set('midonet-origin', 'midonet-2015.06')
+
+    def tearDown(self):
+        super(MidonetContextTest, self).tearDown()
+
+    def test_midonet_no_related_units(self):
+        self.related_units.return_value = []
+        ctxt = context.MidonetContext()()
+        expect = {}
+
+        self.assertEquals(expect, ctxt)
+
+    def test_some_related_units(self):
+        self.related_units.return_value = ['unit1']
+        self.relation_ids.return_value = ['rid1']
+        self.test_relation.set({'host': '11.11.11.11',
+                                'port': '8080'})
+        ctxt = context.MidonetContext()()
+        expect = {'midonet_api_ip': '11.11.11.11',
+                  'midonet_api_port': '8080'}
+
+        self.assertEquals(expect, ctxt)

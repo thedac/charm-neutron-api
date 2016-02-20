@@ -101,6 +101,7 @@ options:
         vsp - Nuage Networks VSP
         nsx - VMWare NSX
         Calico - Project Calico Networking
+        midonet - MidoNet
       .
   overlay-network-type:
     default: gre
@@ -185,7 +186,7 @@ options:
     type: int
     description: |
       Number of routers allowed per tenant. A negative value means unlimited.
-  quota-floatingip: 
+  quota-floatingip:
     default: 50
     type: int
     description: |
@@ -411,6 +412,12 @@ options:
     description: |
       Minimum number of l3 agents to host a router. Only used when enable-l3ha
       is True
+  dhcp-agents-per-network:
+    default: 1
+    type: int
+    description: |
+      The number of dhcp agents to be deployed per network. Note that if the
+      Calico plugin is being used, this option has no effect.
   nagios_servicegroups:
     default: ""
     type: string
@@ -466,3 +473,53 @@ options:
       wait for you to execute the openstack-upgrade action for this charm on
       each unit. If False it will revert to existing behavior of upgrading
       all units on config change.
+  enable-ml2-port-security:
+    type: boolean
+    default: False
+    description: Enable port security extension for ML2 plugin (>= kilo).
+  haproxy-server-timeout:
+    type: int
+    default:
+    description: |
+       Server timeout configuration in ms for haproxy, used in HA
+       configurations. If not provided, default value of 30000ms is used.
+  haproxy-client-timeout:
+    type: int
+    default:
+    description: |
+       Client timeout configuration in ms for haproxy, used in HA
+       configurations. If not provided, default value of 30000ms is used.
+  haproxy-queue-timeout:
+    type: int
+    default:
+    description: |
+       Queue timeout configuration in ms for haproxy, used in HA
+       configurations. If not provided, default value of 5000ms is used.
+  haproxy-connect-timeout:
+    type: int
+    default:
+    description: |
+       Connect timeout configuration in ms for haproxy, used in HA
+       configurations. If not provided, default value of 5000ms is used.
+  midonet-origin:
+    default: midonet-2015.06
+    type: string
+    description: |
+      'mem-1.8', 'mem-1.9',
+      'midonet-2015.06'
+
+      NOTE: updating this setting to a source that is known to provide a later
+          version of MidoNet (do not change between MEM and MidoNet) will
+          trigger a software upgrade.
+  mem-username:
+    type: string
+    default:
+    description: |
+      The Midokura Enterprise MidoNet username credentials to access the
+      repository.
+  mem-password:
+    type: string
+    default:
+    description: |
+      The Midokura Enterprise MidoNet password credentials to access the
+      repository.

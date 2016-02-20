@@ -28,6 +28,7 @@ from charmhelpers.contrib.python.packages import (
 )
 
 from charmhelpers.core.hookenv import (
+    charm_dir,
     config,
     log,
     relation_ids,
@@ -198,17 +199,46 @@ def additional_install_locations(plugin, source):
     on the Neutron plugin being used. This will also force an immediate
     package upgrade.
     '''
+    release = get_os_codename_install_source(source)
     if plugin == 'Calico':
         if config('calico-origin'):
             calico_source = config('calico-origin')
         else:
-            release = get_os_codename_install_source(source)
             calico_source = 'ppa:project-calico/%s' % release
 
         add_source(calico_source)
+    elif plugin == 'midonet':
+        midonet_origin = config('midonet-origin')
+        release_num = midonet_origin.split('-')[1]
 
-        apt_update()
-        apt_upgrade()
+        if midonet_origin.startswith('mem'):
+            with open(os.path.join(charm_dir(),
+                                   'files/midokura.key')) as midokura_gpg_key:
+                priv_gpg_key = midokura_gpg_key.read()
+            mem_username = config('mem-username')
+            mem_password = config('mem-password')
+            if release in ('juno', 'kilo', 'liberty'):
+                add_source(
+                    'deb http://%s:%s@apt.midokura.com/openstack/%s/stable '
+                    'trusty main' % (mem_username, mem_password, release),
+                    key=priv_gpg_key)
+            add_source('http://%s:%s@apt.midokura.com/midonet/v%s/stable '
+                       'main' % (mem_username, mem_password, release_num),
+                       key=priv_gpg_key)
+        else:
+            with open(os.path.join(charm_dir(),
+                                   'files/midonet.key')) as midonet_gpg_key:
+                pub_gpg_key = midonet_gpg_key.read()
+            if release in ('juno', 'kilo', 'liberty'):
+                add_source(
+                    'deb http://repo.midonet.org/openstack-%s stable main' %
+                    release, key=pub_gpg_key)
+
+            add_source('deb http://repo.midonet.org/midonet/v%s stable main' %
+                       release_num, key=pub_gpg_key)
+
+        apt_update(fatal=True)
+        apt_upgrade(fatal=True)
 
 
 def force_etcd_restart():
@@ -292,8 +322,8 @@ def resource_map(release=None):
         # neutron-server associated with configs, not the plugin agent.
         plugin = config('neutron-plugin')
         conf = neutron_plugin_attribute(plugin, 'config', 'neutron')
-        ctxts = (neutron_plugin_attribute(plugin, 'contexts', 'neutron')
-                 or [])
+        ctxts = (neutron_plugin_attribute(plugin, 'contexts', 'neutron') or
+                 [])
         services = neutron_plugin_attribute(plugin, 'server_services',
                                             'neutron')
         resource_map[conf] = {}

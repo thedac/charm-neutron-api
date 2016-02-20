@@ -25,6 +25,7 @@ from charmhelpers.core.hookenv import (
 )
 
 from charmhelpers.core.host import (
+    mkdir,
     restart_on_change,
     service_reload,
     service_restart,
@@ -162,18 +163,18 @@ def configure_https():
 def install():
     status_set('maintenance', 'Executing pre-install')
     execd_preinstall()
-    configure_installation_source(config('openstack-origin'))
-    additional_install_locations(
-        config('neutron-plugin'), config('openstack-origin')
-    )
+    openstack_origin = config('openstack-origin')
+    configure_installation_source(openstack_origin)
+    neutron_plugin = config('neutron-plugin')
+    additional_install_locations(neutron_plugin, openstack_origin)
 
     add_source(config('extra-source'), config('extra-key'))
     status_set('maintenance', 'Installing apt packages')
-    apt_update()
-    packages = determine_packages(config('openstack-origin'))
+    apt_update(fatal=True)
+    packages = determine_packages(openstack_origin)
     apt_install(packages, fatal=True)
 
-    if config('neutron-plugin') == 'vsp':
+    if neutron_plugin == 'vsp':
         source = config('nuage-tarball-url')
         if source is not None:
             try:
@@ -200,6 +201,10 @@ def install():
     git_install(config('openstack-origin-git'))
 
     [open_port(port) for port in determine_ports()]
+
+    if neutron_plugin == 'midonet':
+        mkdir('/etc/neutron/plugins/midonet', owner='neutron', group='neutron',
+              perms=0o755, force=False)
 
 
 @hooks.hook('vsd-rest-api-relation-joined')
@@ -377,11 +382,16 @@ def identity_joined(rid=None, relation_trigger=False):
                                   api_port('neutron-server')
                                   )
     rel_settings = {
-        'quantum_service': 'quantum',
-        'quantum_region': config('region'),
-        'quantum_public_url': public_url,
-        'quantum_admin_url': admin_url,
-        'quantum_internal_url': internal_url,
+        'neutron_service': 'neutron',
+        'neutron_region': config('region'),
+        'neutron_public_url': public_url,
+        'neutron_admin_url': admin_url,
+        'neutron_internal_url': internal_url,
+        'quantum_service': None,
+        'quantum_region': None,
+        'quantum_public_url': None,
+        'quantum_admin_url': None,
+        'quantum_internal_url': None,
     }
     if relation_trigger:
         rel_settings['relation_trigger'] = str(uuid.uuid4())
@@ -415,7 +425,7 @@ def neutron_api_relation_joined(rid=None):
     else:
         relation_data['neutron-security-groups'] = "no"
     relation_set(relation_id=rid, **relation_data)
-    # Nova-cc may have grabbed the quantum endpoint so kick identity-service
+    # Nova-cc may have grabbed the neutron endpoint so kick identity-service
     # relation to register that its here
     for r_id in relation_ids('identity-service'):
         identity_joined(rid=r_id, relation_trigger=True)
@@ -606,6 +616,14 @@ def etcd_proxy_force_restart(relation_id=None):
 
     if 'etcd-proxy' in CONFIGS.complete_contexts():
         force_etcd_restart()
+
+
+@hooks.hook('midonet-relation-joined')
+@hooks.hook('midonet-relation-changed')
+@hooks.hook('midonet-relation-departed')
+@restart_on_change(restart_map())
+def midonet_changed():
+    CONFIGS.write_all()
 
 
 def main():

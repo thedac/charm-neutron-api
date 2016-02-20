@@ -166,6 +166,12 @@ class NeutronCCContext(context.NeutronContext):
             ctxt['pg_username'] = config('plumgrid-username')
             ctxt['pg_password'] = config('plumgrid-password')
             ctxt['virtual_ip'] = config('plumgrid-virtual-ip')
+        elif config('neutron-plugin') == 'midonet':
+            ctxt.update(MidonetContext()())
+            identity_context = IdentityServiceContext(service='neutron',
+                                                      service_user='neutron')()
+            if identity_context is not None:
+                ctxt.update(identity_context)
         ctxt['l2_population'] = self.neutron_l2_population
         ctxt['enable_dvr'] = self.neutron_dvr
         ctxt['l3_ha'] = self.neutron_l3ha
@@ -174,6 +180,7 @@ class NeutronCCContext(context.NeutronContext):
                 config('max-l3-agents-per-router')
             ctxt['min_l3_agents_per_router'] = \
                 config('min-l3-agents-per-router')
+        ctxt['dhcp_agents_per_network'] = config('dhcp-agents-per-network')
         ctxt['overlay_network_type'] = self.neutron_overlay_network_type
         ctxt['external_network'] = config('neutron-external-network')
         if config('neutron-plugin') in ['vsp']:
@@ -224,6 +231,8 @@ class NeutronCCContext(context.NeutronContext):
         vlan_ranges = config('vlan-ranges')
         if vlan_ranges:
             ctxt['vlan_ranges'] = ','.join(vlan_ranges.split())
+
+        ctxt['enable_ml2_port_security'] = config('enable-ml2-port-security')
 
         return ctxt
 
@@ -343,3 +352,21 @@ class NeutronApiSDNConfigFileContext(context.OSContextGenerator):
                 if neutron_server_plugin_conf:
                     return {'config': neutron_server_plugin_conf}
         return {'config': '/etc/neutron/plugins/ml2/ml2_conf.ini'}
+
+
+class MidonetContext(context.OSContextGenerator):
+    def __init__(self, rel_name='midonet'):
+        self.rel_name = rel_name
+        self.interfaces = [rel_name]
+
+    def __call__(self):
+        for rid in relation_ids(self.rel_name):
+            for unit in related_units(rid):
+                rdata = relation_get(rid=rid, unit=unit)
+                ctxt = {
+                    'midonet_api_ip': rdata.get('host'),
+                    'midonet_api_port': rdata.get('port'),
+                }
+                if self.context_complete(ctxt):
+                    return ctxt
+        return {}
