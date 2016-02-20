@@ -204,11 +204,18 @@ def install():
 
 @hooks.hook('vsd-rest-api-relation-joined')
 @restart_on_change(restart_map(), stopstart=True)
+@os_requires_version('kilo')
 def relation_set_nuage_cms_name(rid=None):
-    relation_data = {
-        'vsd-cms-name': '{}'.format(config('vsd-cms-name'))
-    }
-    relation_set(relation_id=rid, **relation_data)
+    if config('vsd-cms-name') is None:
+        e ="Neutron Api hook failed as vsd-cms-name" \
+           " is not specified"
+        status_set('blocked', e)
+    else:
+        relation_data = {
+            'vsd-cms-name': '{}'.
+                format(config('vsd-cms-name'))
+        }
+        relation_set(relation_id=rid, **relation_data)
 
 
 @hooks.hook('vsd-rest-api-relation-changed')
@@ -219,12 +226,14 @@ def vsd_changed(relation_id=None, remote_unit=None):
         if not vsd_ip_address:
             return
         vsd_address = '{}:8443'.format(vsd_ip_address)
-        cms_id = relation_get('nuage-cms-id')
+        if os_release('neutron') >= 'kilo':
+            cms_id = relation_get('nuage-cms-id')
+            log("nuage-vsd-api-relation-changed : cms_id:{}".format(cms_id))
         nuage_config_file = neutron_plugin_attribute(config('neutron-plugin'),
                                                      'config', 'neutron')
         log('vsd-rest-api-relation-changed: ip address:{}'.format(vsd_address))
         log('vsd-rest-api-relation-changed:{}'.format(nuage_config_file))
-        log("nuage-vsd-api-relation-changed : cms_id:{}".format(cms_id))
+
         CONFIGS.write(nuage_config_file)
 
 

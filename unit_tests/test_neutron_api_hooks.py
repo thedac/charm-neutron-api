@@ -483,16 +483,30 @@ class NeutronAPIHooksTests(CharmTestCase):
         )
 
     def test_vsd_api_relation_changed(self):
+        self.os_release.return_value = 'kilo'
         self.test_config.set('neutron-plugin', 'vsp')
         self.test_relation.set({
             'vsd-ip-address': '10.11.12.13',
+            'nuage-cms-id': 'abc'
         })
         self._call_hook('vsd-rest-api-relation-changed')
-
         config_file = '/etc/neutron/plugins/nuage/nuage_plugin.ini'
         self.assertTrue(self.CONFIGS.write.called_with(config_file))
 
     def test_vsd_api_relation_joined(self):
+        self.os_release.return_value = 'juno'
+        with self.assertRaises(Exception) as context:
+            self._call_hook('vsd-rest-api-relation-joined')
+        self.assertEqual(
+            context.exception.message,
+            "This hook is not supported on releases before kilo"
+        )
+        self.os_release.return_value = 'kilo'
+        self._call_hook('vsd-rest-api-relation-joined')
+        e ="Neutron Api hook failed as vsd-cms-name" \
+           " is not specified"
+        self.status_set.assert_called_with(
+            'blocked', e)
         self.test_config.set('vsd-cms-name', '1234567890')
         _relation_data = {
             'vsd-cms-name': '1234567890',
