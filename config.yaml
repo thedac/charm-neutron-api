@@ -290,6 +290,7 @@ options:
       and [nuage-neutron python-nuagenetlib] of Nuage VSP <=3.0 & JUNO
   vsd-cms-name:
     type: string
+    default:
     description: |
       This is required only for 3.2 R4 and above releases of Nuage and Kilo.
       Please give Maas env id so that it is unique per openstack cluster.

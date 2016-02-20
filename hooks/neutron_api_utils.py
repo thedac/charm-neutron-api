@@ -274,7 +274,7 @@ def determine_packages(source=None):
 
     if config('neutron-plugin') == 'vsp':
         nuage_pkgs = config('nuage-packages').split()
-        packages.append(nuage_pkgs)
+        packages += nuage_pkgs
 
     if git_install_requested():
         packages.extend(BASE_GIT_PACKAGES)
