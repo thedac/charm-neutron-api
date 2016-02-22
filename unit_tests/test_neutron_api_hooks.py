@@ -304,10 +304,15 @@ class NeutronAPIHooksTests(CharmTestCase):
             relation_id=None
         )
 
-    def test_amqp_changed(self):
+    @patch.object(hooks, 'neutron_plugin_api_subordinate_relation_joined')
+    def test_amqp_changed(self, plugin_joined):
+        self.relation_ids.return_value = ['neutron-plugin-api-subordinate:1']
         self.CONFIGS.complete_contexts.return_value = ['amqp']
         self._call_hook('amqp-relation-changed')
         self.assertTrue(self.CONFIGS.write.called_with(NEUTRON_CONF))
+        self.relation_ids.assert_called_with('neutron-plugin-api-subordinate')
+        plugin_joined.assert_called_with(
+            relid='neutron-plugin-api-subordinate:1')
 
     def test_amqp_departed(self):
         self._call_hook('amqp-relation-departed')
@@ -349,23 +354,33 @@ class NeutronAPIHooksTests(CharmTestCase):
                          'Attempting to associate a postgresql database when'
                          ' there is already associated a mysql one')
 
+    @patch.object(hooks, 'neutron_plugin_api_subordinate_relation_joined')
     @patch.object(hooks, 'conditional_neutron_migration')
-    def test_shared_db_changed(self, cond_neutron_mig):
+    def test_shared_db_changed(self, cond_neutron_mig, plugin_joined):
         self.CONFIGS.complete_contexts.return_value = ['shared-db']
+        self.relation_ids.return_value = ['neutron-plugin-api-subordinate:1']
         self._call_hook('shared-db-relation-changed')
         self.assertTrue(self.CONFIGS.write_all.called)
         cond_neutron_mig.assert_called_with()
+        self.relation_ids.assert_called_with('neutron-plugin-api-subordinate')
+        plugin_joined.assert_called_with(
+            relid='neutron-plugin-api-subordinate:1')
 
     def test_shared_db_changed_partial_ctxt(self):
         self.CONFIGS.complete_contexts.return_value = []
         self._call_hook('shared-db-relation-changed')
         self.assertFalse(self.CONFIGS.write_all.called)
 
+    @patch.object(hooks, 'neutron_plugin_api_subordinate_relation_joined')
     @patch.object(hooks, 'conditional_neutron_migration')
-    def test_pgsql_db_changed(self, cond_neutron_mig):
+    def test_pgsql_db_changed(self, cond_neutron_mig, plugin_joined):
+        self.relation_ids.return_value = ['neutron-plugin-api-subordinate:1']
         self._call_hook('pgsql-db-relation-changed')
         self.assertTrue(self.CONFIGS.write.called)
         cond_neutron_mig.assert_called_with()
+        self.relation_ids.assert_called_with('neutron-plugin-api-subordinate')
+        plugin_joined.assert_called_with(
+            relid='neutron-plugin-api-subordinate:1')
 
     def test_amqp_broken(self):
         self._call_hook('amqp-relation-broken')
@@ -458,6 +473,7 @@ class NeutronAPIHooksTests(CharmTestCase):
             'neutron-plugin': 'ovs',
             'neutron-url': neutron_url,
             'neutron-security-groups': 'no',
+            'neutron-api-ready': 'no',
         }
         self._call_hook('neutron-api-relation-joined')
         self.relation_set.assert_called_with(
@@ -473,8 +489,10 @@ class NeutronAPIHooksTests(CharmTestCase):
             **_relation_data
         )
 
+    @patch.object(hooks, 'is_api_ready')
     @patch.object(hooks, 'canonical_url')
-    def test_neutron_api_relation_joined(self, _canonical_url):
+    def test_neutron_api_relation_joined(self, _canonical_url, api_ready):
+        api_ready.return_value = True
         host = 'http://127.0.0.1'
         port = 1234
         _canonical_url.return_value = host
@@ -485,6 +503,7 @@ class NeutronAPIHooksTests(CharmTestCase):
             'neutron-plugin': 'ovs',
             'neutron-url': neutron_url,
             'neutron-security-groups': 'no',
+            'neutron-api-ready': 'yes',
         }
         self._call_hook('neutron-api-relation-joined')
         self.relation_set.assert_called_with(
@@ -532,7 +551,8 @@ class NeutronAPIHooksTests(CharmTestCase):
             'auth_port': None,
             'auth_host': None,
             'service_username': None,
-            'service_host': None
+            'service_host': None,
+            'neutron-api-ready': 'no',
         }
         self.get_dvr.return_value = False
         self.get_l3ha.return_value = False
@@ -564,7 +584,8 @@ class NeutronAPIHooksTests(CharmTestCase):
             'auth_port': None,
             'auth_host': None,
             'service_username': None,
-            'service_host': None
+            'service_host': None,
+            'neutron-api-ready': 'no',
         }
         self.get_dvr.return_value = True
         self.get_l3ha.return_value = False
@@ -596,7 +617,8 @@ class NeutronAPIHooksTests(CharmTestCase):
             'auth_port': None,
             'auth_host': None,
             'service_username': None,
-            'service_host': None
+            'service_host': None,
+            'neutron-api-ready': 'no',
         }
         self.get_dvr.return_value = False
         self.get_l3ha.return_value = True
@@ -630,7 +652,8 @@ class NeutronAPIHooksTests(CharmTestCase):
             'auth_port': None,
             'auth_host': None,
             'service_username': None,
-            'service_host': None
+            'service_host': None,
+            'neutron-api-ready': 'no',
         }
         self.get_dvr.return_value = True
         self.get_l3ha.return_value = True

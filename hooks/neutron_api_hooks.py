@@ -58,6 +58,7 @@ from neutron_api_utils import (
     determine_ports,
     do_openstack_upgrade,
     git_install,
+    is_api_ready,
     dvr_router_present,
     l3ha_router_present,
     migrate_neutron_database,
@@ -295,6 +296,9 @@ def amqp_changed():
         return
     CONFIGS.write(NEUTRON_CONF)
 
+    for r_id in relation_ids('neutron-plugin-api-subordinate'):
+        neutron_plugin_api_subordinate_relation_joined(relid=r_id)
+
 
 @hooks.hook('shared-db-relation-joined')
 def db_joined():
@@ -336,12 +340,18 @@ def db_changed():
     CONFIGS.write_all()
     conditional_neutron_migration()
 
+    for r_id in relation_ids('neutron-plugin-api-subordinate'):
+        neutron_plugin_api_subordinate_relation_joined(relid=r_id)
+
 
 @hooks.hook('pgsql-db-relation-changed')
 @restart_on_change(restart_map())
 def postgresql_neutron_db_changed():
     CONFIGS.write(NEUTRON_CONF)
     conditional_neutron_migration()
+
+    for r_id in relation_ids('neutron-plugin-api-subordinate'):
+        neutron_plugin_api_subordinate_relation_joined(relid=r_id)
 
 
 @hooks.hook('amqp-relation-broken',
@@ -389,6 +399,8 @@ def identity_changed():
         neutron_api_relation_joined(rid=r_id)
     for r_id in relation_ids('neutron-plugin-api'):
         neutron_plugin_api_relation_joined(rid=r_id)
+    for r_id in relation_ids('neutron-plugin-api-subordinate'):
+        neutron_plugin_api_subordinate_relation_joined(relid=r_id)
     configure_https()
 
 
@@ -404,6 +416,12 @@ def neutron_api_relation_joined(rid=None):
         relation_data['neutron-security-groups'] = "yes"
     else:
         relation_data['neutron-security-groups'] = "no"
+
+    if is_api_ready(CONFIGS):
+        relation_data['neutron-api-ready'] = "yes"
+    else:
+        relation_data['neutron-api-ready'] = "no"
+
     relation_set(relation_id=rid, **relation_data)
     # Nova-cc may have grabbed the neutron endpoint so kick identity-service
     # relation to register that its here
@@ -460,6 +478,11 @@ def neutron_plugin_api_relation_joined(rid=None):
         'service_password': identity_ctxt.get('admin_password'),
         'region': config('region'),
     })
+
+    if is_api_ready(CONFIGS):
+        relation_data['neutron-api-ready'] = "yes"
+    else:
+        relation_data['neutron-api-ready'] = "no"
 
     relation_set(relation_id=rid, **relation_data)
 
@@ -563,6 +586,14 @@ def zeromq_configuration_relation_joined(relid=None):
                  users="neutron")
 
 
+@hooks.hook('neutron-plugin-api-subordinate-relation-joined')
+def neutron_plugin_api_subordinate_relation_joined(relid=None):
+    relation_data = {'neutron-api-ready': 'no'}
+    if is_api_ready(CONFIGS):
+        relation_data['neutron-api-ready'] = "yes"
+    relation_set(relation_id=relid, **relation_data)
+
+
 @hooks.hook('zeromq-configuration-relation-changed',
             'neutron-plugin-api-subordinate-relation-changed')
 @restart_on_change(restart_map(), stopstart=True)
@@ -580,6 +611,7 @@ def update_nrpe_config():
     nrpe_setup = nrpe.NRPE(hostname=hostname)
     nrpe.copy_nrpe_checks()
     nrpe.add_init_service_checks(nrpe_setup, services(), current_unit)
+
     nrpe.add_haproxy_checks(nrpe_setup, current_unit)
     nrpe_setup.write()
 

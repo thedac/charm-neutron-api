@@ -20,6 +20,7 @@ from charmhelpers.contrib.openstack.utils import (
     git_pip_venv_dir,
     git_yaml_value,
     configure_installation_source,
+    incomplete_relation_data,
     set_os_workload_status,
 )
 
@@ -283,7 +284,8 @@ def determine_packages(source=None):
         # don't include packages that will be installed from git
         packages = list(set(packages))
         for p in GIT_PACKAGE_BLACKLIST:
-            packages.remove(p)
+            if p in packages:
+                packages.remove(p)
         if get_os_codename_install_source(source) >= 'kilo':
             for p in GIT_PACKAGE_BLACKLIST_KILO:
                 packages.remove(p)
@@ -654,3 +656,7 @@ def check_optional_relations(configs):
         return status_get()
     else:
         return 'unknown', 'No optional relations'
+
+
+def is_api_ready(configs):
+    return (not incomplete_relation_data(configs, REQUIRED_INTERFACES))

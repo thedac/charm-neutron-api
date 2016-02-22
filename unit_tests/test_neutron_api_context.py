@@ -562,6 +562,7 @@ class NeutronApiSDNContextTest(CharmTestCase):
         self.ctxt_check(
             {'neutron-plugin': 'ovs'},
             {
+                'api_extensions_path': '',
                 'core_plugin': 'neutron.plugins.ml2.plugin.Ml2Plugin',
                 'neutron_plugin_config': ('/etc/neutron/plugins/ml2/'
                                           'ml2_conf.ini'),
@@ -577,6 +578,7 @@ class NeutronApiSDNContextTest(CharmTestCase):
         self.ctxt_check(
             {
                 'neutron-plugin': 'ovs',
+                'api-extensions-path': '/usr/local/share/neutron/extensions',
                 'core-plugin': 'neutron.plugins.ml2.plugin.MidoPlumODL',
                 'neutron-plugin-config': '/etc/neutron/plugins/fl/flump.ini',
                 'service-plugins': 'router,unicorn,rainbows',
@@ -584,6 +586,7 @@ class NeutronApiSDNContextTest(CharmTestCase):
                 'quota-driver': 'quotadriver',
             },
             {
+                'api_extensions_path': '/usr/local/share/neutron/extensions',
                 'core_plugin': 'neutron.plugins.ml2.plugin.MidoPlumODL',
                 'neutron_plugin_config': '/etc/neutron/plugins/fl/flump.ini',
                 'service_plugins': 'router,unicorn,rainbows',
@@ -612,6 +615,7 @@ class NeutronApiSDNContextTest(CharmTestCase):
                 'subordinate_configuration': json.dumps(principle_config),
             },
             {
+                'api_extensions_path': '',
                 'core_plugin': 'neutron.plugins.ml2.plugin.Ml2Plugin',
                 'neutron_plugin_config': ('/etc/neutron/plugins/ml2/'
                                           'ml2_conf.ini'),
