@@ -505,15 +505,6 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.assertTrue(self.CONFIGS.write.called_with(config_file))
 
     def test_vsd_api_relation_joined(self):
-        '''
-        self.os_release.return_value = 'juno'
-        with self.assertRaises(Exception) as context:
-            self._call_hook('vsd-rest-api-relation-joined')
-        self.assertEqual(
-            context.exception.message,
-            "This hook is not supported on releases before kilo"
-        )
-        '''
         self.os_release.return_value = 'kilo'
         repo = 'cloud:trusty-kilo'
         self.test_config.set('openstack-origin', repo)
