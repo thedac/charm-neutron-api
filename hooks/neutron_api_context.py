@@ -322,6 +322,10 @@ class NeutronApiSDNContext(context.SubordinateConfigContext):
                 'templ_key': 'quota_driver',
                 'value': '',
             },
+            'api-extensions-path': {
+                'templ_key': 'api_extensions_path',
+                'value': '',
+            },
         }
         for rid in relation_ids('neutron-plugin-api-subordinate'):
             for unit in related_units(rid):

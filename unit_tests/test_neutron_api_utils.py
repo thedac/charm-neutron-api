@@ -625,3 +625,17 @@ class TestNeutronAPIUtils(CharmTestCase):
         rmtree.assert_any_call('/var/lib/etcd/one')
         rmtree.assert_any_call('/var/lib/etcd/two')
         self.service_start.assert_called_once_with('etcd')
+
+    def _test_is_api_ready(self, tgt):
+        fake_config = MagicMock()
+        with patch.object(nutils, 'incomplete_relation_data') as ird:
+            ird.return_value = (not tgt)
+            self.assertEqual(nutils.is_api_ready(fake_config), tgt)
+            ird.assert_called_with(
+                fake_config, nutils.REQUIRED_INTERFACES)
+
+    def test_is_api_ready_true(self):
+        self._test_is_api_ready(True)
+
+    def test_is_api_ready_false(self):
+        self._test_is_api_ready(False)
