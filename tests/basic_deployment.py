@@ -444,7 +444,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
                 'region_name': 'RegionOne',
                 'username': rel_napi_ks['service_username'],
                 'password': rel_napi_ks['service_password'],
-                'project_name': rel_napi_ks['service_tenant_name'],
+                'project_name': rel_napi_ks['service_tenant'],
             }
         else:
             # Liberty or earlier - nova bits
