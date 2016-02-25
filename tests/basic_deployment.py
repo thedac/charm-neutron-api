@@ -190,9 +190,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
             # Juno or earlier
             neutron_services.append('neutron-metering-agent')
 
-        nova_cc_services = ['nova-api-ec2',
-                            'nova-api-os-compute',
-                            'nova-objectstore',
+        nova_cc_services = ['nova-api-os-compute',
                             'nova-cert',
                             'nova-scheduler',
                             'nova-conductor']
@@ -446,7 +444,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
                 'region_name': 'RegionOne',
                 'username': rel_napi_ks['service_username'],
                 'password': rel_napi_ks['service_password'],
-                'tenant_id': rel_napi_ks['service_tenant_id'],
+                'project_name': rel_napi_ks['service_tenant'],
             }
         else:
             # Liberty or earlier - nova bits
