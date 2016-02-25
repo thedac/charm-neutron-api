@@ -190,9 +190,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
             # Juno or earlier
             neutron_services.append('neutron-metering-agent')
 
-        nova_cc_services = ['nova-api-ec2',
-                            'nova-api-os-compute',
-                            'nova-objectstore',
+        nova_cc_services = ['nova-api-os-compute',
                             'nova-cert',
                             'nova-scheduler',
                             'nova-conductor']
