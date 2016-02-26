@@ -194,7 +194,8 @@ class NeutronCCContext(context.NeutronContext):
                     vsd_ip = rdata.get('vsd-ip-address')
                     if os_release('neutron-server') >= 'kilo':
                         cms_id_value = rdata.get('nuage-cms-id')
-                        log('relation data:cms_id: {}'.format(cms_id_value))
+                        log('relation data:cms_id required for'
+                            ' nuage plugin: {}'.format(cms_id_value))
                         if cms_id_value is not None:
                             ctxt['cms_id'] = '{}'.format(cms_id_value)
                     log('relation data:vsd-ip-address: {}'.format(vsd_ip))

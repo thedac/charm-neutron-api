@@ -210,7 +210,6 @@ def install():
 
 @hooks.hook('vsd-rest-api-relation-joined')
 @restart_on_change(restart_map(), stopstart=True)
-# @os_requires_version('kilo', 'neutron-server')
 def relation_set_nuage_cms_name(rid=None):
     if os_release('neutron-server') >= 'kilo':
         if config('vsd-cms-name') is None:
