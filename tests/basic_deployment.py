@@ -177,11 +177,19 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
            service units."""
         u.log.debug('Checking status of system services...')
         neutron_api_services = ['neutron-server']
-        neutron_services = ['neutron-dhcp-agent',
-                            'neutron-lbaas-agent',
-                            'neutron-metadata-agent',
-                            'neutron-plugin-openvswitch-agent',
-                            'neutron-ovs-cleanup']
+        #if self.series >= self.trusty_mitaka:
+        if self._get_openstack_release() >= self.trusty_mitaka:
+            neutron_services = ['neutron-dhcp-agent',
+                                'neutron-lbaas-agent',
+                                'neutron-metadata-agent',
+                                'neutron-openvswitch-agent',
+                                'neutron-ovs-cleanup']
+        else:
+            neutron_services = ['neutron-dhcp-agent',
+                                'neutron-lbaas-agent',
+                                'neutron-metadata-agent',
+                                'neutron-plugin-openvswitch-agent',
+                                'neutron-ovs-cleanup']
 
         if self._get_openstack_release() <= self.trusty_juno:
             neutron_services.append('neutron-vpn-agent')
