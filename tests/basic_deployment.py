@@ -177,7 +177,6 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
            service units."""
         u.log.debug('Checking status of system services...')
         neutron_api_services = ['neutron-server']
-        #if self.series >= self.trusty_mitaka:
         if self._get_openstack_release() >= self.trusty_mitaka:
             neutron_services = ['neutron-dhcp-agent',
                                 'neutron-lbaas-agent',
