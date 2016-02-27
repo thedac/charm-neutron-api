@@ -111,6 +111,8 @@ class TestNeutronAPIUtils(CharmTestCase):
     @patch.object(nutils, 'git_install_requested')
     def test_determine_vsp_packages(self, git_requested):
         git_requested.return_value = False
+        self.test_config.set('nuage-packages',
+                             'python-nuagenetlib nuage-neutron')
         self.test_config.set('neutron-plugin', 'vsp')
         self.get_os_codename_install_source.return_value = 'juno'
         pkg_list = nutils.determine_packages()

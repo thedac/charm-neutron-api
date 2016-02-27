@@ -192,12 +192,17 @@ class NeutronCCContext(context.NeutronContext):
                 for unit in related_units(rid):
                     rdata = relation_get(rid=rid, unit=unit)
                     vsd_ip = rdata.get('vsd-ip-address')
+                    if os_release('neutron-server') >= 'kilo':
+                        cms_id_value = rdata.get('nuage-cms-id')
+                        log('relation data:cms_id required for'
+                            ' nuage plugin: {}'.format(cms_id_value))
+                        if cms_id_value is not None:
+                            ctxt['cms_id'] = '{}'.format(cms_id_value)
                     log('relation data:vsd-ip-address: {}'.format(vsd_ip))
                     if vsd_ip is not None:
                         ctxt['vsd_server'] = '{}:8443'.format(vsd_ip)
             if 'vsd_server' not in ctxt:
                 ctxt['vsd_server'] = '1.1.1.1:8443'
-
         ctxt['verbose'] = config('verbose')
         ctxt['debug'] = config('debug')
         ctxt['neutron_bind_port'] = \
