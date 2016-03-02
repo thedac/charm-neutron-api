@@ -159,15 +159,15 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.open_port.assert_has_calls(_port_calls)
         self.assertTrue(self.execd_preinstall.called)
 
+    @patch.object(utils, 'get_os_codename_install_source')
     @patch.object(utils, 'git_install_requested')
-    def test_install_hook_git(self, git_requested):
+    def test_install_hook_git(self, git_requested, codename):
         git_requested.return_value = True
         _pkgs = ['foo', 'bar']
         _ports = [80, 81, 82]
         _port_calls = [call(port) for port in _ports]
         self.determine_packages.return_value = _pkgs
         self.determine_ports.return_value = _ports
-        repo = 'cloud:trusty-juno'
         openstack_origin_git = {
             'repositories': [
                 {'name': 'requirements',
@@ -179,9 +179,11 @@ class NeutronAPIHooksTests(CharmTestCase):
             ],
             'directory': '/mnt/openstack-git',
         }
+        repo = "cloud:trusty-juno"
         projects_yaml = yaml.dump(openstack_origin_git)
         self.test_config.set('openstack-origin', repo)
         self.test_config.set('openstack-origin-git', projects_yaml)
+        codename.return_value = 'juno'
         self._call_hook('install')
         self.assertTrue(self.execd_preinstall.called)
         self.configure_installation_source.assert_called_with(repo)
@@ -240,11 +242,12 @@ class NeutronAPIHooksTests(CharmTestCase):
                          'Cannot disable Router HA while ha enabled routers'
                          ' exist. Please remove any ha routers')
 
+    @patch.object(utils, 'get_os_codename_install_source')
     @patch.object(hooks, 'configure_https')
     @patch.object(hooks, 'git_install_requested')
     @patch.object(hooks, 'config_value_changed')
     def test_config_changed_git(self, config_val_changed, git_requested,
-                                configure_https):
+                                configure_https, codename):
         git_requested.return_value = True
         self.neutron_ready.return_value = True
         self.dvr_router_present.return_value = False
@@ -273,6 +276,7 @@ class NeutronAPIHooksTests(CharmTestCase):
         projects_yaml = yaml.dump(openstack_origin_git)
         self.test_config.set('openstack-origin', repo)
         self.test_config.set('openstack-origin-git', projects_yaml)
+        codename.return_value = 'juno'
         self._call_hook('config-changed')
         self.git_install.assert_called_with(projects_yaml)
         self.assertFalse(self.do_openstack_upgrade.called)
