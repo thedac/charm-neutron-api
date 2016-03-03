@@ -319,6 +319,7 @@ class NeutronCCContextTest(CharmTestCase):
             'quota_subnet': 10,
             'quota_vip': 10,
             'vlan_ranges': 'physnet1:1000:2000',
+            'vni_ranges': '1001:2000',
             'enable_ml2_port_security': True
         }
         napi_ctxt = context.NeutronCCContext()
@@ -332,6 +333,7 @@ class NeutronCCContextTest(CharmTestCase):
         plugin.return_value = None
         self.test_config.set('flat-network-providers', 'physnet2 physnet3')
         self.test_config.set('overlay-network-type', 'vxlan')
+        self.test_config.set('vni-ranges', '1001:2000 3001:4000')
         ctxt_data = {
             'debug': True,
             'enable_dvr': False,
@@ -354,6 +356,7 @@ class NeutronCCContextTest(CharmTestCase):
             'quota_subnet': 10,
             'quota_vip': 10,
             'vlan_ranges': 'physnet1:1000:2000',
+            'vni_ranges': '1001:2000,3001:4000',
             'network_providers': 'physnet2,physnet3',
             'enable_ml2_port_security': True
         }
@@ -395,6 +398,7 @@ class NeutronCCContextTest(CharmTestCase):
             'quota_subnet': 10,
             'quota_vip': 10,
             'vlan_ranges': 'physnet1:1000:2000',
+            'vni_ranges': '1001:2000',
             'enable_ml2_port_security': True
         }
         napi_ctxt = context.NeutronCCContext()
