@@ -233,6 +233,10 @@ class NeutronCCContext(context.NeutronContext):
         if vlan_ranges:
             ctxt['vlan_ranges'] = ','.join(vlan_ranges.split())
 
+        vni_ranges = config('vni-ranges')
+        if vni_ranges:
+            ctxt['vni_ranges'] = ','.join(vni_ranges.split())
+
         ctxt['enable_ml2_port_security'] = config('enable-ml2-port-security')
 
         return ctxt
