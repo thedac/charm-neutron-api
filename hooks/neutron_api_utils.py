@@ -204,10 +204,20 @@ def additional_install_locations(plugin, source):
     if plugin == 'Calico':
         if config('calico-origin'):
             calico_source = config('calico-origin')
-        else:
+        elif release in ('icehouse', 'juno', 'kilo'):
+            # Prior to the Liberty release, Calico's Nova and Neutron changes
+            # were not fully upstreamed, so we need to point to a
+            # release-specific PPA that includes Calico-specific Nova and
+            # Neutron packages.
             calico_source = 'ppa:project-calico/%s' % release
+        else:
+            # From Liberty onwards, we can point to a PPA that does not include
+            # any patched OpenStack packages, and hence is independent of the
+            # OpenStack release.
+            calico_source = 'ppa:project-calico/stable'
 
         add_source(calico_source)
+
     elif plugin == 'midonet':
         midonet_origin = config('midonet-origin')
         release_num = midonet_origin.split('-')[1]
