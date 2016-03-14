@@ -443,18 +443,33 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
             },
         }
 
-        if self._get_openstack_release() >= self.trusty_mitaka:
-            # Mitaka or later - nova bits
+        if self._get_openstack_release() >= self.trusty_liberty:
             expected['nova'] = {
+                'auth_section': 'keystone_authtoken',
+            }
+            auth_uri = '{}://{}:{}'.format(
+                rel_napi_ks['service_protocol'],
+                rel_napi_ks['service_host'],
+                rel_napi_ks['service_port']
+            )
+            auth_url = '{}://{}:{}'.format(
+                rel_napi_ks['auth_protocol'],
+                rel_napi_ks['auth_host'],
+                rel_napi_ks['auth_port']
+            )
+            expected['keystone_authtoken'] = {
+                'auth_uri': auth_uri,
+                'auth_url': auth_url,
                 'auth_plugin': 'password',
-                'auth_url': nova_auth_url,
-                'region_name': 'RegionOne',
-                'username': rel_napi_ks['service_username'],
-                'password': rel_napi_ks['service_password'],
+                'project_domain_id': 'default',
+                'user_domain_id': 'default',
                 'project_name': rel_napi_ks['service_tenant'],
+                'username': 'neutron',
+                'password': rel_napi_ks['service_password'],
+                'signing_dir': '/var/cache/neutron',
             }
         else:
-            # Liberty or earlier - nova bits
+            # Kilo or earlier
             expected['DEFAULT'].update({
                 'nova_url': cc_relation['nova_url'],
                 'nova_region_name': 'RegionOne',
