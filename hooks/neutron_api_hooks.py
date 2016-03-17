@@ -26,7 +26,6 @@ from charmhelpers.core.hookenv import (
 
 from charmhelpers.core.host import (
     mkdir,
-    restart_on_change,
     service_reload,
     service_restart,
 )
@@ -47,6 +46,8 @@ from charmhelpers.contrib.openstack.utils import (
     os_requires_version,
     os_release,
     sync_db_with_multi_ipv6_addresses,
+    is_unit_paused_set,
+    pausable_restart_on_change as restart_on_change,
 )
 
 from neutron_api_utils import (
@@ -127,7 +128,8 @@ def conditional_neutron_migration():
         allowed_units = relation_get('allowed_units')
         if allowed_units and local_unit() in allowed_units.split():
             migrate_neutron_database()
-            service_restart('neutron-server')
+            if not is_unit_paused_set():
+                service_restart('neutron-server')
         else:
             log('Not running neutron database migration, either no'
                 ' allowed_units or this unit is not present')
@@ -153,7 +155,8 @@ def configure_https():
 
     # TODO: improve this by checking if local CN certs are available
     # first then checking reload status (see LP #1433114).
-    service_reload('apache2', restart_on_failure=True)
+    if not is_unit_paused_set():
+        service_reload('apache2', restart_on_failure=True)
 
     for rid in relation_ids('identity-service'):
         identity_joined(rid=rid)

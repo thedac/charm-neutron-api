@@ -36,6 +36,12 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
 
         self._initialize_tests()
 
+    def _assert_services(self, should_run):
+        services = ("neutron-server", "apache2", "haproxy")
+        u.get_unit_process_ids(
+            {self.neutron_api_sentry: services},
+            expect_success=should_run)
+
     def _add_services(self):
         """Add services
 
@@ -576,3 +582,15 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
 
         self.d.configure(juju_service, set_default)
         u.log.debug('OK')
+
+    def test_901_pause_resume(self):
+        """Test pause and resume actions."""
+        self._assert_services(should_run=True)
+        action_id = u.run_action(self.neutron_api_sentry, "pause")
+        assert u.wait_on_action(action_id), "Pause action failed."
+
+        self._assert_services(should_run=False)
+
+        action_id = u.run_action(self.neutron_api_sentry, "resume")
+        assert u.wait_on_action(action_id), "Resume action failed"
+        self._assert_services(should_run=True)
