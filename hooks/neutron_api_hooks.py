@@ -110,6 +110,7 @@ from charmhelpers.contrib.openstack.context import ADDRESS_TYPES
 from charmhelpers.fetch.archiveurl import ArchiveUrlFetchHandler
 
 from charmhelpers.contrib.charmsupport import nrpe
+from charmhelpers.contrib.hardening.harden import harden
 
 hooks = Hooks()
 CONFIGS = register_configs()
@@ -164,6 +165,7 @@ def configure_https():
 
 @hooks.hook('install.real')
 @hooks.hook()
+@harden()
 def install():
     status_set('maintenance', 'Executing pre-install')
     execd_preinstall()
@@ -248,6 +250,7 @@ def vsd_changed(relation_id=None, remote_unit=None):
 @hooks.hook('upgrade-charm')
 @hooks.hook('config-changed')
 @restart_on_change(restart_map(), stopstart=True)
+@harden()
 def config_changed():
     # If neutron is ready to be queried then check for incompatability between
     # existing neutron objects and charm settings
@@ -658,6 +661,13 @@ def etcd_proxy_force_restart(relation_id=None):
 @restart_on_change(restart_map())
 def midonet_changed():
     CONFIGS.write_all()
+
+
+@hooks.hook('update-status')
+@harden()
+@harden()
+def update_status():
+    log('Updating status.')
 
 
 def main():

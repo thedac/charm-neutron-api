@@ -1,4 +1,10 @@
+import sys
+
 from mock import patch, MagicMock
+
+# python-apt is not installed as part of test-requirements but is imported by
+# some charmhelpers modules so create a fake import.
+sys.modules['apt'] = MagicMock()
 
 patch('charmhelpers.core.hookenv.status_set').start()
 with patch('charmhelpers.core.hookenv.config') as config:
@@ -12,7 +18,10 @@ _map = utils.restart_map
 utils.register_configs = MagicMock()
 utils.restart_map = MagicMock()
 
-import git_reinstall
+with patch('charmhelpers.contrib.hardening.harden.harden') as mock_dec:
+    mock_dec.side_effect = (lambda *dargs, **dkwargs: lambda f:
+                            lambda *args, **kwargs: f(*args, **kwargs))
+    import git_reinstall
 
 # Unpatch it now that its loaded.
 utils.register_configs = _reg

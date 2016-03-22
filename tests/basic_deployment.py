@@ -438,31 +438,26 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
                 'debug': 'False',
                 'bind_port': '9686',
             },
-            'keystone_authtoken': {
-                'signing_dir': '/var/cache/neutron',
-                'admin_tenant_name': 'services',
-                'admin_user': 'neutron',
-                'admin_password': rel_napi_ks['service_password'],
-            },
             'database': {
                 'connection': db_conn,
             },
         }
 
+        auth_uri = '{}://{}:{}'.format(
+            rel_napi_ks['service_protocol'],
+            rel_napi_ks['service_host'],
+            rel_napi_ks['service_port']
+        )
+        auth_url = '{}://{}:{}'.format(
+            rel_napi_ks['auth_protocol'],
+            rel_napi_ks['auth_host'],
+            rel_napi_ks['auth_port']
+        )
+
         if self._get_openstack_release() >= self.trusty_liberty:
             expected['nova'] = {
                 'auth_section': 'keystone_authtoken',
             }
-            auth_uri = '{}://{}:{}'.format(
-                rel_napi_ks['service_protocol'],
-                rel_napi_ks['service_host'],
-                rel_napi_ks['service_port']
-            )
-            auth_url = '{}://{}:{}'.format(
-                rel_napi_ks['auth_protocol'],
-                rel_napi_ks['auth_host'],
-                rel_napi_ks['auth_port']
-            )
             expected['keystone_authtoken'] = {
                 'auth_uri': auth_uri,
                 'auth_url': auth_url,
@@ -474,8 +469,29 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
                 'password': rel_napi_ks['service_password'],
                 'signing_dir': '/var/cache/neutron',
             }
+        elif self._get_openstack_release() == self.trusty_kilo:
+            expected['keystone_authtoken'] = {
+                'auth_uri': auth_uri + '/',
+                'identity_uri': auth_url,
+                'admin_tenant_name': rel_napi_ks['service_tenant'],
+                'admin_user': 'neutron',
+                'admin_password': rel_napi_ks['service_password'],
+                'signing_dir': '/var/cache/neutron',
+            }
         else:
-            # Kilo or earlier
+            expected['keystone_authtoken'] = {
+                'admin_tenant_name': rel_napi_ks['service_tenant'],
+                'admin_user': 'neutron',
+                'admin_password': rel_napi_ks['service_password'],
+                'signing_dir': '/var/cache/neutron',
+                'service_protocol': rel_napi_ks['service_protocol'],
+                'service_host': rel_napi_ks['service_host'],
+                'service_port': rel_napi_ks['service_port'],
+                'auth_host': rel_napi_ks['auth_host'],
+                'auth_port': rel_napi_ks['auth_port'],
+                'auth_protocol': rel_napi_ks['auth_protocol']
+            }
+
             expected['DEFAULT'].update({
                 'nova_url': cc_relation['nova_url'],
                 'nova_region_name': 'RegionOne',
@@ -500,14 +516,6 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
                 'rabbit_virtual_host': 'openstack',
                 'rabbit_password': rabbitmq_relation['password'],
                 'rabbit_host': rabbitmq_relation['hostname']
-            })
-            expected['keystone_authtoken'].update({
-                'service_protocol': rel_napi_ks['service_protocol'],
-                'service_host': rel_napi_ks['service_host'],
-                'service_port': rel_napi_ks['service_port'],
-                'auth_host': rel_napi_ks['auth_host'],
-                'auth_port': rel_napi_ks['auth_port'],
-                'auth_protocol': rel_napi_ks['auth_protocol']
             })
 
         for section, pairs in expected.iteritems():

@@ -1,5 +1,6 @@
-from mock import patch
 import os
+
+from mock import patch
 
 os.environ['JUJU_UNIT_NAME'] = 'neutron-api'
 
@@ -8,9 +9,7 @@ with patch('charmhelpers.core.hookenv.config') as config:
     with patch('neutron_api_utils.register_configs') as register_configs:
         import openstack_upgrade
 
-from test_utils import (
-    CharmTestCase
-)
+from test_utils import CharmTestCase
 
 TO_PATCH = [
     'do_openstack_upgrade',

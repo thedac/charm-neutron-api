@@ -1,9 +1,10 @@
-
 from mock import MagicMock, patch, call
 from collections import OrderedDict
 from copy import deepcopy
+
 import charmhelpers.contrib.openstack.templating as templating
 import charmhelpers.contrib.openstack.utils
+import charmhelpers.core.hookenv as hookenv
 import neutron_api_context as ncontext
 
 templating.OSConfigRenderer = MagicMock()
@@ -16,8 +17,6 @@ from test_utils import (
     CharmTestCase,
     patch_open,
 )
-
-import charmhelpers.core.hookenv as hookenv
 
 
 TO_PATCH = [

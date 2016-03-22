@@ -1,8 +1,12 @@
 import json
-from test_utils import CharmTestCase
+
 from mock import patch
+
 import neutron_api_context as context
 import charmhelpers
+
+from test_utils import CharmTestCase
+
 TO_PATCH = [
     'config',
     'determine_api_port',

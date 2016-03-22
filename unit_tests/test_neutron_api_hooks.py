@@ -1,7 +1,13 @@
-from mock import MagicMock, patch, call
+import sys
+
 import yaml
+
+from mock import MagicMock, patch, call
 from test_utils import CharmTestCase
 
+# python-apt is not installed as part of test-requirements but is imported by
+# some charmhelpers modules so create a fake import.
+sys.modules['apt'] = MagicMock()
 
 with patch('charmhelpers.core.hookenv.config') as config:
     config.return_value = 'neutron'
@@ -13,8 +19,10 @@ _map = utils.restart_map
 utils.register_configs = MagicMock()
 utils.restart_map = MagicMock()
 
-import neutron_api_hooks as hooks
-hooks.hooks._config_save = False
+with patch('charmhelpers.contrib.hardening.harden.harden') as mock_dec:
+    mock_dec.side_effect = (lambda *dargs, **dkwargs: lambda f:
+                            lambda *args, **kwargs: f(*args, **kwargs))
+    import neutron_api_hooks as hooks
 
 hooks.hooks._config_save = False
 
@@ -125,7 +133,7 @@ class NeutronAPIHooksTests(CharmTestCase):
         _port_calls = [call(port) for port in _ports]
         self.determine_packages.return_value = _pkgs
         self.determine_ports.return_value = _ports
-        self._call_hook('install')
+        self._call_hook('install.real')
         self.configure_installation_source.assert_called_with(
             'distro'
         )
@@ -148,7 +156,7 @@ class NeutronAPIHooksTests(CharmTestCase):
         _port_calls = [call(port) for port in _ports]
         self.determine_packages.return_value = _pkgs
         self.determine_ports.return_value = _ports
-        self._call_hook('install')
+        self._call_hook('install.real')
         self.configure_installation_source.assert_called_with(
             'distro'
         )
@@ -184,7 +192,7 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.test_config.set('openstack-origin', repo)
         self.test_config.set('openstack-origin-git', projects_yaml)
         codename.return_value = 'juno'
-        self._call_hook('install')
+        self._call_hook('install.real')
         self.assertTrue(self.execd_preinstall.called)
         self.configure_installation_source.assert_called_with(repo)
         self.apt_update.assert_called_with(fatal=True)
