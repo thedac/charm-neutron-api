@@ -153,7 +153,8 @@ BASE_RESOURCE_MAP = OrderedDict([
                      context.ZeroMQContext(),
                      context.NotificationDriverContext(),
                      context.BindHostContext(),
-                     context.WorkerConfigContext()],
+                     context.WorkerConfigContext(),
+                     context.InternalEndpointContext()],
     }),
     (NEUTRON_DEFAULT, {
         'services': ['neutron-server'],
