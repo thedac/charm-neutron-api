@@ -425,7 +425,7 @@ def do_openstack_upgrade(configs):
     # set CONFIGS to load templates from new release
     configs.set_release(openstack_release=new_os_rel)
     # Before kilo it's nova-cloud-controllers job
-    if is_elected_leader(CLUSTER_RES) and new_os_rel >= 'kilo':
+    if is_elected_leader(CLUSTER_RES):
         stamp_neutron_database(cur_os_rel)
         migrate_neutron_database()
 
