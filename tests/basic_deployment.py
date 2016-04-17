@@ -456,7 +456,22 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
             rel_napi_ks['auth_port']
         )
 
-        if self._get_openstack_release() >= self.trusty_liberty:
+        if self._get_openstack_release() >= self.trusty_mitaka:
+            expected['nova'] = {
+                'auth_section': 'keystone_authtoken',
+            }
+            expected['keystone_authtoken'] = {
+                'auth_uri': auth_uri.rstrip('/'),
+                'auth_url': auth_url.rstrip('/'),
+                'auth_type': 'password',
+                'project_domain_name': 'default',
+                'user_domain_name': 'default',
+                'project_name': 'services',
+                'username': rel_napi_ks['service_username'],
+                'password': rel_napi_ks['service_password'],
+                'signing_dir': '/var/cache/neutron'
+            }
+        elif self._get_openstack_release() >= self.trusty_liberty:
             expected['nova'] = {
                 'auth_section': 'keystone_authtoken',
             }
