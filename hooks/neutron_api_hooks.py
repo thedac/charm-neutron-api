@@ -2,10 +2,8 @@
 
 import sys
 import uuid
-import os
 from subprocess import (
     check_call,
-    check_output,
 )
 
 from charmhelpers.core.hookenv import (
@@ -108,7 +106,6 @@ from charmhelpers.contrib.network.ip import (
 )
 
 from charmhelpers.contrib.openstack.context import ADDRESS_TYPES
-from charmhelpers.fetch.archiveurl import ArchiveUrlFetchHandler
 
 from charmhelpers.contrib.charmsupport import nrpe
 from charmhelpers.contrib.hardening.harden import harden
@@ -177,29 +174,6 @@ def install():
     packages = determine_packages(openstack_origin)
     apt_install(packages, fatal=True)
 
-    if neutron_plugin == 'vsp':
-        source = config('nuage-tarball-url')
-        if source is not None:
-            try:
-                handler = ArchiveUrlFetchHandler()
-                packages = ['nuage-neutron']
-                path = handler.install(source)
-                for package in packages:
-                    package_path = os.path.join(path, package)
-                    if os.path.exists(package_path):
-                        log('install {0} from: {1}'.format(package,
-                                                           package_path))
-                        check_output(
-                            [
-                                'bash', '-c',
-                                'cd {}; sudo python setup.py install'.format(
-                                    package_path)
-                            ]
-                        )
-            except Exception as e:
-                log('install failed with error: {}'.format(e.message))
-                raise Exception(e)
-
     status_set('maintenance', 'Git install')
     git_install(config('openstack-origin-git'))
 
@@ -234,8 +208,9 @@ def vsd_changed(relation_id=None, remote_unit=None):
             return
         vsd_address = '{}:8443'.format(vsd_ip_address)
         if os_release('neutron-server') >= 'kilo':
-            cms_id = relation_get('nuage-cms-id')
-            log("nuage-vsd-api-relation-changed : cms_id:{}".format(cms_id))
+            vsd_cms_id = relation_get('nuage-cms-id')
+            log("nuage-vsd-api-relation-changed : cms_id:{}"
+                .format(vsd_cms_id))
         nuage_config_file = neutron_plugin_attribute(config('neutron-plugin'),
                                                      'config', 'neutron')
         log('vsd-rest-api-relation-changed: ip address:{}'.format(vsd_address))
