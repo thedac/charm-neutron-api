@@ -426,7 +426,9 @@ def do_openstack_upgrade(configs):
     configs.set_release(openstack_release=new_os_rel)
     # Before kilo it's nova-cloud-controllers job
     if is_elected_leader(CLUSTER_RES):
-        stamp_neutron_database(cur_os_rel)
+        # Stamping seems broken and unnecessary in liberty (Bug #1536675)
+        if os_release('neutron-common') < 'liberty':
+            stamp_neutron_database(cur_os_rel)
         migrate_neutron_database()
 
 

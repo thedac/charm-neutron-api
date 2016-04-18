@@ -297,6 +297,25 @@ class TestNeutronAPIUtils(CharmTestCase):
     @patch.object(nutils, 'migrate_neutron_database')
     @patch.object(nutils, 'stamp_neutron_database')
     @patch.object(nutils, 'git_install_requested')
+    def test_do_openstack_upgrade_liberty(self, git_requested,
+                                          stamp_neutron_db, migrate_neutron_db,
+                                          gsrc):
+        git_requested.return_value = False
+        self.is_elected_leader.return_value = True
+        self.os_release.return_value = 'liberty'
+        self.config.side_effect = self.test_config.get
+        self.test_config.set('openstack-origin', 'cloud:trusty-mitaka')
+        gsrc.return_value = 'mitaka'
+        self.get_os_codename_install_source.return_value = 'mitaka'
+        configs = MagicMock()
+        nutils.do_openstack_upgrade(configs)
+        self.assertFalse(stamp_neutron_db.called)
+
+    @patch.object(charmhelpers.contrib.openstack.utils,
+                  'get_os_codename_install_source')
+    @patch.object(nutils, 'migrate_neutron_database')
+    @patch.object(nutils, 'stamp_neutron_database')
+    @patch.object(nutils, 'git_install_requested')
     def test_do_openstack_upgrade_notleader(self, git_requested,
                                             stamp_neutron_db,
                                             migrate_neutron_db,
