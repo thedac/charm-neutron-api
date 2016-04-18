@@ -238,6 +238,7 @@ class NeutronCCContext(context.NeutronContext):
             ctxt['vni_ranges'] = ','.join(vni_ranges.split())
 
         ctxt['enable_ml2_port_security'] = config('enable-ml2-port-security')
+        ctxt['enable_sriov'] = config('enable-sriov')
 
         return ctxt
 

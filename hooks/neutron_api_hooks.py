@@ -413,6 +413,7 @@ def neutron_api_relation_joined(rid=None):
     base_url = canonical_url(CONFIGS, INTERNAL)
     neutron_url = '%s:%s' % (base_url, api_port('neutron-server'))
     relation_data = {
+        'enable-sriov': config('enable-sriov'),
         'neutron-url': neutron_url,
         'neutron-plugin': config('neutron-plugin'),
     }

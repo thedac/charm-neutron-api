@@ -497,6 +497,7 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.is_relation_made = False
         neutron_url = '%s:%s' % (host, port)
         _relation_data = {
+            'enable-sriov': False,
             'neutron-plugin': 'ovs',
             'neutron-url': neutron_url,
             'neutron-security-groups': 'no',
@@ -527,6 +528,7 @@ class NeutronAPIHooksTests(CharmTestCase):
         self.is_relation_made = True
         neutron_url = '%s:%s' % (host, port)
         _relation_data = {
+            'enable-sriov': False,
             'neutron-plugin': 'ovs',
             'neutron-url': neutron_url,
             'neutron-security-groups': 'no',
