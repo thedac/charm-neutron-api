@@ -118,6 +118,10 @@ CONFIGS = register_configs()
 
 
 def conditional_neutron_migration():
+    if os_release('neutron-server') <= 'icehouse':
+        log('Not running neutron database migration as migrations are handled '
+            'by the neutron-server process.')
+        return
     if is_elected_leader(CLUSTER_RES):
         allowed_units = relation_get('allowed_units')
         if allowed_units and local_unit() in allowed_units.split():

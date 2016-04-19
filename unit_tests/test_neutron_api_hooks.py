@@ -863,10 +863,20 @@ class NeutronAPIHooksTests(CharmTestCase):
         })
         self.local_unit.return_value = 'neutron-api/1'
         self.is_elected_leader.return_value = True
-        self.os_release.return_value = 'icehouse'
+        self.os_release.return_value = 'kilo'
         hooks.conditional_neutron_migration()
         self.migrate_neutron_database.assert_called_with()
         self.service_restart.assert_called_with('neutron-server')
+
+    def test_conditional_neutron_migration_leader_icehouse(self):
+        self.test_relation.set({
+            'allowed_units': 'neutron-api/0 neutron-api/1 neutron-api/4',
+        })
+        self.local_unit.return_value = 'neutron-api/1'
+        self.is_elected_leader.return_value = True
+        self.os_release.return_value = 'icehouse'
+        hooks.conditional_neutron_migration()
+        self.assertFalse(self.migrate_neutron_database.called)
 
     def test_conditional_neutron_migration_notleader(self):
         self.is_elected_leader.return_value = False
