@@ -238,7 +238,7 @@ def additional_install_locations(plugin, source):
             # From Liberty onwards, we can point to a PPA that does not include
             # any patched OpenStack packages, and hence is independent of the
             # OpenStack release.
-            calico_source = 'ppa:project-calico/stable'
+            calico_source = 'ppa:project-calico/calico-1.4'
 
         add_source(calico_source)
 
