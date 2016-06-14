@@ -231,6 +231,12 @@ options:
       Number of floating IPs allowed per tenant. A negative value means
       unlimited.
   # HA configuration settings
+  dns-ha:
+    type: boolean
+    default: False
+    description: |
+        Use DNS HA with MAAS 2.0. Note if this is set do not set vip
+        settings below.
   vip:
     type: string
     default:
@@ -301,6 +307,30 @@ options:
       will create the following endpoint for neutron-api:
       .
       https://neutron-api.example.com:9696/
+  os-internal-hostname:
+    type: string
+    default:
+    description: |
+      The hostname or address of the internal endpoints created for neutron-api
+      in the keystone identity provider.
+      .
+      This value will be used for internal endpoints. For example, an
+      os-internal-hostname set to 'neutron-api.internal.example.com' with ssl
+      enabled will create a internal endpoint for neutron-api:
+      .
+      https://neutron-api.internal.example.com:9696/
+  os-admin-hostname:
+    type: string
+    default:
+    description: |
+      The hostname or address of the admin endpoints created for neutron-api
+      in the keystone identity provider.
+      .
+      This value will be used for admin endpoints. For example, an
+      os-admin-hostname set to 'neutron-api.admin.example.com' with ssl enabled
+      will create a internal endpoint for neutron-api:
+      .
+      https://neutron-api.admin.example.com:9696/
   ssl_cert:
     type: string
     default:

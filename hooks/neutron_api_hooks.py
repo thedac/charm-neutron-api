@@ -86,6 +86,10 @@ from charmhelpers.contrib.hahelpers.cluster import (
     is_elected_leader,
 )
 
+from charmhelpers.contrib.openstack.ha.utils import (
+    update_dns_ha_resource_params,
+)
+
 from charmhelpers.payload.execd import execd_preinstall
 
 from charmhelpers.contrib.openstack.ip import (
@@ -516,7 +520,7 @@ def cluster_changed():
 
 
 @hooks.hook('ha-relation-joined')
-def ha_joined():
+def ha_joined(relation_id=None):
     cluster_config = get_hacluster_config()
     resources = {
         'res_neutron_haproxy': 'lsb:haproxy',
@@ -524,34 +528,39 @@ def ha_joined():
     resource_params = {
         'res_neutron_haproxy': 'op monitor interval="5s"'
     }
-    vip_group = []
-    for vip in cluster_config['vip'].split():
-        if is_ipv6(vip):
-            res_neutron_vip = 'ocf:heartbeat:IPv6addr'
-            vip_params = 'ipv6addr'
-        else:
-            res_neutron_vip = 'ocf:heartbeat:IPaddr2'
-            vip_params = 'ip'
+    if config('dns-ha'):
+        update_dns_ha_resource_params(relation_id=relation_id,
+                                      resources=resources,
+                                      resource_params=resource_params)
+    else:
+        vip_group = []
+        for vip in cluster_config['vip'].split():
+            if is_ipv6(vip):
+                res_neutron_vip = 'ocf:heartbeat:IPv6addr'
+                vip_params = 'ipv6addr'
+            else:
+                res_neutron_vip = 'ocf:heartbeat:IPaddr2'
+                vip_params = 'ip'
 
-        iface = (get_iface_for_address(vip) or
-                 config('vip_iface'))
-        netmask = (get_netmask_for_address(vip) or
-                   config('vip_cidr'))
+            iface = (get_iface_for_address(vip) or
+                     config('vip_iface'))
+            netmask = (get_netmask_for_address(vip) or
+                       config('vip_cidr'))
 
-        if iface is not None:
-            vip_key = 'res_neutron_{}_vip'.format(iface)
-            resources[vip_key] = res_neutron_vip
-            resource_params[vip_key] = (
-                'params {ip}="{vip}" cidr_netmask="{netmask}" '
-                'nic="{iface}"'.format(ip=vip_params,
-                                       vip=vip,
-                                       iface=iface,
-                                       netmask=netmask)
-            )
-            vip_group.append(vip_key)
+            if iface is not None:
+                vip_key = 'res_neutron_{}_vip'.format(iface)
+                resources[vip_key] = res_neutron_vip
+                resource_params[vip_key] = (
+                    'params {ip}="{vip}" cidr_netmask="{netmask}" '
+                    'nic="{iface}"'.format(ip=vip_params,
+                                           vip=vip,
+                                           iface=iface,
+                                           netmask=netmask)
+                )
+                vip_group.append(vip_key)
 
-    if len(vip_group) >= 1:
-        relation_set(groups={'grp_neutron_vips': ' '.join(vip_group)})
+        if len(vip_group) >= 1:
+            relation_set(groups={'grp_neutron_vips': ' '.join(vip_group)})
 
     init_services = {
         'res_neutron_haproxy': 'haproxy'
@@ -559,7 +568,8 @@ def ha_joined():
     clones = {
         'cl_nova_haproxy': 'res_neutron_haproxy'
     }
-    relation_set(init_services=init_services,
+    relation_set(relation_id=relation_id,
+                 init_services=init_services,
                  corosync_bindiface=cluster_config['ha-bindiface'],
                  corosync_mcastport=cluster_config['ha-mcastport'],
                  resources=resources,
