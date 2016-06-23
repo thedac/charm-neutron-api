@@ -572,6 +572,11 @@ options:
     description: |
        Connect timeout configuration in ms for haproxy, used in HA
        configurations. If not provided, default value of 5000ms is used.
+  enable-sriov:
+    type: boolean
+    default: False
+    description: |
+       Enable SR-IOV networking support across Neutron and Nova.
   midonet-origin:
     default: midonet-2015.06
     type: string
