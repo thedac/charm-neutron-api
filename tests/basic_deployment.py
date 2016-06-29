@@ -572,13 +572,14 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
             }
         }
 
-        if self._get_openstack_release() >= self.trusty_kilo:
-            # Kilo or later
+        if (self._get_openstack_release() in
+           [self.trusty_liberty, self.wily_liberty]):
+            # Liberty
             expected['ml2'].update({
                 'mechanism_drivers': 'openvswitch,l2population'
             })
         else:
-            # Juno or earlier
+            # Earlier or later than Liberty
             expected['ml2'].update({
                 'mechanism_drivers': 'openvswitch,hyperv,l2population'
             })

@@ -126,7 +126,8 @@ class TestNeutronAPIUtils(CharmTestCase):
         self.get_os_codename_install_source.return_value = 'kilo'
         pkg_list = nutils.determine_packages()
         expect = deepcopy(nutils.BASE_PACKAGES)
-        expect.extend(['neutron-server', 'neutron-plugin-ml2'])
+        expect.extend(['neutron-server', 'neutron-plugin-ml2',
+                      'python-networking-hyperv'])
         expect.extend(nutils.KILO_PACKAGES)
         self.assertItemsEqual(pkg_list, expect)
 
