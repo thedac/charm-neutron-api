@@ -28,11 +28,12 @@ from charmhelpers.contrib.openstack.neutron import (
 from charmhelpers.contrib.openstack.utils import (
     os_release,
     get_os_codename_install_source,
-    git_install_requested,
     git_clone_and_install,
     git_default_repos,
-    git_src_dir,
+    git_generate_systemd_init_files,
+    git_install_requested,
     git_pip_venv_dir,
+    git_src_dir,
     git_yaml_value,
     configure_installation_source,
     incomplete_relation_data,
@@ -110,6 +111,7 @@ BASE_GIT_PACKAGES = [
     'libxml2-dev',
     'libxslt1-dev',
     'libyaml-dev',
+    'openstack-pkg-tools',
     'python-dev',
     'python-neutronclient',  # required for get_neutron_client() import
     'python-pip',
@@ -655,17 +657,29 @@ def git_post_install(projects_yaml):
            perms=0o440)
 
     bin_dir = os.path.join(git_pip_venv_dir(projects_yaml), 'bin')
-    neutron_api_context = {
-        'service_description': 'Neutron API server',
-        'charm_name': 'neutron-api',
-        'process_name': 'neutron-server',
-        'executable_name': os.path.join(bin_dir, 'neutron-server'),
-    }
+    # Use systemd init units/scripts from ubuntu wily onward
+    if lsb_release()['DISTRIB_RELEASE'] >= '15.10':
+        templates_dir = os.path.join(charm_dir(), 'templates/git')
+        daemon = 'neutron-server'
+        neutron_api_context = {
+            'daemon_path': os.path.join(bin_dir, daemon),
+        }
+        template_file = 'git/{}.init.in.template'.format(daemon)
+        init_in_file = '{}.init.in'.format(daemon)
+        render(template_file, os.path.join(templates_dir, init_in_file),
+               neutron_api_context, perms=0o644)
+        git_generate_systemd_init_files(templates_dir)
+    else:
+        neutron_api_context = {
+            'service_description': 'Neutron API server',
+            'charm_name': 'neutron-api',
+            'process_name': 'neutron-server',
+            'executable_name': os.path.join(bin_dir, 'neutron-server'),
+        }
 
-    # NOTE(coreycb): Needs systemd support
-    render('git/upstart/neutron-server.upstart',
-           '/etc/init/neutron-server.conf',
-           neutron_api_context, perms=0o644)
+        render('git/upstart/neutron-server.upstart',
+               '/etc/init/neutron-server.conf',
+               neutron_api_context, perms=0o644)
 
     if not is_unit_paused_set():
         service_restart('neutron-server')

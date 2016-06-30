@@ -42,10 +42,15 @@ TO_PATCH = [
     'config',
     'configure_installation_source',
     'get_os_codename_install_source',
+    'git_pip_venv_dir',
+    'git_src_dir',
     'log',
+    'lsb_release',
     'neutron_plugin_attribute',
     'os_release',
     'pip_install',
+    'render',
+    'service_restart',
     'subprocess',
     'is_elected_leader',
     'service_stop',
@@ -522,22 +527,18 @@ class TestNeutronAPIUtils(CharmTestCase):
         ]
         self.assertEquals(write_file.call_args_list, expected)
 
-    @patch.object(nutils, 'git_src_dir')
-    @patch.object(nutils, 'service_restart')
-    @patch.object(nutils, 'render')
-    @patch.object(nutils, 'git_pip_venv_dir')
     @patch('os.path.join')
     @patch('os.path.exists')
     @patch('os.symlink')
     @patch('shutil.copytree')
     @patch('shutil.rmtree')
     @patch('subprocess.check_call')
-    def test_git_post_install(self, check_call, rmtree, copytree, symlink,
-                              exists, join, venv, render, service_restart,
-                              git_src_dir):
+    def test_git_post_install_upstart(self, check_call, rmtree, copytree,
+                                      symlink, exists, join):
         projects_yaml = openstack_origin_git
         join.return_value = 'joined-string'
-        venv.return_value = '/mnt/openstack-git/venv'
+        self.git_pip_venv_dir.return_value = '/mnt/openstack-git/venv'
+        self.lsb_release.return_value = {'DISTRIB_RELEASE': '15.04'}
         nutils.git_post_install(projects_yaml)
         expected = [
             call('joined-string', '/etc/neutron'),
@@ -563,11 +564,33 @@ class TestNeutronAPIUtils(CharmTestCase):
                  '/etc/init/neutron-server.conf',
                  neutron_api_context, perms=0o644),
         ]
-        self.assertEquals(render.call_args_list, expected)
+        self.assertEquals(self.render.call_args_list, expected)
         expected = [
             call('neutron-server'),
         ]
-        self.assertEquals(service_restart.call_args_list, expected)
+        self.assertEquals(self.service_restart.call_args_list, expected)
+
+    @patch('os.listdir')
+    @patch('os.path.join')
+    @patch('os.path.exists')
+    @patch('os.symlink')
+    @patch('shutil.copytree')
+    @patch('shutil.rmtree')
+    @patch('subprocess.check_call')
+    def test_git_post_install_systemd(self, check_call, rmtree, copytree,
+                                      symlink, exists, join, listdir):
+        projects_yaml = openstack_origin_git
+        join.return_value = 'joined-string'
+        self.git_pip_venv_dir.return_value = '/mnt/openstack-git/venv'
+        self.lsb_release.return_value = {'DISTRIB_RELEASE': '15.10'}
+        nutils.git_post_install(projects_yaml)
+        expected = [
+            call('git/neutron_sudoers', '/etc/sudoers.d/neutron_sudoers',
+                 {}, perms=288),
+            call('git/neutron-server.init.in.template', 'joined-string',
+                 {'daemon_path': 'joined-string'}, perms=420)
+        ]
+        self.assertEquals(self.render.call_args_list, expected)
 
     def test_stamp_neutron_database(self):
         nutils.stamp_neutron_database('icehouse')
