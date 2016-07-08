@@ -339,7 +339,8 @@ class NeutronCCContextTest(CharmTestCase):
             'quota_vip': 10,
             'vlan_ranges': 'physnet1:1000:2000',
             'vni_ranges': '1001:2000',
-            'enable_ml2_port_security': True
+            'enable_ml2_port_security': True,
+            'enable_hyperv': False
         }
         napi_ctxt = context.NeutronCCContext()
         with patch.object(napi_ctxt, '_ensure_packages'):
@@ -378,7 +379,8 @@ class NeutronCCContextTest(CharmTestCase):
             'vlan_ranges': 'physnet1:1000:2000',
             'vni_ranges': '1001:2000,3001:4000',
             'network_providers': 'physnet2,physnet3',
-            'enable_ml2_port_security': True
+            'enable_ml2_port_security': True,
+            'enable_hyperv': False
         }
         napi_ctxt = context.NeutronCCContext()
         with patch.object(napi_ctxt, '_ensure_packages'):
@@ -420,7 +422,8 @@ class NeutronCCContextTest(CharmTestCase):
             'quota_vip': 10,
             'vlan_ranges': 'physnet1:1000:2000',
             'vni_ranges': '1001:2000',
-            'enable_ml2_port_security': True
+            'enable_ml2_port_security': True,
+            'enable_hyperv': False
         }
         napi_ctxt = context.NeutronCCContext()
         with patch.object(napi_ctxt, '_ensure_packages'):
@@ -456,7 +459,8 @@ class NeutronCCContextTest(CharmTestCase):
             'quota_vip': 10,
             'vlan_ranges': 'physnet1:1000:2000',
             'vni_ranges': '1001:2000',
-            'enable_ml2_port_security': True
+            'enable_ml2_port_security': True,
+            'enable_hyperv': False
         }
         napi_ctxt = context.NeutronCCContext()
         with patch.object(napi_ctxt, '_ensure_packages'):

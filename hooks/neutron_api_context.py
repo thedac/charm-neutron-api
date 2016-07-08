@@ -197,6 +197,7 @@ class NeutronCCContext(context.NeutronContext):
         ctxt['dhcp_agents_per_network'] = config('dhcp-agents-per-network')
         ctxt['overlay_network_type'] = self.neutron_overlay_network_type
         ctxt['external_network'] = config('neutron-external-network')
+        release = os_release('neutron-server')
         if config('neutron-plugin') in ['vsp']:
             _config = config()
             for k, v in _config.iteritems():
@@ -206,7 +207,7 @@ class NeutronCCContext(context.NeutronContext):
                 for unit in related_units(rid):
                     rdata = relation_get(rid=rid, unit=unit)
                     vsd_ip = rdata.get('vsd-ip-address')
-                    if os_release('neutron-server') >= 'kilo':
+                    if release >= 'kilo':
                         cms_id_value = rdata.get('nuage-cms-id')
                         log('relation data:cms_id required for'
                             ' nuage plugin: {}'.format(cms_id_value))
@@ -253,6 +254,11 @@ class NeutronCCContext(context.NeutronContext):
 
         ctxt['enable_ml2_port_security'] = config('enable-ml2-port-security')
         ctxt['enable_sriov'] = config('enable-sriov')
+
+        if release == 'kilo' or release >= 'mitaka':
+            ctxt['enable_hyperv'] = True
+        else:
+            ctxt['enable_hyperv'] = False
 
         return ctxt
 

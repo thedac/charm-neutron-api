@@ -301,8 +301,13 @@ def determine_packages(source=None):
                                             'neutron')
             packages.extend(pkgs)
 
-    if get_os_codename_install_source(source) >= 'kilo':
+    release = get_os_codename_install_source(source)
+
+    if release >= 'kilo':
         packages.extend(KILO_PACKAGES)
+
+    if release == 'kilo' or release >= 'mitaka':
+        packages.append('python-networking-hyperv')
 
     if config('neutron-plugin') == 'vsp':
         nuage_pkgs = config('nuage-packages').split()
@@ -315,7 +320,7 @@ def determine_packages(source=None):
         for p in GIT_PACKAGE_BLACKLIST:
             if p in packages:
                 packages.remove(p)
-        if get_os_codename_install_source(source) >= 'kilo':
+        if release >= 'kilo':
             for p in GIT_PACKAGE_BLACKLIST_KILO:
                 packages.remove(p)
 
