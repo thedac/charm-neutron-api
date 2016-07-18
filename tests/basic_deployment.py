@@ -177,14 +177,14 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
     def _initialize_tests(self):
         """Perform final initialization before tests get run."""
         # Access the sentries for inspecting service units
-        self.mysql_sentry = self.d.sentry.unit['mysql/0']
-        self.keystone_sentry = self.d.sentry.unit['keystone/0']
-        self.rabbitmq_sentry = self.d.sentry.unit['rabbitmq-server/0']
-        self.nova_cc_sentry = self.d.sentry.unit['nova-cloud-controller/0']
-        self.neutron_gw_sentry = self.d.sentry.unit['neutron-gateway/0']
-        self.neutron_api_sentry = self.d.sentry.unit['neutron-api/0']
-        self.neutron_ovs_sentry = self.d.sentry.unit['neutron-openvswitch/0']
-        self.nova_compute_sentry = self.d.sentry.unit['nova-compute/0']
+        self.mysql_sentry = self.d.sentry['mysql'][0]
+        self.keystone_sentry = self.d.sentry['keystone'][0]
+        self.rabbitmq_sentry = self.d.sentry['rabbitmq-server'][0]
+        self.nova_cc_sentry = self.d.sentry['nova-cloud-controller'][0]
+        self.neutron_gw_sentry = self.d.sentry['neutron-gateway'][0]
+        self.neutron_api_sentry = self.d.sentry['neutron-api'][0]
+        self.neutron_ovs_sentry = self.d.sentry['neutron-openvswitch'][0]
+        self.nova_compute_sentry = self.d.sentry['nova-compute'][0]
 
         u.log.debug('openstack release val: {}'.format(
             self._get_openstack_release()))
