@@ -50,12 +50,14 @@ options:
         * mitaka
         * master
 
-      The YAML must minimally include requirements, neutron-fwaas,
-      neutron-lbaas, neutron-vpnaas, and neutron repositories, and may
+      The YAML must minimally include the following repositories, and may
       also include repositories for other dependencies:
         repositories:
         - {name: requirements,
            repository: 'git://github.com/openstack/requirements',
+           branch: master}
+        - {name: networking-hyperv,
+           repository: 'git://github.com/openstack/networking-hyperv',
            branch: master}
         - {name: neutron-fwaas,
            repository: 'git://github.com/openstack/neutron-fwaas',
