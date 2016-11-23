@@ -226,7 +226,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
                                 'neutron-metadata-agent',
                                 'neutron-plugin-openvswitch-agent']
 
-        if self._get_openstack_release() <= self.trusty_juno:
+        if self._get_openstack_release() <= self.trusty_icehouse:
             neutron_services.append('neutron-vpn-agent')
 
         if self._get_openstack_release() < self.trusty_kilo:
@@ -602,8 +602,7 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
             }
         }
 
-        if (self._get_openstack_release() in
-           [self.trusty_liberty, self.wily_liberty]):
+        if self._get_openstack_release() == self.trusty_liberty:
             # Liberty
             expected['ml2'].update({
                 'mechanism_drivers': 'openvswitch,l2population'

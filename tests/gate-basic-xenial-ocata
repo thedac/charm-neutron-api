@@ -14,12 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Amulet tests on a basic neutron-api deployment on trusty-kilo."""
+"""Amulet tests on a basic neutron-api deployment on xenial-ocata."""
 
 from basic_deployment import NeutronAPIBasicDeployment
 
 if __name__ == '__main__':
-    deployment = NeutronAPIBasicDeployment(series='trusty',
-                                           openstack='cloud:trusty-kilo',
-                                           source='cloud:trusty-updates/kilo')
+    deployment = NeutronAPIBasicDeployment(series='xenial',
+                                           openstack='cloud:xenial-ocata',
+                                           source='cloud:xenial-updates/ocata')
     deployment.run_tests()
