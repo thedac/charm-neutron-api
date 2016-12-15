@@ -450,6 +450,22 @@ options:
     default:
     description: |
       This is uuid of the default NSX L3 Gateway Service.
+  nsx-plugin:
+    type: string
+    default: NsxPlugin
+    description: |
+      There are currenlty four options for NSX plugins.
+       NsxDvsPlugin provides simple support for distributed switches
+       NsxPlugin provides support for multi-hypervisors
+       NsxVPlugin plugin for vSphere
+       NsxV3Plugin provides support for multi-hypervisors
+      https://wiki.openstack.org/wiki/Neutron/VMware_NSX_plugins
+      Used with >= Mitaka
+  nsx-dvs-id:
+    type: string
+    default:
+    description: |
+        For use with the NsxDVSPlugin. The DVS ID
   # end of NSX configuration
   nagios_context:
     default: "juju"

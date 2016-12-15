@@ -251,6 +251,8 @@ def neutron_plugins():
         plugins['nsx']['server_packages'].remove('neutron-plugin-vmware')
         plugins['nsx']['server_packages'].append('python-vmware-nsx')
         plugins['nsx']['config'] = '/etc/neutron/nsx.ini'
+        plugins['nsx']['driver'] = (
+            'vmware_nsx.plugin.{}'.format(config('nsx-plugin')))
         plugins['vsp']['driver'] = (
             'nuage_neutron.plugins.nuage.plugin.NuagePlugin')
     return plugins
