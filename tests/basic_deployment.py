@@ -104,6 +104,8 @@ class NeutronAPIBasicDeployment(OpenStackAmuletDeployment):
             'glance:amqp': 'rabbitmq-server:amqp',
             'nova-compute:image-service': 'glance:image-service',
             'nova-cloud-controller:image-service': 'glance:image-service',
+            'nova-cloud-controller:quantum-network-service':
+            'neutron-gateway:quantum-network-service',
         }
 
         # NOTE(beisner): relate this separately due to the resulting
